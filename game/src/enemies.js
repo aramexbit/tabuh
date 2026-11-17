@@ -4,6 +4,8 @@
 // assets — with its own silhouette, motion (float / hop / shamble), and HP bar.
 import { ENEMIES, enemyHp, enemySpeed } from './config.js';
 
+let nextId = 1;
+
 // ---- Tower-hunting AI (v2.7) ----
 // Ghosts no longer walk the stone path. Each ghost hunts a tower: it picks
 // a target (nearest, with a penalty per ghost already hunting it so the pack

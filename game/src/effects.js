@@ -19,8 +19,8 @@ export class Effects {
     }
   }
 
-  ring(x, y, maxR, color) {
-    this.rings.push({ x, y, r: 8, maxR, color, life: 0.5 });
+  ring(x, y, maxR, color, life = 0.5) {
+    this.rings.push({ x, y, r: 8, maxR, color, life });
   }
 
   text(x, y, str, color = '#ffd76a', size = 16) {

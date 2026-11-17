@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 
 const CHROME = process.env.CHROME_PATH || (require('os').homedir() + '/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome');
-const BASE = 'http://localhost:8084';
+const BASE = 'http://localhost:8094';
 const OUT = path.join(__dirname, '..', 'screenshots');
 const SHOTS = [
   { name: '1-menu.jpg', shot: 'menu' },
@@ -20,8 +20,22 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
-  const server = spawn('python3', ['-m', 'http.server', '8084'], { cwd: path.join(__dirname, '..', 'game'), stdio: 'ignore' });
+  const server = spawn('python3', ['-m', 'http.server', '8094'], { cwd: path.join(__dirname, '..', 'game'), stdio: 'ignore' });
   await sleep(1500);
+  // Pre-flight: confirm OUR server answered (port 8084 was once occupied by an
+  // unrelated JSON service, which silently produced a blank "screenshot").
+  const ok = await new Promise((resolve) => {
+    require('http').get(BASE + '/', (res) => {
+      let body = '';
+      res.on('data', (c) => { body += c; });
+      res.on('end', () => resolve(res.statusCode === 200 && body.includes('TABUH')));
+    }).on('error', () => resolve(false));
+  });
+  if (!ok) {
+    console.error('PREFLIGHT FAIL: server on 8094 did not serve the TABUH page — aborting, no screenshots taken');
+    server.kill();
+    process.exit(2);
+  }
   const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
   const errors = [];
   try {

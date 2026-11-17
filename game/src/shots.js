@@ -1,7 +1,7 @@
 // Screenshot poses (?shot=menu|play|big|win). Each pose drives the real game
 // (real towers, real waves, real stats) and sets game.shotReady when the frame
 // is ready to capture. Nothing here hardcodes a screenshot's numbers.
-import { TOWERS } from './config.js';
+import { TOTAL_WAVES } from './config.js';
 
 function giveCoins(game, n) {
   game.coins = n;
@@ -31,21 +31,25 @@ export function applyShot(game) {
     game.wave = 3;
     game.startWave();
   } else if (shot === 'big') {
+    // Gong on the central pad so its shockwave lands mid-frame.
     giveCoins(game, 900);
-    game.buildTower('gong', 0);
+    game.buildTower('gong', 4);
     game.buildTower('kenong', 2);
     game.buildTower('bonang', 3);
-    game.buildTower('saron', 4);
+    game.buildTower('saron', 1);
     game.wave = 7;
     game.startWave();
   } else if (shot === 'win') {
+    // Endgame push: waves 9 + 10 with maxed towers, 4x speed. The pose plays
+    // the rhythm for real (auto-tabuh on every beat, see game.js), so the
+    // victory screen shows genuine accuracy/combo stats, not zeros.
     giveCoins(game, 3000);
     buildMaxed(game, 'gong', 0);
     buildMaxed(game, 'kenong', 2);
     buildMaxed(game, 'bonang', 3);
     buildMaxed(game, 'saron', 4);
     buildMaxed(game, 'kendang', 5);
-    game.wave = 10;
+    game.wave = 9;
     game.timeScale = 4;
     game.startWave();
   }
@@ -57,8 +61,14 @@ export function checkShot(game) {
   if (game.shot === 'play') {
     if (game.enemies.length >= 5 && game.projectiles.length >= 2) game.shotReady = true;
   } else if (game.shot === 'big') {
-    if ((game.stats.gongHits || 0) > 0 && game.enemies.length >= 4) game.shotReady = true;
+    // Capture the gong at its best: a shockwave that caught at least 2
+    // spirits, with plenty of action still on the field.
+    if ((game.stats.lastGongHits || 0) >= 2 && game.enemies.length >= 5) game.shotReady = true;
   } else if (game.shot === 'win') {
+    // Auto-advance: start the next wave when the build phase opens.
+    if (game.state === 'playing' && game.phase === 'build' && game.wave <= TOTAL_WAVES) {
+      game.startWave();
+    }
     if (game.state === 'victory') game.shotReady = true;
   }
   // Safety: never wait forever — a pose that cannot complete still yields a

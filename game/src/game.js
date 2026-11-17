@@ -185,9 +185,11 @@ export class Game {
     }
     this.effects.bolt(640, 360);
     this.effects.text(640, 300, 'GONG RAKSASA!', '#ffd76a', 44);
-    // 200 damage + 2-beat stun to every spirit on screen.
+    // Damage scales with the wave (110-200) + 2-beat stun to every spirit
+    // on screen. Strong late, but no longer a free wave-clear early.
+    const dmg = 100 + 10 * this.wave;
     for (const e of alive) {
-      this.damageEnemy(e, 200, 'gong');
+      this.damageEnemy(e, dmg, 'gong');
       e.stunUntil = this.time + 2 * this.beatDur;
     }
     return true;

@@ -234,8 +234,14 @@ export function checkShot(game) {
     // (condition never held 1 s, pose never fired, 31/32) but wave 8/9
     // hold fine (the big pose proved it: centre>=3 held 1 s at READY).
     // Auto-advance 8 -> 9 if the wave clears without a good frame.
-    const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 5 && game.stats.kills >= 20;
-    const playOk = (afterBanner && spread && bottomFight) || fallback;
+    // v2.11 (reviewer #10 follow-up): ALSO require >=10 live enemies —
+    // the v2.11 play frame fired at kills 32 with only 5 ghosts left
+    // (wave 8 86% cleared, field thin and empty), while the v2.10 frame
+    // fired at kills 22 with 16 left and read busy. If the field thins
+    // below 10 before the pose fires, let the wave clear and take the
+    // (proven busy) wave-9 field instead.
+    const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 10 && game.stats.kills >= 20;
+    const playOk = (afterBanner && spread && bottomFight) || (fallback && game.enemies.length >= 10);
     if (holdReady(game, playOk)) {
       game.shotReady = true;
     } else if (game.phase === 'build' && game.state === 'playing' && game.wave < 9) {

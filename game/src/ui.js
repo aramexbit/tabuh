@@ -168,8 +168,10 @@ export class UI {
       '    koin, Pocong membungkus menara, Genderuwo & Buto menghantamnya.',
       '    Menara rusak: perbaiki di panelnya; bila hancur, bangun ulang',
       '    (50% biaya kembali). Koin didapat dari TABUH dan kill.',
-      '7. Pocong kebal lambat Kendang; Kuntilanak kebal sebagian dari Saron.',
-      '8. Gerbang rusak? Klik Perbaiki di atas (◆100, +5 HP) selama bermain.',
+      '7. Daya tahan ikut harga (Gong terkuat, Saron terrapuh) — tidak ada',
+      '    menara yang kebal; boss bisa menghancurkan gong sekalipun.',
+      '8. Pocong kebal lambat Kendang; Kuntilanak kebal sebagian dari Saron.',
+      '9. Gerbang rusak? Klik Perbaiki di atas (◆100, +5 HP) selama bermain.',
       '',
       'Instrumen:',
       '  Saron (50) — cepat, satu sasaran.   Kendang (70) — melambatkan roh.',
@@ -178,10 +180,10 @@ export class UI {
       '',
       'Kontrol: 1–5 pilih instrumen • Spasi tabuh • P jeda • M bisu • R ulang',
     ];
-    let y = 142;
+    let y = 140;
     for (const ln of lines) {
       ctx.fillText(ln, W / 2 - 310, y);
-      y += 22;
+      y += 21;
     }
     this.button(ctx, 'back-menu', W / 2 - 110, 612, 220, 48, 'Kembali', { size: 18 });
     ctx.textBaseline = 'alphabetic';

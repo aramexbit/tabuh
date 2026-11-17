@@ -74,6 +74,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         state: window.__game.state,
         wave: window.__game.wave,
         kills: window.__game.stats.kills,
+        score: window.__game.score,
         coins: window.__game.stats.coinsEarned,
         acc: window.__game.stats.beatPresses,
       }));

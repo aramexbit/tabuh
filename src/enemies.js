@@ -16,7 +16,12 @@ let nextId = 1;
 // Powers are unchanged — only movement + targeting moved.
 const GATE_POS = { x: 150, y: 648 };
 const ATTACK_RANGE = { wisik: 80, kunang: 80, bayang: 90, slira: 100, raksasa: 110, raja: 120, emas: 0 };
-const HUNTER_PENALTY = 140; // px-equivalent per ghost already hunting a tower
+const HUNTER_PENALTY = 260; // px-equivalent per ghost already hunting a tower
+// March speed: far from its target a ghost hurries across the field
+// (1.5x beyond 350 px), then slows to combat speed to fight. Without it
+// the pack never reaches the far pads alive — the towers shred it on the
+// long walk, so the lower half stays empty (v2.7 probe: play/big poses
+// never saw 2 ghosts below y=360).
 
 function huntersOn(game, tower, self) {
   let n = 0;
@@ -170,7 +175,9 @@ export function updateEnemy(game, e, dt) {
     return;
   }
   e.inRange = false;
-  const step = speed * dt;
+  // March speed while far from the target (see HUNTER_PENALTY note above).
+  const march = d > 350 ? 1.5 : 1;
+  const step = speed * march * dt;
   e.x += (dx / d) * step;
   e.y += (dy / d) * step;
   e.angle = Math.atan2(dy, dx);

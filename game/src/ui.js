@@ -16,6 +16,11 @@ function rr(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+// Thousands separator with dots (Indonesian style): 61250 -> "61.250".
+function fmtNum(n) {
+  return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
 export class UI {
   constructor(game) {
     this.game = game;
@@ -207,31 +212,34 @@ export class UI {
     ctx.fillText(`Roh tersisa: ${g.phase === 'build' ? '—' : left}`, 170, 24);
     ctx.fillStyle = '#ffd76a';
     ctx.font = 'bold 19px sans-serif';
-    ctx.fillText(`◆ ${g.coins}`, 340, 24);
+    ctx.fillText(`◆ ${g.coins}`, 335, 24);
+    // Score: big gold number beside the coins, always visible.
+    ctx.fillStyle = '#ffd76a';
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillText(`SKOR ${fmtNum(g.score)}`, 440, 24);
     // Gate HP.
     ctx.fillStyle = '#cfe8dd';
     ctx.font = '16px sans-serif';
-    ctx.fillText('Gerbang', 470, 24);
+    ctx.fillText('Gerbang', 600, 24);
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(545, 14, 110, 18);
+    ctx.fillRect(675, 14, 90, 18);
     ctx.fillStyle = g.gateHp > 10 ? '#7fe3a8' : g.gateHp > 5 ? '#ffd76a' : '#ff7a6a';
-    ctx.fillRect(545, 14, 110 * Math.max(0, g.gateHp / g.gateMaxHp), 18);
+    ctx.fillRect(675, 14, 90 * Math.max(0, g.gateHp / g.gateMaxHp), 18);
     ctx.strokeStyle = '#e8b64c';
     ctx.lineWidth = 1;
-    ctx.strokeRect(545, 14, 110, 18);
+    ctx.strokeRect(675, 14, 90, 18);
     ctx.fillStyle = '#ffe9a8';
     ctx.font = 'bold 14px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`${g.gateHp}/${g.gateMaxHp}`, 600, 24);
+    ctx.fillText(`${g.gateHp}/${g.gateMaxHp}`, 720, 24);
     ctx.textAlign = 'left';
     if (g.gateHp < g.gateMaxHp) {
       const rc = g.repairCost();
-      this.button(ctx, 'repair', 665, 12, 88, 20, `Perbaiki ◆${rc}`, { disabled: g.coins < rc, size: 12 });
+      this.button(ctx, 'repair', 775, 12, 88, 20, `Perbaiki ◆${rc}`, { disabled: g.coins < rc, size: 12 });
     }
     ctx.textAlign = 'right';
     ctx.fillStyle = '#9db8e8';
     ctx.font = '15px sans-serif';
-    ctx.fillText(`Roh dikalahkan: ${g.stats.kills}`, 900, 24);
     ctx.fillText(`Kombo x${g.comboMult().toFixed(2)}`, 1058, 24);
     // Combo grade letter (S/A/B/C), colored, beside the multiplier.
     const grade = g.comboGrade();
@@ -480,7 +488,7 @@ export class UI {
       raja: 'Hantaman: -45 daya tahan',
     };
     const x = 12, y = 260, w = 200;
-    const h = 36 + rows.length * 30 + 50;
+    const h = 36 + rows.length * 30 + 68;
     this.panel(ctx, x, y, w, h, 1);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -516,13 +524,16 @@ export class UI {
     // Wave progress bar.
     const prog = g.waveTotal > 0 && g.phase === 'wave'
       ? Math.min(1, (g.stats.kills - g.waveStartKills) / g.waveTotal) : 0;
+    ctx.fillStyle = '#ffe9a8';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillText(`Roh dikalahkan: ${g.stats.kills}`, x + 14, ry + 12);
     ctx.fillStyle = '#cfe8dd';
     ctx.font = '13px sans-serif';
-    ctx.fillText(g.endless ? `Malam ${g.wave} ∞` : `Malam ${g.wave}/${TOTAL_WAVES}`, x + 14, ry + 12);
+    ctx.fillText(g.endless ? `Malam ${g.wave} ∞` : `Malam ${g.wave}/${TOTAL_WAVES}`, x + 14, ry + 30);
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(x + 14, ry + 22, w - 28, 8);
+    ctx.fillRect(x + 14, ry + 40, w - 28, 8);
     ctx.fillStyle = '#7fe3a8';
-    ctx.fillRect(x + 14, ry + 22, (w - 28) * prog, 8);
+    ctx.fillRect(x + 14, ry + 40, (w - 28) * prog, 8);
     ctx.textBaseline = 'middle';
   }
 
@@ -756,6 +767,7 @@ export class UI {
       `Malam diselesaikan: ${won ? TOTAL_WAVES : g.wave - 1}${g.endless ? ' (Endless)' : ` / ${TOTAL_WAVES}`}`,
       `Roh dikalahkan: ${s.kills}`,
       `Koin didapat: ${s.coinsEarned}`,
+      `Skor: ${fmtNum(g.score)}`,
       `Akurasi ketuk: ${acc}%  (Perfect ${s.perfectHits} • Good ${s.goodHits} • Meleset ${s.misses})`,
       `Kombo tertinggi: ${s.maxCombo}`,
       `Waktu: ${Math.floor(s.timeSec / 60)}:${String(Math.floor(s.timeSec % 60)).padStart(2, '0')}`,

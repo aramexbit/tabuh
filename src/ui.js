@@ -621,54 +621,6 @@ export class UI {
     ctx.textAlign = 'left';
   }
 
-  drawRelicGlyph(ctx, key, x, y, color) {
-    ctx.strokeStyle = color;
-    ctx.fillStyle = color;
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    if (key === 'keris') {
-      ctx.beginPath();
-      ctx.moveTo(x - 9, y + 9);
-      ctx.quadraticCurveTo(x - 2, y + 2, x + 2, y - 2);
-      ctx.quadraticCurveTo(x + 6, y - 6, x + 10, y - 10);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(x - 11, y + 5);
-      ctx.lineTo(x - 5, y + 11);
-      ctx.stroke();
-    } else if (key === 'gong') {
-      ctx.beginPath();
-      ctx.arc(x, y, 8, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(x, y, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (key === 'kendi') {
-      ctx.beginPath();
-      ctx.ellipse(x, y + 2, 7, 8, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(x - 3, y - 5);
-      ctx.lineTo(x + 3, y - 5);
-      ctx.lineTo(x + 2, y - 10);
-      ctx.lineTo(x - 2, y - 10);
-      ctx.closePath();
-      ctx.stroke();
-    } else {
-      // Jimat: diamond amulet.
-      ctx.beginPath();
-      ctx.moveTo(x, y - 10);
-      ctx.lineTo(x + 7, y);
-      ctx.lineTo(x, y + 10);
-      ctx.lineTo(x - 7, y);
-      ctx.closePath();
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(x, y, 2, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
   drawPadPanel(ctx) {
     const g = this.game;
     // Flip the panel to the left when the selected pad is on the right half,

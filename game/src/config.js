@@ -47,24 +47,24 @@ export const UPGRADES = {
 // Spirits: hantu Indonesia. hp scales with the wave.
 export const ENEMIES = {
   wisik: {
-    name: 'Kuntilanak', hp: 20, speed: 55, reward: 4, gateDmg: 1, radius: 13,
+    name: 'Kuntilanak', hp: 20, speed: 55, reward: 3, gateDmg: 1, radius: 13,
     color: '#c8f7c5', desc: 'Kuntilanak — melayang cepat, gaun putih.',
   },
   kunang: {
-    name: 'Tuyul', hp: 12, speed: 86, reward: 3, gateDmg: 1, radius: 10,
+    name: 'Tuyul', hp: 12, speed: 86, reward: 2, gateDmg: 1, radius: 10,
     color: '#b8e986', desc: 'Tuyul — bocah kecil, lari cepat bergerombol.',
   },
   bayang: {
-    name: 'Pocong', hp: 46, speed: 40, reward: 7, gateDmg: 1, radius: 16,
+    name: 'Pocong', hp: 46, speed: 40, reward: 5, gateDmg: 1, radius: 16,
     color: '#f5f2e8', desc: 'Pocong — melompat dengan kain kafan.',
   },
   slira: {
-    name: 'Genderuwo', hp: 92, speed: 30, reward: 12, gateDmg: 2, radius: 19,
+    name: 'Genderuwo', hp: 92, speed: 30, reward: 9, gateDmg: 2, radius: 19,
     color: '#8a7a6a', desc: 'Genderuwo — besar berbulu, kebal lambat.',
     slowResist: true,
   },
   raksasa: {
-    name: 'Buto Ijo', hp: 260, speed: 20, reward: 25, gateDmg: 3, radius: 26,
+    name: 'Buto Ijo', hp: 260, speed: 20, reward: 20, gateDmg: 3, radius: 26,
     color: '#69b34c', desc: 'Buto Ijo — raksasa hijau bertaring.',
   },
 };
@@ -77,22 +77,22 @@ export const WAVES = [
   { groups: [{ type: 'bayang', count: 6, interval: 1.4, delay: 0 }, { type: 'wisik', count: 10, interval: 0.8, delay: 2 }, { type: 'kunang', count: 6, interval: 0.5, delay: 8 }] },
   { groups: [{ type: 'slira', count: 2, interval: 3.0, delay: 0 }, { type: 'bayang', count: 8, interval: 1.2, delay: 2 }, { type: 'kunang', count: 10, interval: 0.5, delay: 6 }] },
   { groups: [{ type: 'slira', count: 4, interval: 2.6, delay: 0 }, { type: 'bayang', count: 10, interval: 1.1, delay: 2 }, { type: 'wisik', count: 12, interval: 0.7, delay: 6 }] },
-  { groups: [{ type: 'raksasa', count: 1, interval: 1, delay: 0 }, { type: 'slira', count: 4, interval: 2.4, delay: 3 }, { type: 'bayang', count: 10, interval: 1.0, delay: 5 }, { type: 'kunang', count: 12, interval: 0.45, delay: 8 }] },
-  { groups: [{ type: 'raksasa', count: 2, interval: 6.0, delay: 0 }, { type: 'slira', count: 6, interval: 2.2, delay: 2 }, { type: 'bayang', count: 12, interval: 0.9, delay: 4 }, { type: 'kunang', count: 14, interval: 0.4, delay: 8 }] },
-  { groups: [{ type: 'raksasa', count: 4, interval: 5.0, delay: 0 }, { type: 'slira', count: 8, interval: 2.0, delay: 2 }, { type: 'bayang', count: 12, interval: 0.9, delay: 4 }, { type: 'wisik', count: 16, interval: 0.6, delay: 8 }] },
-  { groups: [{ type: 'raksasa', count: 6, interval: 4.0, delay: 0 }, { type: 'slira', count: 12, interval: 1.8, delay: 2 }, { type: 'bayang', count: 14, interval: 0.8, delay: 4 }, { type: 'kunang', count: 16, interval: 0.4, delay: 8 }] },
+  { groups: [{ type: 'raksasa', count: 1, interval: 1, delay: 0 }, { type: 'slira', count: 6, interval: 2.4, delay: 3 }, { type: 'bayang', count: 10, interval: 1.0, delay: 5 }, { type: 'kunang', count: 12, interval: 0.45, delay: 8 }] },
+  { groups: [{ type: 'raksasa', count: 3, interval: 6.0, delay: 0 }, { type: 'slira', count: 8, interval: 2.2, delay: 2 }, { type: 'bayang', count: 12, interval: 0.9, delay: 4 }, { type: 'kunang', count: 14, interval: 0.4, delay: 8 }] },
+  { groups: [{ type: 'raksasa', count: 5, interval: 5.0, delay: 0 }, { type: 'slira', count: 10, interval: 2.0, delay: 2 }, { type: 'bayang', count: 12, interval: 0.9, delay: 4 }, { type: 'wisik', count: 16, interval: 0.6, delay: 8 }] },
+  { groups: [{ type: 'raksasa', count: 7, interval: 4.0, delay: 0 }, { type: 'slira', count: 14, interval: 1.8, delay: 2 }, { type: 'bayang', count: 16, interval: 0.8, delay: 4 }, { type: 'kunang', count: 16, interval: 0.4, delay: 8 }] },
 ];
 
 export function enemyHp(type, wave) {
-  // Late waves scale harder (+18%/wave) so a maxed board without the rhythm
+  // Late waves scale hard (+28%/wave) so a maxed board without the rhythm
   // combo cannot hold the gate — TABUH has to matter.
-  return Math.round(ENEMIES[type].hp * (1 + 0.18 * (wave - 1)));
+  return Math.round(ENEMIES[type].hp * (1 + 0.28 * (wave - 1)));
 }
 
 export function enemySpeed(type, wave) {
-  return ENEMIES[type].speed * (1 + 0.02 * (wave - 1));
+  return ENEMIES[type].speed * (1 + 0.04 * (wave - 1));
 }
 
 export function waveClearBonus(wave) {
-  return 20 + 5 * wave;
+  return 15 + 4 * wave;
 }

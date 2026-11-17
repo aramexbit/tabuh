@@ -231,12 +231,13 @@ export class Game {
     this.selectedTower = null;
     // Fresh Tuyul Emas thresholds each wave.
     this.emasSpawned = {};
-    // Wave twist banner (every 3rd wave) — 4 s so the player (and the
-    // Purnama screenshot pose) can actually read it.
+    // Wave twist banner (every 3rd wave) — 5 s: twists change the rules, so
+    // the player (and the Purnama screenshot pose) must be able to read it.
+    // It only covers the wave-start window, when the center path is empty.
     this.twist = Game.twistForWave(this.wave);
     if (this.twist) {
       const t = Game.TWISTS[this.twist];
-      this.showBanner(t.name, t.desc, 4.0);
+      this.showBanner(t.name, t.desc, 5.0);
     }
     // Dramatic boss intro before any wave that fields a Raja.
     const def = waveDef(this.wave);

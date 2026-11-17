@@ -376,21 +376,26 @@ export class UI {
     ctx.font = '12px sans-serif';
     ctx.fillText('Spasi', tx, ty + 18);
     this.addHit('tabuh', tx - 54, ty - 54, 108, 108, true);
-    // Beat verdict as a fixed HUD label above the drum (1 s, fading):
+    // Beat verdict as a fixed HUD label above the BEAT BAR (1 s, fading):
     // the old floating verdict collided with kill pops ("-4444" over
     // "PERFECT!"). A dark pill behind it keeps it readable over the field.
+    // It sits above the beat bar (center x=590), NOT above the TABUH drum:
+    // the drum's "GONG RAKSASA! (G)" ready text is at (880, ty-66 = 602)
+    // and the verdict pill at (880, H-130 = 590) overlapped it in the
+    // v2.7 frames ("GO…PERFECT!…(G)"). The beat bar (y 634–660) is below
+    // the pill (y 575–605), so they do not collide.
     if (g.lastVerdict && g.time - (g.lastVerdictTime || 0) < 1.0) {
       const va = Math.max(0, 1 - (g.time - g.lastVerdictTime));
       const vtext = g.lastVerdict === 'perfect' ? 'PERFECT!' : g.lastVerdict === 'good' ? 'Good' : 'Meleset';
       const vcol = g.lastVerdict === 'perfect' ? '#7fe3a8' : g.lastVerdict === 'good' ? '#ffd76a' : '#ff7a6a';
       ctx.globalAlpha = va;
       ctx.fillStyle = 'rgba(8,14,26,0.85)';
-      rr(ctx, tx - 54, H - 130 - 15, 108, 30, 8);
+      rr(ctx, 590 - 54, H - 130 - 15, 108, 30, 8);
       ctx.fill();
       ctx.fillStyle = vcol;
       ctx.font = 'bold 18px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(vtext, tx, H - 130 + 7);
+      ctx.fillText(vtext, 590, H - 130 + 7);
       ctx.globalAlpha = 1;
     }
     // Wave button.

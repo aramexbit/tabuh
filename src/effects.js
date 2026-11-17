@@ -14,14 +14,17 @@ export class Effects {
 
   // A shaft of light from the sky down to (x, y): a gong strike landing
   // as light, not just a ring — the Lanternkeep moment TABUH showed as
-  // text instead of light.
+  // text instead of light. Life 1.4 s (was 0.7): at the boss capture
+  // (500 ms after the trigger) the old beam had faded to alpha ~0.13,
+  // effectively invisible — only the gold shockwave rings showed.
   beam(x, y) {
-    this.beams.push({ x, y, life: 0.7 });
+    this.beams.push({ x, y, life: 1.4, maxLife: 1.4 });
   }
 
-  // An expanding pool of gold light on the ground.
+  // An expanding pool of gold light on the ground. Life 1.4 s (was 0.9),
+  // same reason as the beam: it must still be glowing at capture time.
   glow(x, y, maxR, color = '#ffd76a') {
-    this.glows.push({ x, y, r: 12, maxR, life: 0.9, color });
+    this.glows.push({ x, y, r: 12, maxR, life: 1.4, maxLife: 1.4, color });
   }
 
   // A lightning bolt from the sky down to (x, y): jagged polyline, short life.
@@ -93,30 +96,48 @@ export class Effects {
     // drift, so they fan out instead of stacking into one unreadable blob.
     // Clamp inside the frame with a real margin (center-aligned: keep half
     // the width clear) — a long golden-tuyul pop used to touch the right
-    // edge at the old 8 px margin.
-    let px = Math.min(Math.max(x + (Math.random() * 28 - 14), estW / 2 + 24), W - estW / 2 - 24);
+    // edge at the old 8 px margin; 40 px now.
+    let px = Math.min(Math.max(x + (Math.random() * 28 - 14), estW / 2 + 40), W - estW / 2 - 40);
     let py = y + (Math.random() * 12 - 6);
-    // De-collide: a number that would land on top of a live one steps down
-    // (up to 8 steps), so a multi-kill reads as a vertical stack. The window
-    // is deliberately wide — (sizeA + sizeB) * 1.2 vertically: texts are
-    // drawn on an alphabetic baseline, so two texts whose centers are only
-    // ~11 px apart still overlap their glyphs, and texts spawned a beat
-    // apart have already risen into each other's space by capture time.
+    // De-collide: a number that would land on top of a live one steps away
+    // (up to 8 steps), so a multi-kill reads as a stack. The horizontal
+    // window is +20 now (was +6): two "-44" pops side by side used to read
+    // as "-4444" over the beat verdict (v2.6 frame 2). The vertical window
+    // is deliberately wide — (sizeA + sizeB) * 1.2: texts are drawn on an
+    // alphabetic baseline, so two texts whose centers are only ~11 px apart
+    // still overlap their glyphs, and texts spawned a beat apart have
+    // already risen into each other's space by capture time.
     // The step (3x the font) MUST exceed the window: a step smaller than
     // the window re-hits the same text and burns all 8 tries without
     // clearing it — that was the remaining boss-frame overlap.
     const step = size * 3;
-    for (let tries = 0; tries < 8; tries++) {
-      const hit = this.texts.find((t) =>
-        Math.abs(t.x - px) < (t.estW + estW) / 2 + 6
-        && Math.abs(t.y - py) < (t.size + size) * 1.2);
-      if (!hit) break;
-      py += step;
+    if (size >= 30) {
+      // Banners (GONG RAKSASA!): fixed position high on the field, never
+      // de-collided DOWN onto the boss's crown/face — clamp to the upper
+      // band [56, 280] and skip the loop entirely.
+      py = Math.min(Math.max(py, 56), 280);
+    } else {
+      // Medium texts (22-29) step UP, small texts step down: a medium pop
+      // stepped down used to land on the sprite below it.
+      const dir = size >= 22 ? -1 : 1;
+      for (let tries = 0; tries < 8; tries++) {
+        const hit = this.texts.find((t) =>
+          Math.abs(t.x - px) < (t.estW + estW) / 2 + 20
+          && Math.abs(t.y - py) < (t.size + size) * 1.2);
+        if (!hit) break;
+        py += dir * step;
+      }
+      // Keep pops inside the field: a kill pop spawned near the gate used to
+      // slide under the TABUH drum (bottom bar), and the de-collision steps
+      // only push DOWN — so clamp after the loop, not before it.
+      py = Math.min(Math.max(py, 56), H - 150);
     }
-    // Keep pops inside the field: a kill pop spawned near the gate used to
-    // slide under the TABUH drum (bottom bar), and the de-collision steps
-    // only push DOWN — so clamp after the loop, not before it.
-    py = Math.min(Math.max(py, 56), H - 150);
+    // Grade-badge exclusion: the big S/A/B/C badge lives at x 1064-1268,
+    // y 496-608 (bottom right, always visible while playing). A kill pop
+    // landing there would sit on top of the badge — shift it left of it.
+    if (px + estW / 2 > 1064 && px - estW / 2 < 1268 && py > 496 && py < 608) {
+      px = 1064 - estW / 2 - 8;
+    }
     this.texts.push({
       x: px, y: py, estW,
       vx: (Math.random() - 0.5) * 16, str, color, size, life: 1.0,
@@ -136,6 +157,8 @@ export class Effects {
     for (const t of this.texts) {
       t.x += (t.vx || 0) * dt;
       t.y -= 40 * dt;
+      // Rising pops must not climb into the top bar.
+      t.y = Math.max(t.y, 60);
       t.life -= dt * (t.decay || 0.75);
     }
     this.texts = this.texts.filter((t) => t.life > 0);
@@ -158,9 +181,9 @@ export class Effects {
   draw(ctx) {
     // Light pools first (under the rings), then the beams.
     for (const gl of this.glows) {
-      const a = Math.max(0, gl.life);
+      const a = Math.max(0, gl.life / (gl.maxLife || 0.9));
       const gg = ctx.createRadialGradient(gl.x, gl.y, 4, gl.x, gl.y, gl.r);
-      gg.addColorStop(0, `rgba(255,220,130,${0.5 * a})`);
+      gg.addColorStop(0, `rgba(255,220,130,${0.65 * a})`);
       gg.addColorStop(1, 'rgba(255,220,130,0)');
       ctx.fillStyle = gg;
       ctx.beginPath();
@@ -168,13 +191,21 @@ export class Effects {
       ctx.fill();
     }
     for (const b of this.beams) {
-      const a = Math.max(0, b.life / 0.7);
-      const bg = ctx.createLinearGradient(b.x - 26, 0, b.x + 26, 0);
+      // Wide gold shaft (96 px) + a narrow white core, so the beam reads
+      // as light even over a bright field — not just a faint wash.
+      const a = Math.max(0, b.life / (b.maxLife || 1.4));
+      const bg = ctx.createLinearGradient(b.x - 48, 0, b.x + 48, 0);
       bg.addColorStop(0, 'rgba(255,220,130,0)');
-      bg.addColorStop(0.5, `rgba(255,220,130,${0.45 * a})`);
+      bg.addColorStop(0.5, `rgba(255,220,130,${0.7 * a})`);
       bg.addColorStop(1, 'rgba(255,220,130,0)');
       ctx.fillStyle = bg;
-      ctx.fillRect(b.x - 26, 0, 52, b.y);
+      ctx.fillRect(b.x - 48, 0, 96, b.y);
+      const core = ctx.createLinearGradient(b.x - 14, 0, b.x + 14, 0);
+      core.addColorStop(0, 'rgba(255,255,255,0)');
+      core.addColorStop(0.5, `rgba(255,255,240,${0.55 * a})`);
+      core.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = core;
+      ctx.fillRect(b.x - 14, 0, 28, b.y);
     }
     for (const r of this.rings) {
       const a = Math.max(0, r.life * 1.6);

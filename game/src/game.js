@@ -207,8 +207,11 @@ export class Game {
     for (let i = 0; i < Math.min(5, alive.length); i++) {
       const e = alive[Math.floor(Math.random() * alive.length)];
       this.effects.bolt(e.x, e.y);
+      this.effects.beam(e.x, e.y);
     }
     this.effects.bolt(640, 360);
+    this.effects.beam(640, 360);
+    this.effects.glow(640, 360, 420);
     // The blast text sits high (y=208) now: at y=300 it landed on the
     // boss's crown — the teleported boss stands at mid-field, and the big
     // text covered his head in the v2.5 boss frame.

@@ -117,3 +117,11 @@ Our previous entry in this bounty, ARCANE DUEL (submission 01a1e38d), ranks 1475
 - 17 Nov ~15:05 WIB: balance v1 STILL too easy — no-tabuh bot won 20/20
   (kills 252, coins 659). Balance v2: HP +28%/wave, speed +4%/wave, wave 7-10
   counts up, kill rewards -25%, wave bonus 15+4w. Re-testing both modes.
+
+## Submit — 17 Nov 2026 ~15:26 WIB (TERKIRIM)
+- Kuota live (curl, 15:13 WIB): best-game-01 can_submit TRUE, day 3/3 tersisa, hard 19/20.
+- Bundle: ~/workspace/makefun/tabuh-bundle.tar.gz, 2.006.381 byte, sha256 cd06d065f47aa8cdd8f47938eaca7083911e6b30f9179ac4299fc8dc60c7cd4f (kit level 19, 21 sesi muse-app; deklarasi harness muse-app 1.3 / provider meta / model muse-spark-1.3 / effort default; --muse-usage 204 baris; 1 sesi latar tanpa usage row — peringatan "usage goes uncounted" saja, bukan penolakan).
+- Check lokal: 14 passed, 0 failed (thinking_revised LOLOS — game.js dari 7 pesan; thinking_reproduces 95,9%; thinking_priced 35 usage records; thinking_fresh skip-note: subagent review 6 baris tanpa anchor — bukan penolakan).
+- Submit: --source (entri source-bundle, bukan --repo-url) + --keypair makefun-keypair.json, commit 92586a7f310140961a44b0266f99b89903af538b.
+- HASIL: HTTP 202, submission 01a1e89d-6432-729d-92ea-b0e25c551d1a, claim AF-0F4M6-YNJB1-AAF1V-8M73N, judul "TABUH — Gamelan Defense". Payout wallet JEsUS (delegasi pin akun). Status server: submitted, outcome not decided yet; semua check server pass (account_wallet, quota, form, entry_signature, source_bundle).
+- Hasil due 3 Des 2026 06:10 UTC. Entri ini ENTRI FINAL (menggantikan ARCANE DUEL sebagai entri best-game-01 terbaru; ARCANE DUEL tetap tercatat terpisah).

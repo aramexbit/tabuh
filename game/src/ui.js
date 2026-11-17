@@ -174,7 +174,7 @@ export class UI {
       '8. Pocong kebal lambat Kendang; Kuntilanak kebal sebagian Saron.',
       '9. Gerbang rusak? Perbaiki di atas (◆100, +5 HP).',
       '',
-      'PUSAKA (otomatis, ikon di bar bawah):',
+      'PUSAKA (otomatis, nama di panel DATANG):',
       '  Keris (M3): damage +25%   •   Gong (M5): jendela ketuk lebar',
       '  Kendi (M7): koin kill +50%   •   Jimat (M9): gerbang +5 HP',
       'GONG RAKSASA: saat kombo x2.0, tombol TABUH bersinar — klik / tekan G:',

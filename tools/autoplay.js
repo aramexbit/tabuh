@@ -49,7 +49,10 @@ const PLAN = [
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-    await page.goto(`${BASE}/?seed=${SEED}`, { waitUntil: 'networkidle' });
+    // domcontentloaded + waitForFunction: networkidle hung once (tabuh run,
+    // 17 Nov) with the browser up and the server answering — never trust it.
+    await page.goto(`${BASE}/?seed=${SEED}`, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__game, null, { timeout: 15000 });
     await sleep(800);
     await page.evaluate(([speed, tabuh]) => {
       const g = window.__game;

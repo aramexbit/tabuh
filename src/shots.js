@@ -66,6 +66,32 @@ export function applyShot(game) {
   }
 }
 
+// The win pose plays waves 9+10 with counter-attacks on: like a real player,
+// it repairs chipped towers and rebuilds destroyed ones between waves.
+const WIN_BOARD = [
+  ['gong', 0], ['kenong', 2], ['bonang', 3], ['saron', 4], ['kendang', 5],
+];
+function maintainWinBoard(game) {
+  if (game.phase !== 'build') return;
+  const chipped = game.towers
+    .filter((t) => t.durability < t.maxDurability * 0.6)
+    .map((t) => ({ t, cost: game.repairTowerCost(t) }))
+    .sort((a, b) => a.cost - b.cost);
+  for (const c of chipped) {
+    if (game.coins >= c.cost && game.repairTower(c.t)) return;
+  }
+  for (const [type, pad] of WIN_BOARD) {
+    if (!game.towers.some((t) => t.padIndex === pad)) {
+      const t = game.buildTower(type, pad);
+      if (t) {
+        game.upgradeTower(t);
+        game.upgradeTower(t);
+        return;
+      }
+    }
+  }
+}
+
 // Called every update while a shot pose is active.
 export function checkShot(game) {
   if (game.shotReady) return;
@@ -79,9 +105,10 @@ export function checkShot(game) {
     // Capture the boss on screen with a busy field and projectiles flying.
     if (game.boss && game.enemies.length >= 6 && game.projectiles.length >= 2) game.shotReady = true;
   } else if (game.shot === 'win') {
-    // Auto-advance: start the next wave when the build phase opens.
-    if (game.state === 'playing' && game.phase === 'build' && game.wave <= TOTAL_WAVES) {
-      game.startWave();
+    // Auto-advance: maintain the board, then start the next wave.
+    if (game.state === 'playing') {
+      maintainWinBoard(game);
+      if (game.phase === 'build' && game.wave <= TOTAL_WAVES) game.startWave();
     }
     if (game.state === 'victory') game.shotReady = true;
   }

@@ -31,6 +31,8 @@ export function createEnemy(type, wave, rng) {
     wobble: rng.range(0, Math.PI * 2),
     wobbleAmp: rng.range(3, 7),
     flash: 0,
+    attackCd: 1 + rng.range(0, 1.5), // ghosts size up the towers before striking
+    stolenFrom: [], // padIndex list a Tuyul already stole from
   };
   e.baseSpeed = e.speed;
   return e;
@@ -52,6 +54,88 @@ export function updateEnemy(game, e, dt) {
   if (e.dist >= PATH_LENGTH) {
     e.reachedGate = true;
   }
+  // Ghosts fight back: each type attacks towers it passes, on its own timer.
+  e.attackCd -= dt;
+  if (e.attackCd <= 0) e.attackCd = ghostAttack(game, e);
+}
+
+function nearestTower(game, e, radius) {
+  let best = null;
+  let bestD = Infinity;
+  for (const t of game.towers) {
+    const d = Math.hypot(e.x - t.x, e.y - t.y);
+    if (d <= radius && d < bestD) {
+      best = t;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+function towersNear(game, e, radius) {
+  return game.towers.filter((t) => Math.hypot(e.x - t.x, e.y - t.y) <= radius);
+}
+
+// One attack. Returns the cooldown (seconds) until the next attempt.
+function ghostAttack(game, e) {
+  if (e.type === 'wisik') {
+    // Tawa Melengking: nearby towers stop firing for 2 beats + small damage.
+    const near = towersNear(game, e, 90);
+    if (near.length === 0) return 0.5;
+    for (const t of near) {
+      t.stunUntil = game.time + 2 * game.beatDur;
+      game.damageTower(t, 4, e);
+    }
+    game.effects.ring(e.x, e.y, 70, 'rgba(180,220,255,0.8)');
+    return 3.0;
+  }
+  if (e.type === 'kunang') {
+    // Mencuri Koin: each Tuyul steals a few coins from a tower it passes.
+    const t = nearestTower(game, e, 80);
+    if (!t || e.stolenFrom.includes(t.padIndex)) return 0.5;
+    e.stolenFrom.push(t.padIndex);
+    const steal = Math.min(3, game.coins);
+    game.coins -= steal;
+    game.effects.text(t.x, t.y - 34, `-${steal} ◆`, '#ff9a3d', 15);
+    return 2.0;
+  }
+  if (e.type === 'bayang') {
+    // Kafan Membungkus: the tower's firing slows to 25% for 4 beats.
+    const t = nearestTower(game, e, 90);
+    if (!t) return 0.5;
+    t.slowUntil = game.time + 4 * game.beatDur;
+    t.slowFactor = 0.25;
+    game.damageTower(t, 4, e);
+    game.effects.ring(t.x, t.y, 46, 'rgba(245,242,232,0.7)');
+    return 3.0;
+  }
+  if (e.type === 'slira') {
+    // Pukulan Bulu: heavy durability damage.
+    const t = nearestTower(game, e, 100);
+    if (!t) return 0.5;
+    game.damageTower(t, 18, e);
+    game.shake = Math.max(game.shake, 0.2);
+    return 2.0;
+  }
+  if (e.type === 'raksasa') {
+    // Hantaman Raksasa: very heavy durability damage.
+    const t = nearestTower(game, e, 110);
+    if (!t) return 0.5;
+    game.damageTower(t, 30, e);
+    game.effects.burst(t.x, t.y - 10, '#8a94a8', 8);
+    game.shake = Math.max(game.shake, 0.3);
+    return 2.5;
+  }
+  if (e.type === 'raja') {
+    // Hantaman Raja: the hardest single hit in the game.
+    const t = nearestTower(game, e, 120);
+    if (!t) return 0.5;
+    game.damageTower(t, 45, e);
+    game.effects.ring(t.x, t.y, 90, '#ff9a3d', 0.8);
+    game.shake = Math.max(game.shake, 0.4);
+    return 2.0;
+  }
+  return 2.0;
 }
 
 export function drawEnemy(ctx, e, time) {

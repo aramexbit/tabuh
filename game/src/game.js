@@ -306,8 +306,8 @@ export class Game {
     }
     this.stats.maxCombo = Math.max(this.stats.maxCombo, this.combo);
     if (verdict === 'perfect' || verdict === 'good') this.maybeSpawnGolden();
-    this.effects.ring(930, H - 52, 60, verdict === 'perfect' ? '#7fe3a8' : verdict === 'good' ? '#ffd76a' : '#ff7a6a');
-    this.effects.text(930, H - 130, verdict === 'perfect' ? 'PERFECT!' : verdict === 'good' ? 'Good' : 'Meleset',
+    this.effects.ring(880, H - 52, 60, verdict === 'perfect' ? '#7fe3a8' : verdict === 'good' ? '#ffd76a' : '#ff7a6a');
+    this.effects.text(880, H - 130, verdict === 'perfect' ? 'PERFECT!' : verdict === 'good' ? 'Good' : 'Meleset',
       verdict === 'perfect' ? '#7fe3a8' : verdict === 'good' ? '#ffd76a' : '#ff7a6a', 20);
   }
 

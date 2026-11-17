@@ -44,28 +44,28 @@ export const UPGRADES = {
   3: { costMul: 1.0, dmgMul: 2.3, rangeMul: 1.2 },
 };
 
-// Spirits: original names, not folklore creatures. hp scales with the wave.
+// Spirits: hantu Indonesia. hp scales with the wave.
 export const ENEMIES = {
   wisik: {
-    name: 'Wisik', hp: 20, speed: 55, reward: 4, gateDmg: 1, radius: 13,
-    color: '#7fe3c8', desc: 'Bisikan cepat, rapuh.',
+    name: 'Kuntilanak', hp: 20, speed: 55, reward: 4, gateDmg: 1, radius: 13,
+    color: '#c8f7c5', desc: 'Kuntilanak — melayang cepat, gaun putih.',
   },
   kunang: {
-    name: 'Kunang', hp: 12, speed: 86, reward: 3, gateDmg: 1, radius: 10,
-    color: '#ffe066', desc: 'Kawanan kunang-kunang, sangat cepat.',
+    name: 'Tuyul', hp: 12, speed: 86, reward: 3, gateDmg: 1, radius: 10,
+    color: '#b8e986', desc: 'Tuyul — bocah kecil, lari cepat bergerombol.',
   },
   bayang: {
-    name: 'Bayang', hp: 46, speed: 40, reward: 7, gateDmg: 1, radius: 16,
-    color: '#9db8e8', desc: 'Bayangan biasa, seimbang.',
+    name: 'Pocong', hp: 46, speed: 40, reward: 7, gateDmg: 1, radius: 16,
+    color: '#f5f2e8', desc: 'Pocong — melompat dengan kain kafan.',
   },
   slira: {
-    name: 'Slira', hp: 92, speed: 30, reward: 12, gateDmg: 2, radius: 19,
-    color: '#c9a7eb', desc: 'Selubung tebal, kebal lambat.',
+    name: 'Genderuwo', hp: 92, speed: 30, reward: 12, gateDmg: 2, radius: 19,
+    color: '#8a7a6a', desc: 'Genderuwo — besar berbulu, kebal lambat.',
     slowResist: true,
   },
   raksasa: {
-    name: 'Raksasa', hp: 260, speed: 20, reward: 25, gateDmg: 3, radius: 26,
-    color: '#ff9a7a', desc: 'Raksasa lambat, sangat kuat.',
+    name: 'Buto Ijo', hp: 260, speed: 20, reward: 25, gateDmg: 3, radius: 26,
+    color: '#69b34c', desc: 'Buto Ijo — raksasa hijau bertaring.',
   },
 };
 

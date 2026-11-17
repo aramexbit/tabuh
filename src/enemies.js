@@ -317,7 +317,7 @@ function ghostAttack(game, e) {
 // sprites were drawn at their hitbox radius; the Raja was only 1.5x a Buto
 // and sat in the top-right corner. Now every spirit is 25-30% bigger and
 // the Raja is a true centrepiece at 2.2x.
-const VISUAL_SCALE = { wisik: 1.25, kunang: 1.25, bayang: 1.25, slira: 1.25, raksasa: 1.3, raja: 2.5, emas: 1.3 };
+const VISUAL_SCALE = { wisik: 1.25, kunang: 1.25, bayang: 1.25, slira: 1.25, raksasa: 1.3, raja: 3.2, emas: 1.3 };
 
 // Visual radius: the figure's real on-screen size (hitbox radius x the
 // per-type visual scale). Game code that places floating text above a
@@ -343,17 +343,22 @@ export function drawEnemy(ctx, e, time) {
   // v2.10 (reviewer #9, R3): the Raja's aura is GOLD-RED, not the Buto's
   // green — the boss read as "a bigger Buto" because his aura, ring and
   // body were the same green. Now he is unmistakable at thumbnail size.
+  // v2.12 (reviewer #11, R3): the aura was TOO big — a 2.2x-vr disc that
+  // washed the centre and hid the boss himself. The Raja's aura is now
+  // 1.5x vr at alpha 0.4 (other types keep 2.2x / 0.55).
   const auraColors = e.type === 'raja'
     ? ['#ffd76a', '#ff9a3d', '#ff4a3d']
     : [c, c + '88', 'rgba(0,0,0,0)'];
-  const g = ctx.createRadialGradient(e.x, e.y, 1, e.x, e.y, vr * 2.2);
+  const auraR = e.type === 'raja' ? vr * 1.5 : vr * 2.2;
+  const auraA = e.type === 'raja' ? 0.4 : 0.55;
+  const g = ctx.createRadialGradient(e.x, e.y, 1, e.x, e.y, auraR);
   g.addColorStop(0, auraColors[0]);
   g.addColorStop(0.4, auraColors[1]);
   g.addColorStop(1, auraColors[2]);
-  ctx.globalAlpha = 0.55 * pulse;
+  ctx.globalAlpha = auraA * pulse;
   ctx.fillStyle = g;
   ctx.beginPath();
-  ctx.arc(e.x, e.y, vr * 2.2, 0, Math.PI * 2);
+  ctx.arc(e.x, e.y, auraR, 0, Math.PI * 2);
   ctx.fill();
   ctx.globalAlpha = 1;
   // The figure itself, scaled around its own centre. The Raja is a Buto
@@ -375,31 +380,30 @@ export function drawEnemy(ctx, e, time) {
   else drawButo(ctx, e, time);
   ctx.restore();
   if (e.type === 'raja') {
-    // Gold crown, sized to the 2.5x body. v2.11 (R3-ulang): the horns are
-    // now bigger (local -38 -> absolute -95), so the crown sits higher
-    // (base -80, top -108) — above the horn tips, not inside them.
-    // v2.10 (R3): bigger (+/-30 wide), three red gems, gold glow — the old
-    // crown was too small to read at thumbnail size and the boss sank
-    // into the crowd.
+    // Gold crown, sized to the 3.2x body. v2.12 (R3): the horns reach
+    // -38 local -> -122 absolute, so the crown sits higher (base -115,
+    // top -140) — above the horn tips, not inside them. The crown top
+    // (y ~116 at the boss's parking spot) still clears the boss bar
+    // (ends y=94).
     ctx.save();
     ctx.shadowColor = '#ffd76a';
     ctx.shadowBlur = 14;
     ctx.fillStyle = '#ffd76a';
     ctx.beginPath();
-    ctx.moveTo(e.x - 30, e.y - 80);
-    ctx.lineTo(e.x - 30, e.y - 102);
-    ctx.lineTo(e.x - 15, e.y - 88);
-    ctx.lineTo(e.x, e.y - 108);
-    ctx.lineTo(e.x + 15, e.y - 88);
-    ctx.lineTo(e.x + 30, e.y - 102);
-    ctx.lineTo(e.x + 30, e.y - 80);
+    ctx.moveTo(e.x - 30, e.y - 115);
+    ctx.lineTo(e.x - 30, e.y - 135);
+    ctx.lineTo(e.x - 15, e.y - 122);
+    ctx.lineTo(e.x, e.y - 140);
+    ctx.lineTo(e.x + 15, e.y - 122);
+    ctx.lineTo(e.x + 30, e.y - 135);
+    ctx.lineTo(e.x + 30, e.y - 115);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
     ctx.fillStyle = '#ff4a3d';
     for (const gx of [-15, 0, 15]) {
       ctx.beginPath();
-      ctx.arc(e.x + gx, e.y - 92, 4, 0, Math.PI * 2);
+      ctx.arc(e.x + gx, e.y - 128, 4, 0, Math.PI * 2);
       ctx.fill();
     }
   }

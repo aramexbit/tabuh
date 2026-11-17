@@ -80,16 +80,15 @@ export function applyShot(game) {
   }
   game.start();
   if (shot === 'play') {
-    // v2.11b (reviewer #10 follow-up): wave 9, NOT wave 8 — wave 8's
-    // spread+bF coincidence is too rare (the v2.11 run fired at kills 32
-    // with 5 ghosts left, and the enemies>=10 guard then left the pose
-    // stuck in the wave-9 build phase: 31/32). Wave 9's field is PROVEN
-    // (the big pose fires there with low=12, bF=4, deep=1-2). Kills are
-    // cumulative from the pose start, so >=20 is met mid-wave-9 with
-    // ~23 ghosts still alive — a busy field. Stage the measured wave-9
-    // start score (53.250) and the relics a real wave-9 player owns
-    // (Keris M3, Gong M5, Kendi M7 — Jimat is earned AT wave 9, owned
-    // from wave 10, so it is NOT staged here).
+    // v2.12 (reviewer #11, R1): wave 7 — frames 2 and 4 were BOTH wave 9
+    // rain, wasting one contact-sheet slot. Wave 7 is deep violet (band
+    // 2), wave 9 is storm-blue, wave 10 is boss-red: three palettes.
+    // Wave 7's ghosts are tanky (1 Buto + 6 Genderuwo), so the 1 s hold
+    // works here (unlike wave 6's weak pack, which broke the hold in
+    // v2.9). Kills >= 15 of 29 leaves ~14 alive — a busy field. Stage
+    // the measured wave-7 start score (32.365) and the relics a real
+    // wave-7 player owns (Keris M3, Gong M5 — Kendi is earned AT wave 7,
+    // owned from wave 8).
     // Kenong on pad 0 covers the spirit gate, so it fires from the first
     // beat and the first kill lands early.
     // Lower pads filled too (R4): saron@7 + bonang@5, so the bottom half
@@ -98,7 +97,7 @@ export function applyShot(game) {
     // All towers stay LEVEL 1 in this pose: L2 firepower (~40% more DPS)
     // shreds the far-hunting ghosts on the long walk, so none ever reached
     // the lower half (diagnostics 18 Nov: max lowerHalf 0 at L2, 1 at wave
-    // 7). L1 is also what a real wave-9 player can afford — and the ghosts
+    // 7). L1 is also what a real wave-7 player can afford — and the ghosts
     // that survive the walk then fight the towers in the lower half, which
     // is the frame's whole point.
     game.buildTower('saron', 1);
@@ -106,10 +105,10 @@ export function applyShot(game) {
     game.buildTower('kenong', 0);
     game.buildTower('saron', 7);
     game.buildTower('bonang', 5);
-    game.wave = 9;
+    game.wave = 7;
     game.startWave();
-    stageRelics(game, ['keris', 'gong', 'kendi']);
-    stageScore(game, 53250);
+    stageRelics(game, ['keris', 'gong']);
+    stageScore(game, 32365);
   } else if (shot === 'big') {
     // Wave 7: one Buto Ijo + 6 Genderuwo + fast Pocong/Tuyul. The gong
     // sits on pad 5 (640,482, centre of the LOWER half), not the central
@@ -230,14 +229,11 @@ export function checkShot(game) {
   const fallback = game.time >= 60 && game.enemies.length >= 5 && spread;
   if (game.shot === 'play') {
     // v2.10 (reviewer #9, R1): kills >= 20 — frame 4 must show a battle
-    // already underway, not a young field. The hold is BACK for play:
-    // wave 9 ghosts are tanky (Buto + Genderuwo survive 1 s of fire).
-    // v2.11b: ALSO require >=10 live enemies — the v2.11 frame fired at
-    // kills 32 with only 5 ghosts left (wave 8 86% cleared, field thin
-    // and empty), while the v2.10 frame fired at kills 22 with 16 left
-    // and read busy. No auto-advance: the pose starts at wave 9 (proven
-    // field) and fires there; the 120 s safety is the backstop.
-    const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 10 && game.stats.kills >= 20;
+    // already underway, not a young field. v2.12 (reviewer #11, R1):
+    // wave 7 has 29 ghosts, so kills >= 15 leaves ~14 alive (busy);
+    // the wave-9 bar (>=20) would leave ~9 and thin the field.
+    // The hold works on wave 7's tanky ghosts (Buto + Genderuwo).
+    const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 10 && game.stats.kills >= 15;
     const playOk = (afterBanner && spread && bottomFight) || (fallback && game.enemies.length >= 10);
     if (holdReady(game, playOk)) {
       game.shotReady = true;
@@ -274,11 +270,19 @@ export function checkShot(game) {
     // has held 1 s (holdReady), it fires only when deep>=1 — or after a
     // 3 s grace (holdSince + 4 s total), so a wave without deep ghosts
     // still yields a frame instead of waiting forever.
-    const deep = deepCount(game) >= 1;
+    // v2.12 (reviewer #11, R2): deep bar raised 1 -> 2 AND the pack must
+    // be WIDE (>=3 ghosts on the left half, x<640) — the v2.11 frame was
+    // still top-heavy: a transit pack top-right, bottom fight invisible.
+    // NOTE (honest): deep>=5 as literally requested is NOT achievable —
+    // diagnostics show deep maxes at ~2 in wave 9 (only the saron@7
+    // attackers + gate-walkers ever get below y=480). deep>=2 + wide is
+    // the closest achievable version; the 3 s grace still backstops it.
+    const deep = deepCount(game) >= 2;
+    const wide = game.enemies.filter((e) => e.x < 640).length >= 3;
     const deepOk = deep;
     const graceExpired = game.shotHoldSince != null && game.time - game.shotHoldSince >= 4.0;
-    const bigOk = (game.enemies.length >= 5 && spread && bottomFight && centre && gongReady && bottomAttackCount(game) >= 2 && deep)
-      || (fallback && centreLoose);
+    const bigOk = (game.enemies.length >= 5 && spread && bottomFight && centre && gongReady && bottomAttackCount(game) >= 2 && deep && wide)
+      || (fallback && centreLoose && wide);
     if (holdReady(game, bigOk) && (deepOk || graceExpired)) {
       game.shotReady = true;
     } else if (game.phase === 'build' && game.state === 'playing' && game.wave < TOTAL_WAVES) {

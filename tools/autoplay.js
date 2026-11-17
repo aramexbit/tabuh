@@ -12,8 +12,15 @@ const path = require('path');
 const CHROME = process.env.CHROME_PATH || (require('os').homedir() + '/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome');
 const args = process.argv.slice(2);
 const TABUH = args.includes('--tabuh');
-const SPEED = parseInt((args.find(a => a.startsWith('--speed')) || '--speed=3').split('=')[1], 10);
-const SEED = parseInt((args.find(a => a.startsWith('--seed')) || '--seed=1').split('=')[1], 10);
+function flagVal(name, def) {
+  const i = args.findIndex(a => a === name || a.startsWith(name + '='));
+  if (i === -1) return def;
+  const a = args[i];
+  if (a.includes('=')) return a.split('=')[1];
+  return args[i + 1] ?? def;
+}
+const SPEED = parseFloat(flagVal('--speed', '3')) || 3;
+const SEED = parseInt(flagVal('--seed', '1'), 10) || 1;
 const PORT = 8096;
 const BASE = `http://localhost:${PORT}`;
 const sleep = ms => new Promise(r => setTimeout(r, ms));

@@ -2,6 +2,8 @@
 // in a slendro-style pentatonic scale: gong marks the cycle, kenong the halves,
 // saron carries the melody, bonang interlocks, kendang drives the pulse. The game
 // calls onBeat() when its beat clock advances; every sound is synthesized here.
+// On top of the music sits a night ambience layer — crickets, wind, a low drone,
+// distant owl and frogs — so the village feels haunted even between waves.
 // Audio is optional: with no AudioContext (headless probe) every call is a no-op.
 const BASE = 220; // A3
 const SCALE = [0, 3, 5, 7, 10]; // slendro-style pentatonic, semitones
@@ -38,11 +40,136 @@ export class GamelanAudio {
       this.master = this.ctx.createGain();
       this.master.gain.value = this.muted ? 0 : 0.5;
       this.master.connect(this.ctx.destination);
+      this.startAmbience();
       return true;
     } catch (e) {
       this.ctx = null;
       return false;
     }
+  }
+
+  // Night ambience: wind + low drone run continuously; crickets, owl and
+  // frogs fire on random timers. Everything routes through the master gain,
+  // so mute silences it too. All of it is quiet on purpose.
+  startAmbience() {
+    if (!this.ctx || this.ambience) return;
+    this.ambience = this.ctx.createGain();
+    this.ambience.gain.value = 0.6;
+    this.ambience.connect(this.master);
+    // Wind: looped noise through a lowpass, breathing slowly.
+    const len = this.ctx.sampleRate * 2;
+    const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    const wind = this.ctx.createBufferSource();
+    wind.buffer = buf;
+    wind.loop = true;
+    const lp = this.ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 320;
+    const windGain = this.ctx.createGain();
+    windGain.gain.value = 0.035;
+    const lfo = this.ctx.createOscillator();
+    lfo.frequency.value = 0.07;
+    const lfoGain = this.ctx.createGain();
+    lfoGain.gain.value = 0.02;
+    lfo.connect(lfoGain);
+    lfoGain.connect(windGain.gain);
+    wind.connect(lp);
+    lp.connect(windGain);
+    windGain.connect(this.ambience);
+    wind.start();
+    lfo.start();
+    // Low drone: two detuned sines, barely audible.
+    for (const f of [55, 55.7]) {
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = f;
+      const g = this.ctx.createGain();
+      g.gain.value = 0.016;
+      osc.connect(g);
+      g.connect(this.ambience);
+      osc.start();
+    }
+    // Crickets: short high chirps, random pan and pitch, every ~0.7 s.
+    this._cricketTimer = setInterval(() => {
+      if (Math.random() < 0.75) this.cricketChirp();
+    }, 650);
+    // Owl: a two-note hoot every ~24 s.
+    this._owlTimer = setInterval(() => {
+      if (Math.random() < 0.5) this.owlHoot();
+    }, 24000);
+    // Frogs: a low croak every ~9 s.
+    this._frogTimer = setInterval(() => {
+      if (Math.random() < 0.6) this.frogCroak();
+    }, 9000);
+  }
+
+  _pan(node, pan) {
+    if (this.ctx.createStereoPanner) {
+      const p = this.ctx.createStereoPanner();
+      p.pan.value = pan;
+      node.connect(p);
+      p.connect(this.ambience);
+    } else {
+      node.connect(this.ambience);
+    }
+  }
+
+  cricketChirp() {
+    if (!this.ctx || this.muted) return;
+    const t0 = this.ctx.currentTime + 0.05;
+    const base = 4000 + Math.random() * 1200;
+    const pulses = 3 + Math.floor(Math.random() * 2);
+    const pan = Math.random() * 1.6 - 0.8;
+    for (let i = 0; i < pulses; i++) {
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = base * (1 + (Math.random() - 0.5) * 0.04);
+      const g = this.ctx.createGain();
+      const t = t0 + i * 0.07;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.04, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+      osc.connect(g);
+      this._pan(g, pan);
+      osc.start(t);
+      osc.stop(t + 0.08);
+    }
+  }
+
+  owlHoot() {
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime + 0.05;
+    for (const [dt, f] of [[0, 380], [0.4, 310]]) {
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = f;
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0, t + dt);
+      g.gain.linearRampToValueAtTime(0.045, t + dt + 0.08);
+      g.gain.exponentialRampToValueAtTime(0.001, t + dt + 0.38);
+      osc.connect(g);
+      this._pan(g, Math.random() * 1.2 - 0.6);
+      osc.start(t + dt);
+      osc.stop(t + dt + 0.42);
+    }
+  }
+
+  frogCroak() {
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime + 0.05;
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(170, t);
+    osc.frequency.exponentialRampToValueAtTime(90, t + 0.15);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.035, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+    osc.connect(g);
+    this._pan(g, Math.random() * 1.4 - 0.7);
+    osc.start(t);
+    osc.stop(t + 0.2);
   }
 
   setMuted(m) {

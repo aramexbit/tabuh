@@ -291,7 +291,10 @@ export class Game {
   frame(dt) {
     this.menuTime += dt;
     this.realDt = dt; // unscaled, for honest play-time stats
-    if (this.state === 'playing') this.update(dt * this.timeScale);
+    // Guard: a non-finite timeScale (bad input, never the UI) must not
+    // poison the clock to NaN and freeze the game silently.
+    const ts = Number.isFinite(this.timeScale) ? this.timeScale : 1;
+    if (this.state === 'playing') this.update(dt * ts);
     this.draw();
   }
 

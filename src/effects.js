@@ -61,7 +61,16 @@ export class Effects {
   }
 
   text(x, y, str, color = '#ffd76a', size = 16) {
-    this.texts.push({ x, y, str, color, size, life: 1.0 });
+    // Cap the pile-up: a Gong Raksasa blast spawns a dozen numbers at once;
+    // drop small ones so the big numbers stay readable, like the top-10
+    // frames' clean numbers.
+    if (this.texts.length >= 20 && size < 22) return;
+    // Spread numbers from the same blast: a random offset + slow sideways
+    // drift, so they fan out instead of stacking into one unreadable blob.
+    this.texts.push({
+      x: x + (Math.random() * 28 - 14), y: y + (Math.random() * 12 - 6),
+      vx: (Math.random() - 0.5) * 16, str, color, size, life: 1.0,
+    });
   }
 
   update(dt) {
@@ -73,6 +82,7 @@ export class Effects {
     }
     this.particles = this.particles.filter((p) => p.life > 0);
     for (const t of this.texts) {
+      t.x += (t.vx || 0) * dt;
       t.y -= 40 * dt;
       t.life -= dt * 0.75; // numbers hang in the air a little longer
     }

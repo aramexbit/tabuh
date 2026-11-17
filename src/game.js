@@ -350,7 +350,8 @@ export class Game {
       }
       this.effects.burst(e.x, e.y, e.def.color, 16);
       const bonus = (this.relics.has('kendi') ? ' (+50%)' : '') + (this.twist === 'purnama' ? ' (x2)' : '');
-      this.effects.text(e.x, e.y - 18, `+${reward} ◆${bonus}`, '#ffd76a', e.type === 'emas' ? 24 : 17);
+      // Kill pop sits above the damage number (radius + 32), not on top of it.
+      this.effects.text(e.x, e.y - e.radius - 32, `+${reward} ◆${bonus}`, '#ffd76a', e.type === 'emas' ? 24 : 17);
     }
   }
 
@@ -659,7 +660,7 @@ export class Game {
     this.updateBoss();
     this.effects.update(dt);
     this.shake = Math.max(0, this.shake - dt * 1.8);
-    this.flash = Math.max(0, this.flash - dt * 1.5);
+    this.flash = Math.max(0, this.flash - dt * 2.4);
     if (this.gateHp <= 0) {
       this.gateHp = 0;
       this.defeat();
@@ -726,9 +727,11 @@ export class Game {
     }
     ctx.restore();
     this.ui.draw(ctx);
-    // Gong Raksasa flash: a white-gold wash over everything, fading fast.
+    // Gong Raksasa flash: a light white-gold wash over everything, fading
+    // fast. Peak 0.28 (was 0.5): the v2.3 boss frame went pale yellow and
+    // unreadable at full blast — the moment must stay visible, not the wash.
     if (this.flash > 0) {
-      ctx.fillStyle = `rgba(255,240,200,${0.5 * this.flash})`;
+      ctx.fillStyle = `rgba(255,240,200,${0.28 * this.flash})`;
       ctx.fillRect(0, 0, W, H);
     }
   }

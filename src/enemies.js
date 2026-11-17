@@ -108,10 +108,10 @@ export function createEnemy(type, wave, rng) {
     flash: 0,
     attackCd: 2 + rng.range(0, 1.5), // ghosts size up the towers before striking
     stolenFrom: [], // padIndex list a Tuyul already stole from
-    farHunter: type !== 'raja' && type !== 'emas' && (id % 10) < 4, // v2.8:
-    // 40% of ghosts hunt ONLY lower-half towers (see bestTarget), so the
-    // bottom pads always have attackers. Deterministic by id: any block
-    // of 10 spawns holds exactly 4 far hunters.
+    farHunter: type !== 'raja' && type !== 'emas' && (id % 10) < 5, // v2.9:
+    // 50% of ghosts hunt ONLY lower-half towers (was 40% in v2.8, R4) —
+    // one more spread push, only after R1-R3. Deterministic by id: any
+    // block of 10 spawns holds exactly 5 far hunters.
     targetTower: null, // the tower this ghost is hunting (v2.7 AI)
     targetGate: false, // true when no towers are left: head for the gate
     retargetCd: 0, // periodic re-pick timer (keeps the spread adaptive)

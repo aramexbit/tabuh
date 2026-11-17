@@ -39,6 +39,16 @@ export function applyShot(game) {
     game.buildTower('saron', 1);
     game.wave = 7;
     game.startWave();
+  } else if (shot === 'boss') {
+    // Wave 10 boss fight, mid-battle: the Raja on the field with adds around.
+    giveCoins(game, 1200);
+    game.buildTower('gong', 4);
+    game.buildTower('kenong', 2);
+    game.buildTower('bonang', 3);
+    game.buildTower('saron', 1);
+    game.buildTower('kendang', 6);
+    game.wave = 10;
+    game.startWave();
   } else if (shot === 'win') {
     // Endgame push: waves 9 + 10 with maxed towers, at 1x speed so the
     // victory screen's play-time reads like a real endgame (~1.5 min),
@@ -65,6 +75,9 @@ export function checkShot(game) {
     // Capture the gong at its best: a shockwave that caught at least 2
     // spirits, with plenty of action still on the field.
     if ((game.stats.lastGongHits || 0) >= 2 && game.enemies.length >= 5) game.shotReady = true;
+  } else if (game.shot === 'boss') {
+    // Capture the boss on screen with a busy field and projectiles flying.
+    if (game.boss && game.enemies.length >= 6 && game.projectiles.length >= 2) game.shotReady = true;
   } else if (game.shot === 'win') {
     // Auto-advance: start the next wave when the build phase opens.
     if (game.state === 'playing' && game.phase === 'build' && game.wave <= TOTAL_WAVES) {

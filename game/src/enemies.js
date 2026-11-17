@@ -20,6 +20,8 @@ export function createEnemy(type, wave, rng) {
     hp: enemyHp(type, wave),
     maxHp: enemyHp(type, wave),
     speed: enemySpeed(type, wave) * rng.range(0.92, 1.08),
+    baseSpeed: 0, // set below; enrage phases multiply it
+    phase: 0, // boss phases: 0 normal, 1 enraged (50%), 2 furious (25%)
     radius: def.radius,
     reward: def.reward,
     gateDmg: def.gateDmg,
@@ -30,6 +32,8 @@ export function createEnemy(type, wave, rng) {
     wobbleAmp: rng.range(3, 7),
     flash: 0,
   };
+  e.baseSpeed = e.speed;
+  return e;
 }
 
 export function updateEnemy(game, e, dt) {
@@ -64,20 +68,44 @@ export function drawEnemy(ctx, e, time) {
   ctx.arc(e.x, e.y, e.radius * 2.2, 0, Math.PI * 2);
   ctx.fill();
   ctx.globalAlpha = 1;
-  // The figure itself.
+  // The figure itself. The Raja is a Buto drawn 1.5x with a gold crown.
   if (e.type === 'wisik') drawKuntilanak(ctx, e, time);
   else if (e.type === 'kunang') drawTuyul(ctx, e, time);
   else if (e.type === 'bayang') drawPocong(ctx, e, time);
   else if (e.type === 'slira') drawGenderuwo(ctx, e, time);
-  else drawButo(ctx, e, time);
+  else if (e.type === 'raja') {
+    ctx.save();
+    ctx.translate(e.x, e.y);
+    ctx.scale(1.5, 1.5);
+    ctx.translate(-e.x, -e.y);
+    drawButo(ctx, e, time);
+    ctx.restore();
+    // Gold crown.
+    ctx.fillStyle = '#ffd76a';
+    ctx.beginPath();
+    ctx.moveTo(e.x - 16, e.y - 40);
+    ctx.lineTo(e.x - 16, e.y - 52);
+    ctx.lineTo(e.x - 8, e.y - 44);
+    ctx.lineTo(e.x, e.y - 54);
+    ctx.lineTo(e.x + 8, e.y - 44);
+    ctx.lineTo(e.x + 16, e.y - 52);
+    ctx.lineTo(e.x + 16, e.y - 40);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#ff4a3d';
+    ctx.beginPath();
+    ctx.arc(e.x, e.y - 45, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  } else drawButo(ctx, e, time);
   if (e.flash > 0) {
     ctx.fillStyle = `rgba(255,255,255,${0.7 * e.flash})`;
     ctx.beginPath();
     ctx.arc(e.x, e.y, e.radius * 1.1, 0, Math.PI * 2);
     ctx.fill();
   }
-  // HP bar.
-  if (e.hp < e.maxHp) {
+  // HP bar: always visible for the big brutes and the boss, otherwise only
+  // once damaged — the player must see how much boss is left at a glance.
+  if (e.hp < e.maxHp || e.type === 'raksasa' || e.type === 'raja') {
     const w = e.radius * 2;
     const pct = Math.max(0, e.hp / e.maxHp);
     ctx.fillStyle = 'rgba(0,0,0,0.6)';

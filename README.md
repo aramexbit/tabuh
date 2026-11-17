@@ -7,7 +7,8 @@
 [![reward](https://make.fun/badge/best-game-01/aramexbit/tabuh/reward.svg)](https://make.fun/bounty/best-game-01?utm_source=github&utm_medium=readme&utm_campaign=best-game-01)
 
 TABUH — Gamelan Defense is a rhythm tower-defense game for the desktop browser:
-a Javanese village at dusk is attacked by waves of spirits, and the player defends it
+10 waves, a boss (Raja Buto Ijo), Endless mode, 3 difficulties, and 4 relic Pusaka.
+A Javanese village at dusk is attacked by waves of spirits, and the player defends it
 by placing bronze gamelan instruments (Gong, Bonang, Kendang, Saron, Kenong) as towers
 along a stone path. Every tower strikes on the beat of a procedural gamelan loop, and
 tapping TABUH exactly on the beat builds a combo that multiplies all tower damage.

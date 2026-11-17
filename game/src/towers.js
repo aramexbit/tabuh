@@ -110,7 +110,7 @@ export function updateTowers(game, dtBeats) {
       for (const e of game.enemies) {
         if (e.hp <= 0) continue;
         if (Math.hypot(e.x - tower.x, e.y - tower.y) <= stats.range) {
-          game.damageEnemy(e, Math.round(stats.dmg * game.comboMult()));
+          game.damageEnemy(e, Math.round(stats.dmg * game.comboMult() * game.dmgMul()));
           if (!e.def.slowResist) {
             e.slowUntil = game.time + stats.slowBeats * game.beatDur;
             e.slowFactor = 1 - stats.slow;
@@ -122,7 +122,7 @@ export function updateTowers(game, dtBeats) {
       game.audio.strike('kendang');
     } else if (tower.type === 'gong') {
       // Instant shockwave at the target: big area damage + stun.
-      const n = applyHit(game, target.x, target.y, stats.dmg, stats.aoe, 0, 0, stats.stunBeats, game.comboMult());
+      const n = applyHit(game, target.x, target.y, stats.dmg, stats.aoe, 0, 0, stats.stunBeats, game.comboMult() * game.dmgMul());
       game.stats.lastGongHits = n;
       game.effects.ring(target.x, target.y, stats.aoe, '#f5c542', 1.2);
       game.effects.burst(target.x, target.y, '#f5c542', 14);
@@ -152,7 +152,7 @@ export function updateProjectiles(game, dt) {
     p.angle = Math.atan2(dy, dx);
     const step = p.speed * dt;
     if (d <= step + p.target.radius * 0.5) {
-      const n = applyHit(game, p.target.x, p.target.y, p.dmg, p.aoe, p.slow, p.slowBeats, p.stunBeats, game.comboMult());
+      const n = applyHit(game, p.target.x, p.target.y, p.dmg, p.aoe, p.slow, p.slowBeats, p.stunBeats, game.comboMult() * game.dmgMul());
       game.effects.burst(p.target.x, p.target.y, p.color, p.aoe > 0 ? 10 : 5);
       if (n > 0 && p.kind === 'bonang') game.effects.ring(p.target.x, p.target.y, p.aoe, p.color);
       p.dead = true;

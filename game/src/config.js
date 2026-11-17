@@ -9,6 +9,31 @@ export const GATE_HP = 20;
 export const TOTAL_WAVES = 10;
 export const SELL_RATE = 0.7;
 
+// Difficulty: chosen on the menu, saved, applied to enemy HP/speed only —
+// coins, gate and tower costs never change, so the probe's numbers hold.
+export const DIFFICULTIES = {
+  easy: { name: 'Mudah', hp: 0.75, speed: 0.9 },
+  normal: { name: 'Normal', hp: 1.0, speed: 1.0 },
+  hard: { name: 'Sulit', hp: 1.35, speed: 1.1 },
+};
+export const DIFF_KEYS = ['easy', 'normal', 'hard'];
+export const DIFF = { hp: 1, speed: 1, key: 'normal' };
+export function setDifficulty(key) {
+  const d = DIFFICULTIES[key] || DIFFICULTIES.normal;
+  DIFF.hp = d.hp;
+  DIFF.speed = d.speed;
+  DIFF.key = DIFFICULTIES[key] ? key : 'normal';
+}
+
+// Pusaka: relic warisan, bonus pasif permanen selama satu run. Didapat
+// otomatis saat wave-nya selesai; ikon menyala di panel PUSAKA.
+export const RELICS = [
+  { key: 'keris', name: 'Keris Pusaka', wave: 3, desc: 'Semua menara +25% damage' },
+  { key: 'gong', name: 'Gong Pusaka', wave: 5, desc: 'Jendela ketuk lebih lebar, kombo tidak langsung putus' },
+  { key: 'kendi', name: 'Kendi Pusaka', wave: 7, desc: '+50% koin dari kill' },
+  { key: 'jimat', name: 'Jimat Pelindung', wave: 9, desc: 'Gerbang +5 HP maks, repair ◆50' },
+];
+
 // Towers: bronze gamelan instruments. beatsPerShot counts beats between strikes;
 // towers fire on the beat grid, so their rhythm is visible and audible.
 export const TOWERS = {
@@ -67,6 +92,11 @@ export const ENEMIES = {
     name: 'Buto Ijo', hp: 260, speed: 20, reward: 20, gateDmg: 3, radius: 26,
     color: '#69b34c', desc: 'Buto Ijo — raksasa hijau bertaring.',
   },
+  raja: {
+    name: 'Raja Buto Ijo', hp: 700, speed: 16, reward: 150, gateDmg: 5, radius: 40,
+    color: '#7ed957', desc: 'Raja Buto Ijo — boss malam kesepuluh, bermahkota emas.',
+    slowResist: true,
+  },
 };
 
 // Waves: groups spawn in order; delay is seconds after the wave starts.
@@ -80,17 +110,19 @@ export const WAVES = [
   { groups: [{ type: 'raksasa', count: 1, interval: 1, delay: 0 }, { type: 'slira', count: 6, interval: 2.4, delay: 3 }, { type: 'bayang', count: 10, interval: 1.0, delay: 5 }, { type: 'kunang', count: 12, interval: 0.45, delay: 8 }] },
   { groups: [{ type: 'raksasa', count: 3, interval: 6.0, delay: 0 }, { type: 'slira', count: 8, interval: 2.2, delay: 2 }, { type: 'bayang', count: 12, interval: 0.9, delay: 4 }, { type: 'kunang', count: 14, interval: 0.4, delay: 8 }] },
   { groups: [{ type: 'raksasa', count: 5, interval: 5.0, delay: 0 }, { type: 'slira', count: 10, interval: 2.0, delay: 2 }, { type: 'bayang', count: 12, interval: 0.9, delay: 4 }, { type: 'wisik', count: 16, interval: 0.6, delay: 8 }] },
-  { groups: [{ type: 'raksasa', count: 7, interval: 4.0, delay: 0 }, { type: 'slira', count: 14, interval: 1.8, delay: 2 }, { type: 'bayang', count: 16, interval: 0.8, delay: 4 }, { type: 'kunang', count: 16, interval: 0.4, delay: 8 }] },
+  // Malam 10: boss Raja Buto Ijo + pengawal yang lebih sedikit dari v1, supaya
+  // boss-nya yang jadi ancaman utama dan autoplay tetap bisa menang.
+  { groups: [{ type: 'raja', count: 1, interval: 1, delay: 2 }, { type: 'raksasa', count: 4, interval: 4.0, delay: 0 }, { type: 'slira', count: 8, interval: 2.0, delay: 2 }, { type: 'bayang', count: 10, interval: 0.9, delay: 4 }, { type: 'kunang', count: 8, interval: 0.5, delay: 8 }] },
 ];
 
 export function enemyHp(type, wave) {
   // Late waves scale hard (+28%/wave) so a maxed board without the rhythm
   // combo cannot hold the gate — TABUH has to matter.
-  return Math.round(ENEMIES[type].hp * (1 + 0.28 * (wave - 1)));
+  return Math.round(ENEMIES[type].hp * (1 + 0.28 * (wave - 1)) * DIFF.hp);
 }
 
 export function enemySpeed(type, wave) {
-  return ENEMIES[type].speed * (1 + 0.04 * (wave - 1));
+  return ENEMIES[type].speed * (1 + 0.04 * (wave - 1)) * DIFF.speed;
 }
 
 export function waveClearBonus(wave) {

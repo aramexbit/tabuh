@@ -11,10 +11,10 @@ const CHROME = process.env.CHROME_PATH || (require('os').homedir() + '/.cache/ms
 const BASE = 'http://localhost:8094';
 const OUT = path.join(__dirname, '..', 'screenshots');
 const SHOTS = [
-  { name: '1-menu.jpg', shot: 'menu' },
-  { name: '2-play.jpg', shot: 'play' },
-  { name: '3-big.jpg', shot: 'big' },
-  { name: '4-win.jpg', shot: 'win' },
+  { name: '1-boss.jpg', shot: 'boss' },
+  { name: '2-big.jpg', shot: 'big' },
+  { name: '3-win.jpg', shot: 'win' },
+  { name: '4-play.jpg', shot: 'play' },
 ];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 

@@ -3,6 +3,7 @@
 // TABUH hit window, so rhythm is one system, not three.
 import {
   W, H, BEAT, START_COINS, GATE_HP, TOTAL_WAVES, TOWERS, waveClearBonus,
+  RELICS, setDifficulty,
 } from './config.js';
 import { makeRng } from './rng.js';
 import { GamelanAudio } from './audio.js';
@@ -11,7 +12,7 @@ import {
   createTower, towerStats, upgradeCost, sellValue, updateTowers,
   updateProjectiles, drawTower,
 } from './towers.js';
-import { updateEnemy, drawEnemy } from './enemies.js';
+import { createEnemy, updateEnemy, drawEnemy } from './enemies.js';
 import { WaveSpawner } from './waves.js';
 import { Effects } from './effects.js';
 import { drawScene } from './render.js';
@@ -19,6 +20,7 @@ import { UI } from './ui.js';
 import { applyShot, checkShot } from './shots.js';
 
 const BEST_KEY = 'tabuh-best-v1';
+const DIFF_KEY = 'tabuh-diff-v1';
 
 export class Game {
   constructor(canvas, opts = {}) {
@@ -36,9 +38,27 @@ export class Game {
     this.beatDur = BEAT; // towers.js uses game.beatDur for slow/stun timers
     this.shotReady = false;
     this.best = this.loadBest();
+    this.difficulty = this.loadDifficulty();
+    setDifficulty(this.difficulty);
     this.reset();
     this.state = 'menu';
     if (this.shot) applyShot(this);
+  }
+
+  loadDifficulty() {
+    try {
+      const d = localStorage.getItem(DIFF_KEY);
+      if (d === 'easy' || d === 'normal' || d === 'hard') return d;
+    } catch (e) { /* storage unavailable */ }
+    return 'normal';
+  }
+
+  setDifficultyKey(key) {
+    this.difficulty = (key === 'easy' || key === 'hard') ? key : 'normal';
+    setDifficulty(this.difficulty);
+    try {
+      localStorage.setItem(DIFF_KEY, this.difficulty);
+    } catch (e) { /* storage unavailable */ }
   }
 
   loadBest() {
@@ -82,6 +102,12 @@ export class Game {
     this.combo = 0;
     this.shake = 0;
     this.shotReady = false;
+    this.endless = false;
+    this.boss = null;
+    this.bossAnnounced = false;
+    this.relics = new Set();
+    this.waveTotal = 0;
+    this.waveStartKills = 0;
     this.stats = {
       kills: 0, coinsEarned: 0, perfectHits: 0, goodHits: 0, misses: 0,
       beatPresses: 0, maxCombo: 0, timeSec: 0, gongHits: 0,
@@ -112,33 +138,57 @@ export class Game {
     this.audio.ensure();
     this.phase = 'wave';
     this.spawner.start(this.wave);
+    this.waveTotal = this.spawner.remaining;
+    this.waveStartKills = this.stats.kills;
     this.selectedPad = null;
     this.selectedTower = null;
   }
 
+  // Passive damage multiplier from relics (Keris +25%). Kept apart from
+  // comboMult() so the HUD still shows the honest combo multiplier.
+  dmgMul() {
+    return this.relics.has('keris') ? 1.25 : 1;
+  }
+
+  repairCost() {
+    return this.relics.has('jimat') ? 50 : 100;
+  }
+
+  comboGrade() {
+    if (this.combo >= 15) return 'S';
+    if (this.combo >= 10) return 'A';
+    if (this.combo >= 5) return 'B';
+    if (this.combo >= 1) return 'C';
+    return '—';
+  }
+
   // The player taps TABUH on the beat. Timing windows (seconds to the nearest
   // beat): perfect <= 0.07, good <= 0.14, else a miss that breaks the combo.
+  // Gong Pusaka widens the windows and softens a miss (combo halves).
   tabuh() {
     if (this.state !== 'playing') return;
     this.audio.ensure();
     const phase = this.beatPhase();
     const d = Math.min(phase, 1 - phase) * BEAT;
+    const wide = this.relics.has('gong');
+    const perfectWin = wide ? 0.10 : 0.07;
+    const goodWin = wide ? 0.20 : 0.14;
     this.stats.beatPresses++;
     let verdict;
-    if (d <= 0.07) {
+    if (d <= perfectWin) {
       verdict = 'perfect';
       this.stats.perfectHits++;
       this.combo++;
       this.coins += 1;
       this.stats.coinsEarned += 1;
-    } else if (d <= 0.14) {
+    } else if (d <= goodWin) {
       verdict = 'good';
       this.stats.goodHits++;
       this.combo++;
     } else {
       verdict = 'miss';
       this.stats.misses++;
-      this.combo = 0;
+      this.combo = wide ? Math.floor(this.combo / 2) : 0;
     }
     this.stats.maxCombo = Math.max(this.stats.maxCombo, this.combo);
     this.effects.ring(930, H - 52, 60, verdict === 'perfect' ? '#7fe3a8' : verdict === 'good' ? '#ffd76a' : '#ff7a6a');
@@ -150,12 +200,23 @@ export class Game {
     if (e.hp <= 0) return;
     e.hp -= dmg;
     e.flash = 1;
+    // Floating damage numbers (big hits only, so the field stays readable).
+    if (dmg >= 10) {
+      const big = dmg >= 50;
+      this.effects.text(
+        e.x + (Math.random() * 16 - 8), e.y - e.radius - 8, `-${dmg}`,
+        big ? '#ff9a3d' : '#ffd76a', big ? 20 : 13,
+      );
+    }
+    if (dmg >= 30) this.effects.burst(e.x, e.y, e.def.color, 4);
+    if (e.type === 'raja') this.shake = Math.max(this.shake, 0.18);
     if (e.hp <= 0) {
-      this.coins += e.reward;
-      this.stats.coinsEarned += e.reward;
+      const reward = Math.round(e.reward * (this.relics.has('kendi') ? 1.5 : 1));
+      this.coins += reward;
+      this.stats.coinsEarned += reward;
       this.stats.kills++;
       this.effects.burst(e.x, e.y, e.def.color, 10);
-      this.effects.text(e.x, e.y - 18, `+${e.reward}`, '#ffd76a', 14);
+      this.effects.text(e.x, e.y - 18, `+${reward}`, '#ffd76a', 14);
     }
   }
 
@@ -187,13 +248,29 @@ export class Game {
   }
 
   // Late-game money sink: spend surplus coins to patch the village gate.
+  // Jimat Pelindung halves the price.
   repairGate() {
     if (this.state !== 'playing') return false;
-    if (this.gateHp >= this.gateMaxHp || this.coins < 100) return false;
-    this.coins -= 100;
+    const cost = this.repairCost();
+    if (this.gateHp >= this.gateMaxHp || this.coins < cost) return false;
+    this.coins -= cost;
     this.gateHp = Math.min(this.gateMaxHp, this.gateHp + 5);
     this.effects.text(620, 60, '+5 Gerbang', '#7fe3a8', 18);
     return true;
+  }
+
+  // A relic is earned automatically when its wave is cleared: the icon lights
+  // up in the PUSAKA panel and the name flashes on screen.
+  awardRelic(relic) {
+    if (this.relics.has(relic.key)) return;
+    this.relics.add(relic.key);
+    if (relic.key === 'jimat') {
+      this.gateMaxHp += 5;
+      this.gateHp = Math.min(this.gateMaxHp, this.gateHp + 5);
+    }
+    this.effects.text(640, 200, `${relic.name} didapat!`, '#ffd76a', 26);
+    this.effects.text(640, 232, relic.desc, '#cfe8dd', 16);
+    this.effects.ring(640, 216, 260, '#ffd76a', 1.0);
   }
 
   waveCleared() {
@@ -201,12 +278,24 @@ export class Game {
     this.coins += bonus;
     this.stats.coinsEarned += bonus;
     this.effects.text(640, 120, `Malam ${this.wave} selesai!  +${bonus} koin`, '#7fe3a8', 22);
-    if (this.wave >= TOTAL_WAVES) {
+    for (const r of RELICS) {
+      if (r.wave === this.wave) this.awardRelic(r);
+    }
+    if (this.wave >= TOTAL_WAVES && !this.endless) {
       this.victory();
       return;
     }
     this.wave++;
     this.phase = 'build';
+  }
+
+  continueEndless() {
+    if (this.state !== 'victory') return;
+    this.endless = true;
+    this.state = 'playing';
+    this.wave = TOTAL_WAVES + 1;
+    this.phase = 'build';
+    this.gateHp = Math.min(this.gateMaxHp, this.gateHp + 5);
   }
 
   victory() {
@@ -221,6 +310,46 @@ export class Game {
     this.audio.fanfare(false);
   }
 
+  // Boss tracking + enrage phases. At 50% HP the Raja speeds up and calls
+  // wisik; at 25% he speeds up again and calls more. Announced on screen.
+  updateBoss() {
+    for (const e of this.enemies) {
+      if (e.type !== 'raja') continue;
+      if (this.boss !== e) {
+        this.boss = e;
+        this.effects.text(640, 160, 'RAJA BUTO IJO MUNCUL!', '#ff9a3d', 30);
+        this.effects.ring(e.x, e.y, 160, '#ff9a3d', 1.2);
+        this.shake = Math.max(this.shake, 0.5);
+      }
+      const pct = e.hp / e.maxHp;
+      if (e.phase === 0 && pct <= 0.5) {
+        e.phase = 1;
+        e.speed = e.baseSpeed * 1.5;
+        this.summonWisik(e, 3);
+        this.effects.text(640, 160, 'Raja mengamuk!', '#ff9a3d', 26);
+        this.shake = Math.max(this.shake, 0.5);
+      } else if (e.phase === 1 && pct <= 0.25) {
+        e.phase = 2;
+        e.speed = e.baseSpeed * 2.2;
+        this.summonWisik(e, 3);
+        this.effects.text(640, 160, 'Raja murka!', '#ff4a3d', 26);
+        this.shake = Math.max(this.shake, 0.6);
+      }
+    }
+    if (this.boss && (this.boss.hp <= 0 || this.boss.reachedGate)) this.boss = null;
+  }
+
+  summonWisik(boss, n) {
+    for (let i = 0; i < n; i++) {
+      const w = createEnemy('wisik', this.wave, this.rng);
+      w.dist = Math.max(0, boss.dist - 90 - i * 40);
+      const p = pointAt(w.dist);
+      w.x = p.x;
+      w.y = p.y;
+      this.enemies.push(w);
+    }
+  }
+
   // ---- Input actions (from input.js / UI buttons) ----
 
   handleAction(id) {
@@ -231,6 +360,8 @@ export class Game {
     if (id === 'pause') { if (this.state === 'playing') this.state = 'paused'; return; }
     if (id === 'resume') { if (this.state === 'paused') this.state = 'playing'; return; }
     if (id === 'restart') { this.start(); return; }
+    if (id === 'endless') { this.continueEndless(); return; }
+    if (id && id.startsWith('diff:')) { this.setDifficultyKey(id.slice(5)); return; }
     if (id === 'quit-menu') { this.state = 'menu'; return; }
     if (id === 'wave') { this.startWave(); return; }
     if (id === 'tabuh') { this.tabuh(); return; }
@@ -307,6 +438,9 @@ export class Game {
     this.beatIndex = Math.floor(this.beatTime / BEAT);
     if (this.beatIndex !== prevBeat) {
       this.audio.onBeat(this.beatIndex);
+      // Beat rings at both gates: the whole arena pulses with the ketuk.
+      this.effects.ring(150, 648, 80, 'rgba(232,182,76,0.55)');
+      this.effects.ring(1234, 58, 70, 'rgba(127,227,200,0.45)');
       // The win screenshot pose plays the rhythm for real: a perfect tabuh
       // on every beat, so its victory stats show genuine engagement.
       if (this.shot === 'win' && this.state === 'playing') this.tabuh();
@@ -326,6 +460,7 @@ export class Game {
       }
     }
     this.enemies = this.enemies.filter((e) => e.hp > 0 && !e.reachedGate);
+    this.updateBoss();
     this.effects.update(dt);
     this.shake = Math.max(0, this.shake - dt * 1.8);
     if (this.gateHp <= 0) {

@@ -75,3 +75,23 @@ Our previous entry in this bounty, ARCANE DUEL (submission 01a1e38d), ranks 1475
   decides. Present bug findings equally with good news, up front.
 - Don't change a working feature without instruction; don't change localStorage key
   formats without a safe default.
+
+## Progress log
+
+- 17 Nov ~14:15 WIB: game v1 written + committed (326f377). Probe 1: 30/32 PASS —
+  only failure was a favicon 404 console error (fixed with a data: SVG favicon).
+- Probe 2 (after favicon fix): **32/32 PASS** — menu, build/upgrade/sell, tabuh on beat
+  (perfect), wave 1 cleared with gate untouched, pause/resume, mute, defeat screen,
+  restart, win pose victory, all 3 shot poses ready, 0 console errors, 0 failed
+  requests. Harness: tools/probe.js (Node Playwright, own http server).
+- Screenshot lesson: port 8084 was occupied by an unrelated JSON service
+  (`{"error":"not_found"...}`) — the first shots run captured its blank error page.
+  Fix: pre-flight check in tools/shots.js (verify the served page contains TABUH)
+  + moved to port 8094. Always verify the server you probe is YOUR server.
+- Screenshot fixes: gong "big" moment moved to the central pad + requires a
+  multi-hit shockwave (>=2 spirits) so the frame reads as a climax; win pose now
+  plays waves 9+10 at 1x speed and taps TABUH on every beat for real, so the
+  victory screen shows genuine stats (89% accuracy, max combo 20, kills 84,
+  coins 891, ~1.5 min play-time) instead of 0% accuracy / 0:09.
+- 17 Nov ~14:28 WIB: playtest live at https://aramexbit.github.io/tabuh/
+  (branch `play`, subtree split of game/, commit 523f57d). Main branch at fdc59e7.

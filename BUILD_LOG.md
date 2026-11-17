@@ -95,3 +95,25 @@ Our previous entry in this bounty, ARCANE DUEL (submission 01a1e38d), ranks 1475
   coins 891, ~1.5 min play-time) instead of 0% accuracy / 0:09.
 - 17 Nov ~14:28 WIB: playtest live at https://aramexbit.github.io/tabuh/
   (branch `play`, subtree split of game/, commit 523f57d). Main branch at fdc59e7.
+- 17 Nov ~14:34 WIB: independent review (subagent) — CRITICAL: kendang slow +
+  gong stun never applied (game.beatDur undefined -> NaN); MAJOR: rhythm
+  optional (zero-tabuh auto-play won 20/20); MAJOR: no money sink (~600 coins
+  unspent). Fixes committed: beatDur line, HP scale 0.12->0.18/wave, speed
+  scale, wave 9-10 counts up, gate repair sink (100 coins, +5 HP), pad panel
+  flip, +2 houses + bamboo filling the lower field.
+- 17 Nov ~14:47 WIB: user feedback — spirits looked like marbles ("kelereng").
+  Redrew all 5 enemies as hantu Indonesia in canvas: Kuntilanak (white dress,
+  long black hair, floats), Tuyul (small bald child, quick bob), Pocong (white
+  shroud with ties, hops), Genderuwo (bulky dark hairy, red eyes), Buto Ijo
+  (giant green ogre, horns + fangs). Internal type keys unchanged.
+- 17 Nov ~14:50 WIB: user asked for creepy night ambience — added to audio.js:
+  crickets (4-5 kHz chirps, random pan/pitch), wind (looped noise, lowpass,
+  slow LFO), low drone (55 + 55.7 Hz), owl hoot (~24 s), frog croak (~9 s).
+  Routes through master gain, so mute silences it; headless-safe.
+- 17 Nov ~15:00 WIB: autoplay BUG — `--speed 3` parsed as `--speed=3` gave
+  SPEED=NaN, timeScale=NaN froze the game clock (time=NaN, nothing spawned,
+  600 s timeout). Heartbeat log in autoplay.js caught it. Fixed arg parsing
+  (space + = forms) + game.frame() guards a non-finite timeScale to 1.
+- 17 Nov ~15:05 WIB: balance v1 STILL too easy — no-tabuh bot won 20/20
+  (kills 252, coins 659). Balance v2: HP +28%/wave, speed +4%/wave, wave 7-10
+  counts up, kill rewards -25%, wave bonus 15+4w. Re-testing both modes.

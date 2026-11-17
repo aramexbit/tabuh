@@ -61,6 +61,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
           g.spawnGoldenTuyul();
           g.triggerGongRaksasa();
         });
+      } else if (s.shot === 'play') {
+        // The play frame is the twist banner mid-flight: capture at the
+        // ready moment, no settle sleep, or the banner fades first.
       } else {
         await sleep(400);
       }

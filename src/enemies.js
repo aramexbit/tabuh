@@ -43,6 +43,8 @@ export function updateEnemy(game, e, dt) {
   if (game.time < e.stunUntil) return; // stunned: no movement
   let speed = e.speed;
   if (game.time < e.slowUntil) speed *= e.slowFactor;
+  // Malam Berkabut: ghosts move 15% faster.
+  if (game.twist === 'kabut') speed *= 1.15;
   e.dist += speed * dt;
   const p = pointAt(e.dist);
   const wob = Math.sin(game.time * 3 + e.wobble) * e.wobbleAmp;
@@ -189,13 +191,17 @@ export function drawEnemy(ctx, e, time) {
   }
   // HP bar: always visible for the big brutes and the boss, otherwise only
   // once damaged — the player must see how much boss is left at a glance.
+  // Thick (6 px) with a dark border so it reads over any background.
   if (e.hp < e.maxHp || e.type === 'raksasa' || e.type === 'raja') {
-    const w = e.radius * 2;
+    const w = e.radius * 2 + 8;
     const pct = Math.max(0, e.hp / e.maxHp);
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(e.x - w / 2, e.y - e.radius - 12, w, 4);
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(e.x - w / 2, e.y - e.radius - 14, w, 6);
     ctx.fillStyle = pct > 0.5 ? '#7fe3a8' : pct > 0.25 ? '#ffd76a' : '#ff7a6a';
-    ctx.fillRect(e.x - w / 2, e.y - e.radius - 12, w * pct, 4);
+    ctx.fillRect(e.x - w / 2, e.y - e.radius - 14, w * pct, 6);
+    ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(e.x - w / 2, e.y - e.radius - 14, w, 6);
   }
 }
 

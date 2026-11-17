@@ -5,12 +5,14 @@
 import { TOWERS, UPGRADES, SELL_RATE } from './config.js';
 import { PADS } from './world.js';
 
-export function towerStats(tower) {
+export function towerStats(tower, game) {
   const base = TOWERS[tower.type];
   const up = UPGRADES[tower.level] || { dmgMul: 1, rangeMul: 1 };
+  // Malam Berkabut: tower range -20%.
+  const rangeMul = game && game.twist === 'kabut' ? 0.8 : 1;
   return {
     dmg: Math.round(base.dmg * up.dmgMul),
-    range: Math.round(base.range * up.rangeMul),
+    range: Math.round(base.range * up.rangeMul * rangeMul),
     beatsPerShot: base.beatsPerShot,
     aoe: base.aoe || 0,
     slow: base.slow || 0,
@@ -117,7 +119,7 @@ export function updateTowers(game, dtBeats) {
     if (game.time < tower.slowUntil) beats *= tower.slowFactor;
     tower.cooldown -= beats;
     if (tower.cooldown > 0) continue;
-    const stats = towerStats(tower);
+    const stats = towerStats(tower, game);
     const target = firstTargetInRange(game, tower, stats.range);
     if (!target) continue;
     tower.angle = Math.atan2(target.y - tower.y, target.x - tower.x);
@@ -140,11 +142,15 @@ export function updateTowers(game, dtBeats) {
       if (hit > 0) game.effects.ring(tower.x, tower.y, stats.range, '#c97b3d');
       game.audio.strike('kendang');
     } else if (tower.type === 'gong') {
-      // Instant shockwave at the target: big area damage + stun.
+      // Instant shockwave at the target: big area damage + stun. Two rings
+      // (wide gold + tight bright core) and a heavy spark burst, so the
+      // gong's hit reads as the biggest moment on the field.
       const n = applyHit(game, target.x, target.y, stats.dmg, stats.aoe, 0, 0, stats.stunBeats, game.comboMult() * game.dmgMul(), 'gong');
       game.stats.lastGongHits = n;
-      game.effects.ring(target.x, target.y, stats.aoe, '#f5c542', 1.2);
-      game.effects.burst(target.x, target.y, '#f5c542', 14);
+      game.effects.ring(target.x, target.y, stats.aoe * 1.35, '#f5c542', 1.2, 6);
+      game.effects.ring(target.x, target.y, stats.aoe * 0.8, '#fff2b0', 0.9, 4);
+      game.effects.burst(target.x, target.y, '#f5c542', 22);
+      game.effects.burst(target.x, target.y, '#fff2b0', 10);
       game.shake = Math.max(game.shake, 0.35);
       game.audio.strike('gong');
       if (n > 0) game.stats.gongHits = (game.stats.gongHits || 0) + 1;
@@ -172,7 +178,7 @@ export function updateProjectiles(game, dt) {
     const step = p.speed * dt;
     if (d <= step + p.target.radius * 0.5) {
       const n = applyHit(game, p.target.x, p.target.y, p.dmg, p.aoe, p.slow, p.slowBeats, p.stunBeats, game.comboMult() * game.dmgMul(), p.kind);
-      game.effects.burst(p.target.x, p.target.y, p.color, p.aoe > 0 ? 10 : 5);
+      game.effects.burst(p.target.x, p.target.y, p.color, p.aoe > 0 ? 14 : 8);
       if (n > 0 && p.kind === 'bonang') game.effects.ring(p.target.x, p.target.y, p.aoe, p.color);
       p.dead = true;
     } else {
@@ -229,6 +235,25 @@ export function drawTower(ctx, tower, time) {
   const flash = tower.flash;
   const bob = Math.sin(time * 2 + tower.padIndex) * 1.5;
   drawPad(ctx, x, y);
+  // Warm glow under every tower so the instruments read as lit bronze
+  // against the dark field; the gong gets the widest, brightest halo.
+  const glowR = tower.type === 'gong' ? 74 : 46;
+  const gg = ctx.createRadialGradient(x, y - 6, 4, x, y - 6, glowR);
+  gg.addColorStop(0, def.color + '59');
+  gg.addColorStop(0.6, def.color + '26');
+  gg.addColorStop(1, def.color + '00');
+  ctx.fillStyle = gg;
+  ctx.beginPath();
+  ctx.arc(x, y - 6, glowR, 0, Math.PI * 2);
+  ctx.fill();
+  if (tower.type === 'gong') {
+    // Pulsing halo ring around the gong, breathing with the beat.
+    ctx.strokeStyle = `rgba(245,197,66,${0.30 + 0.18 * Math.sin(time * (Math.PI * 2 / 0.6))})`;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(x, y - 12, 30 + 3 * Math.sin(time * 3 + tower.padIndex), 0, Math.PI * 2);
+    ctx.stroke();
+  }
   ctx.save();
   ctx.translate(x, y + bob * 0.3);
   const gold = tower.level >= 2;
@@ -325,11 +350,14 @@ export function drawTower(ctx, tower, time) {
   // Durability bar above the tower (always visible once chipped).
   const durPct = tower.durability / tower.maxDurability;
   if (durPct < 1) {
-    const bw = 36;
-    ctx.fillStyle = 'rgba(0,0,0,0.65)';
-    ctx.fillRect(x - bw / 2, y - 44, bw, 5);
+    const bw = 44;
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(x - bw / 2, y - 48, bw, 6);
     ctx.fillStyle = durPct > 0.5 ? '#7fe3a8' : durPct > 0.25 ? '#ffd76a' : '#ff7a6a';
-    ctx.fillRect(x - bw / 2, y - 44, bw * Math.max(0, durPct), 5);
+    ctx.fillRect(x - bw / 2, y - 48, bw * Math.max(0, durPct), 6);
+    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x - bw / 2, y - 48, bw, 6);
   }
   // Cracks + smoke when badly damaged; a wrapped tower shows its shroud.
   if (durPct < 0.5) {

@@ -2,7 +2,7 @@
 // rice terraces, the cobbled stone path, the spirit gate, the village gate,
 // empty build pads and drifting fireflies. All drawn in code — no image assets.
 import { W, H } from './config.js';
-import { PATH_POINTS, PADS, GATE } from './world.js';
+import { PATH_POINTS, PADS, GATE, distanceToPath } from './world.js';
 import { makeRng } from './rng.js';
 
 const stars = [];
@@ -15,9 +15,60 @@ const stars = [];
 const fireflies = [];
 {
   const rng = makeRng(777);
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 90; i++) {
     fireflies.push({ x: rng.range(60, W - 60), y: rng.range(80, H - 60), ph: rng.range(0, 6.28), sp: rng.range(0.3, 0.9) });
   }
+}
+// Ground sparkles: tiny gold/cyan glints scattered over the fields (never on
+// the path or a pad), twinkling like the mockup's dense starfield.
+const sparkles = [];
+{
+  const rng = makeRng(4242);
+  let placed = 0;
+  let guard = 0;
+  while (placed < 50 && guard++ < 500) {
+    const x = rng.range(40, W - 40);
+    const y = rng.range(320, 610);
+    if (distanceToPath(x, y) < 40) continue;
+    if (PADS.some((p) => Math.hypot(x - p.x, y - p.y) < 52)) continue;
+    if (x > 1040 && y > 480) continue; // the grade badge covers this corner
+    sparkles.push({ x, y, r: rng.range(0.8, 2.2), ph: rng.range(0, 6.28), gold: rng.range(0, 1) > 0.45 });
+    placed++;
+  }
+}
+
+// Grass tufts (three blades each), hand-placed in the verified empty zones.
+const GRASS = [
+  [150, 560], [230, 610], [560, 600], [900, 600],
+  [60, 560], [350, 520], [760, 470], [600, 560],
+  [980, 560], [1180, 450],
+];
+
+function drawGrass(ctx, x, y) {
+  ctx.strokeStyle = '#4a9a58';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  for (const [dx, h, lean] of [[-6, 14, -3], [0, 18, 0], [6, 13, 3]]) {
+    ctx.beginPath();
+    ctx.moveTo(x + dx, y);
+    ctx.quadraticCurveTo(x + dx + lean, y - h * 0.6, x + dx + lean * 2, y - h);
+    ctx.stroke();
+  }
+}
+
+function drawCloud(ctx, x, y, s) {
+  // Soft dusk cloud: dark blue-grey puffs with a gold-lit rim.
+  ctx.fillStyle = 'rgba(46,66,92,0.55)';
+  for (const [dx, dy, r] of [[-34, 6, 20], [0, 0, 26], [34, 8, 18], [10, -10, 18]]) {
+    ctx.beginPath();
+    ctx.ellipse(x + dx * s, y + dy * s, r * s, r * s * 0.62, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.strokeStyle = 'rgba(232,182,76,0.28)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(x, y - 8 * s, 34 * s, 12 * s, 0, Math.PI, 0);
+  ctx.stroke();
 }
 
 function drawHouse(ctx, x, y, w, h, lit) {
@@ -187,6 +238,10 @@ export function drawScene(ctx, game, time) {
   ctx.beginPath();
   ctx.arc(150, 90, 26, 0, Math.PI * 2);
   ctx.fill();
+  // Golden dusk clouds drifting over the village (like the mockup's sky).
+  drawCloud(ctx, 620, 105, 1.15);
+  drawCloud(ctx, 980, 78, 0.9);
+  drawCloud(ctx, 330, 150, 0.8);
   // Distant hills.
   ctx.fillStyle = '#0f2a33';
   ctx.beginPath();
@@ -223,6 +278,10 @@ export function drawScene(ctx, game, time) {
   drawHouse(ctx, 1060, 530, 100, 58, true);
   drawHouse(ctx, 60, 430, 100, 60, true);
   drawHouse(ctx, 1080, 420, 90, 54, false);
+  // More houses so the middle field never reads as one big empty lawn.
+  drawHouse(ctx, 180, 495, 100, 58, true);
+  drawHouse(ctx, 640, 540, 110, 62, true);
+  drawHouse(ctx, 980, 380, 100, 58, false);
   // Bamboo cluster (lower-middle, right of the path).
   ctx.strokeStyle = '#3f7a4a';
   ctx.lineWidth = 3;
@@ -249,6 +308,23 @@ export function drawScene(ctx, game, time) {
     ctx.ellipse(bx + 2, by - bh - 6, 14, 7, 0, 0, Math.PI * 2);
     ctx.fill();
   }
+  // Third + fourth bamboo clusters (right field, bottom left).
+  for (const cluster of [[[1150, 470, 62], [1168, 475, 50], [1186, 468, 56]], [[90, 580, 58], [108, 585, 46], [126, 578, 52]]]) {
+    ctx.strokeStyle = '#3f7a4a';
+    ctx.lineWidth = 3;
+    for (const [bx, by, bh] of cluster) {
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.quadraticCurveTo(bx + 6, by - bh / 2, bx + 2, by - bh);
+      ctx.stroke();
+      ctx.fillStyle = '#4a9a58';
+      ctx.beginPath();
+      ctx.ellipse(bx + 2, by - bh - 6, 14, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // Grass tufts across the verified empty zones.
+  for (const [gx, gy] of GRASS) drawGrass(ctx, gx, gy);
   // The stone path.
   drawPath(ctx);
   // Empty build pads (occupied ones are drawn by the tower).
@@ -275,21 +351,35 @@ export function drawScene(ctx, game, time) {
   }
   drawSpiritGate(ctx, time);
   drawVillageGate(ctx, time, game.gateHp, game.gateMaxHp);
-  // Fireflies.
+  // Fireflies (90 now — the night air is thick with them).
   for (const f of fireflies) {
     const fx = f.x + Math.sin(time * f.sp + f.ph) * 18;
     const fy = f.y + Math.cos(time * f.sp * 0.7 + f.ph) * 10;
     ctx.globalAlpha = 0.35 + 0.5 * Math.abs(Math.sin(time * 1.4 + f.ph));
     ctx.fillStyle = '#ffe066';
     ctx.beginPath();
-    ctx.arc(fx, fy, 2, 0, Math.PI * 2);
+    ctx.arc(fx, fy, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    // Halo so each firefly glows, not just dots.
+    ctx.globalAlpha = 0.18 * Math.abs(Math.sin(time * 1.4 + f.ph));
+    ctx.beginPath();
+    ctx.arc(fx, fy, 6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  // Ground sparkles: gold/cyan glints twinkling over the fields.
+  for (const s of sparkles) {
+    ctx.globalAlpha = 0.25 + 0.55 * Math.abs(Math.sin(time * 1.8 + s.ph));
+    ctx.fillStyle = s.gold ? '#ffd76a' : '#7fe3e8';
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
   // Beat pulse: the whole arena breathes gold on the ketuk (0.6 s cycle).
   const pulse = 0.5 + 0.5 * Math.sin(time * (Math.PI * 2 / 0.6));
   const pg = ctx.createRadialGradient(W / 2, H / 2, 100, W / 2, H / 2, 760);
-  pg.addColorStop(0, `rgba(232,182,76,${0.045 * pulse})`);
+  pg.addColorStop(0, `rgba(232,182,76,${0.09 * pulse})`);
   pg.addColorStop(1, 'rgba(232,182,76,0)');
   ctx.fillStyle = pg;
   ctx.fillRect(0, 0, W, H);

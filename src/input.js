@@ -51,6 +51,10 @@ export function attachInput(game) {
       game.audio.setMuted(!game.audio.muted);
       return;
     }
+    if (k === 'g') {
+      game.triggerGongRaksasa();
+      return;
+    }
     if (k === 'r') {
       if (game.state === 'victory' || game.state === 'defeat' || game.state === 'paused') game.start();
       return;

@@ -63,10 +63,14 @@ export class Effects {
   }
 
   text(x, y, str, color = '#ffd76a', size = 16) {
-    // Cap the pile-up: a Gong Raksasa blast spawns a dozen numbers at once;
-    // drop small ones so the big numbers stay readable, like the top-10
-    // frames' clean numbers.
-    if (this.texts.length >= 20 && size < 22) return;
+    // Cap the pile-up: at most 4 SMALL texts live at once. A Gong Raksasa
+    // blast used to spawn a dozen numbers that stacked into the unreadable
+    // blob in the v2.3 boss frame — the top-10 frames keep their numbers
+    // small, local and few. Big texts (kill pops, banners) always pass.
+    if (size < 22) {
+      const small = this.texts.filter((t) => t.size < 22).length;
+      if (small >= 4) return;
+    } else if (this.texts.length >= 12) return;
     // Texts are drawn center-aligned, so a string's real width is
     // ~0.6 * size per character — the collision test must use it, not the
     // font size: "+225 ◆ (+50%)" at 17 px is ~120 px wide.
@@ -96,6 +100,8 @@ export class Effects {
     this.texts.push({
       x: px, y: py, estW,
       vx: (Math.random() - 0.5) * 16, str, color, size, life: 1.0,
+      // Small numbers fade fast (0.8 s); big pops linger (1.3 s).
+      decay: size < 22 ? 1.25 : 0.75,
     });
   }
 
@@ -110,7 +116,7 @@ export class Effects {
     for (const t of this.texts) {
       t.x += (t.vx || 0) * dt;
       t.y -= 40 * dt;
-      t.life -= dt * 0.75; // numbers hang in the air a little longer
+      t.life -= dt * (t.decay || 0.75);
     }
     this.texts = this.texts.filter((t) => t.life > 0);
     for (const r of this.rings) {

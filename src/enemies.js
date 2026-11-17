@@ -188,11 +188,18 @@ function ghostAttack(game, e) {
 // the Raja is a true centrepiece at 2.2x.
 const VISUAL_SCALE = { wisik: 1.25, kunang: 1.25, bayang: 1.25, slira: 1.25, raksasa: 1.3, raja: 2.2, emas: 1.3 };
 
+// Visual radius: the figure's real on-screen size (hitbox radius x the
+// per-type visual scale). Game code that places floating text above a
+// spirit must use this, not e.radius, or the numbers land inside the body.
+export function visualRadius(e) {
+  return e.radius * (VISUAL_SCALE[e.type] || 1);
+}
+
 export function drawEnemy(ctx, e, time) {
   const c = e.def.color;
   const pulse = 0.75 + Math.sin(time * 4 + e.wobble) * 0.25;
   const vs = VISUAL_SCALE[e.type] || 1;
-  const vr = e.radius * vs; // visual radius — the figure's real on-screen size
+  const vr = visualRadius(e); // visual radius — the figure's real on-screen size
   // Ground shadow + type-color base ring at the feet: every spirit now has
   // a dark anchor and its own colour on the ground, so types read apart.
   ctx.fillStyle = 'rgba(0,0,0,0.35)';

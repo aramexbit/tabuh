@@ -12,7 +12,7 @@ import {
   createTower, towerStats, upgradeCost, sellValue, towerSpent, updateTowers,
   updateProjectiles, drawTower,
 } from './towers.js';
-import { createEnemy, updateEnemy, drawEnemy } from './enemies.js';
+import { createEnemy, updateEnemy, drawEnemy, visualRadius } from './enemies.js';
 import { WaveSpawner, waveDef } from './waves.js';
 import { Effects } from './effects.js';
 import { drawScene } from './render.js';
@@ -327,7 +327,7 @@ export class Game {
       const big = dmg >= 50;
       const mid = dmg >= 20;
       this.effects.text(
-        e.x + (Math.random() * 16 - 8), e.y - e.radius - 8, `-${dmg}`,
+        e.x + (Math.random() * 16 - 8), e.y - visualRadius(e) - 8, `-${dmg}`,
         big ? '#ff9a3d' : '#ffd76a', big ? 30 : mid ? 22 : 17,
       );
     }
@@ -356,9 +356,11 @@ export class Game {
         bonusLabel = 'TUYUL EMAS +500 • ';
       }
       this.effects.burst(e.x, e.y, e.def.color, 16);
-      const bonus = (this.relics.has('kendi') ? ' (+50%)' : '') + (this.twist === 'purnama' ? ' (x2)' : '');
-      // Kill pop sits above the damage number (radius + 32), not on top of it.
-      this.effects.text(e.x, e.y - e.radius - 32, `${bonusLabel}+${reward} ◆${bonus}`, '#ffd76a', e.type === 'emas' || e.type === 'raja' ? 22 : 17);
+      // Kill pop: coin reward only. The "(+50%)" / "(x2)" suffix used to
+      // repeat on EVERY kill ("+8 ◆ (+50%)" 6-7x in the v2.4 boss frame);
+      // the buff is shown once instead — Kendi +50% in the DATANG panel's
+      // PUSAKA line, Purnama x2 in the twist pill + banner.
+      this.effects.text(e.x, e.y - visualRadius(e) - 32, `${bonusLabel}+${reward} ◆`, '#ffd76a', e.type === 'emas' || e.type === 'raja' ? 22 : 17);
     }
   }
 

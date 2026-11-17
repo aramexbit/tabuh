@@ -9,6 +9,7 @@ let nextId = 1;
 
 export function createEnemy(type, wave, rng) {
   const def = ENEMIES[type];
+  const speed = enemySpeed(type, wave) * rng.range(0.92, 1.08);
   return {
     id: nextId++,
     type,
@@ -19,8 +20,9 @@ export function createEnemy(type, wave, rng) {
     angle: 0,
     hp: enemyHp(type, wave),
     maxHp: enemyHp(type, wave),
-    speed: enemySpeed(type, wave) * rng.range(0.92, 1.08),
-    baseSpeed: 0, // set below; enrage phases multiply it
+    speed,
+    baseSpeed: speed, // enrage phases multiply this (was 0: dead code after
+    // return left it unset, so an enraged boss FROZE instead of speeding up)
     phase: 0, // boss phases: 0 normal, 1 enraged (50%), 2 furious (25%)
     radius: def.radius,
     reward: def.reward,
@@ -34,8 +36,6 @@ export function createEnemy(type, wave, rng) {
     attackCd: 2 + rng.range(0, 1.5), // ghosts size up the towers before striking
     stolenFrom: [], // padIndex list a Tuyul already stole from
   };
-  e.baseSpeed = e.speed;
-  return e;
 }
 
 function drawTuyulEmas(ctx, e, time) {

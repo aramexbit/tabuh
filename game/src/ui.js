@@ -429,7 +429,7 @@ export class UI {
     };
     const x = 12, y = 260, w = 200;
     const h = 36 + rows.length * 30 + 50;
-    this.panel(ctx, x, y, w, h, 0.9);
+    this.panel(ctx, x, y, w, h, 1);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#f5c542';
@@ -478,7 +478,7 @@ export class UI {
   drawRelics(ctx) {
     const g = this.game;
     const x = 1064, y = 56, w = 204, h = 92;
-    this.panel(ctx, x, y, w, h, 0.9);
+    this.panel(ctx, x, y, w, h, 1);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#f5c542';

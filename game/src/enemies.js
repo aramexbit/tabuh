@@ -24,6 +24,14 @@ const HUNTER_PENALTY = 600; // px-equivalent per ghost already hunting a tower
 // wisik/bayang, end up hunting the lower half. With 260 the far pads
 // were only ever picked by fragile ghosts that died on the long walk
 // (v2.7 probe still 30/32: play/big never saw 2 ghosts below y=360).
+// v2.8 — far hunters: the round-robin above still filled the NEAR pads
+// first, so the pack's centre of mass stayed top-right and the lower half
+// read empty in 2 of 4 frames (reviewer #7). 40% of ghosts are now
+// FAR HUNTERS: they only hunt towers in the lower half (y > 360), so
+// 2-3 ghosts are always working the bottom pads. The boss (raja) and the
+// golden tuyul (emas) are never far hunters — the boss must stay
+// targetable in the centre band for the boss pose, and the emas runs
+// straight for the gate anyway.
 
 function huntersOn(game, tower, self) {
   let n = 0;
@@ -32,8 +40,17 @@ function huntersOn(game, tower, self) {
 }
 
 function bestTarget(game, e) {
+  // Far hunters only consider lower-half towers (if any exist); everyone
+  // else considers the whole board. The restriction rides along through
+  // pickTarget's hysteresis re-picks, so a far hunter never drifts back
+  // to a near tower mid-walk.
+  let pool = game.towers;
+  if (e.farHunter) {
+    const low = game.towers.filter((t) => t.y > 360);
+    if (low.length > 0) pool = low;
+  }
   let best = null, bestScore = Infinity;
-  for (const t of game.towers) {
+  for (const t of pool) {
     // A Tuyul never returns to a tower it already robbed.
     if (e.type === 'kunang' && e.stolenFrom.includes(t.padIndex)) continue;
     const d = Math.hypot(e.x - t.x, e.y - t.y);
@@ -66,8 +83,9 @@ function pickTarget(game, e, force = false) {
 export function createEnemy(type, wave, rng) {
   const def = ENEMIES[type];
   const speed = enemySpeed(type, wave) * rng.range(0.92, 1.08);
+  const id = nextId++;
   return {
-    id: nextId++,
+    id,
     type,
     def,
     x: 0,
@@ -90,6 +108,10 @@ export function createEnemy(type, wave, rng) {
     flash: 0,
     attackCd: 2 + rng.range(0, 1.5), // ghosts size up the towers before striking
     stolenFrom: [], // padIndex list a Tuyul already stole from
+    farHunter: type !== 'raja' && type !== 'emas' && (id % 10) < 4, // v2.8:
+    // 40% of ghosts hunt ONLY lower-half towers (see bestTarget), so the
+    // bottom pads always have attackers. Deterministic by id: any block
+    // of 10 spawns holds exactly 4 far hunters.
     targetTower: null, // the tower this ghost is hunting (v2.7 AI)
     targetGate: false, // true when no towers are left: head for the gate
     retargetCd: 0, // periodic re-pick timer (keeps the spread adaptive)

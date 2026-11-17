@@ -2,7 +2,7 @@
 // Each has a type definition (config.js), a distance along the path, and
 // temporary slow / stun timers. Drawing is a luminous orb with a wispy tail,
 // eyes, and an HP bar — no image assets.
-import { ENEMIES, enemyHp } from './config.js';
+import { ENEMIES, enemyHp, enemySpeed } from './config.js';
 import { pointAt, PATH_LENGTH } from './world.js';
 
 let nextId = 1;
@@ -19,7 +19,7 @@ export function createEnemy(type, wave, rng) {
     angle: 0,
     hp: enemyHp(type, wave),
     maxHp: enemyHp(type, wave),
-    speed: def.speed * rng.range(0.92, 1.08),
+    speed: enemySpeed(type, wave) * rng.range(0.92, 1.08),
     radius: def.radius,
     reward: def.reward,
     gateDmg: def.gateDmg,

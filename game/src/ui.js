@@ -2,6 +2,7 @@
 // so screenshots show exactly what the player sees). Buttons are hit-rects
 // rebuilt every draw; input.js asks this module whether a click landed on one.
 import { W, H, TOWERS, TOWER_ORDER, TOTAL_WAVES } from './config.js';
+import { PADS } from './world.js';
 import { towerStats, upgradeCost, sellValue } from './towers.js';
 
 function rr(ctx, x, y, w, h, r) {
@@ -142,6 +143,7 @@ export class UI {
       '4. Tekan MULAI MALAM untuk memulai gelombang berikutnya. Roh yang',
       '    sampai ke gerbang desa mengurangi HP gerbang. Gerbang jatuh = kalah.',
       '5. Bertahanlah 10 malam untuk menang.',
+      '6. Gerbang rusak? Klik Perbaiki di atas (◆100, +5 HP) selama bermain.',
       '',
       'Instrumen:',
       '  Saron (50) — cepat, satu sasaran.   Kendang (70) — melambatkan roh.',
@@ -183,16 +185,20 @@ export class UI {
     ctx.font = '16px sans-serif';
     ctx.fillText('Gerbang', 470, 24);
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(545, 14, 150, 18);
+    ctx.fillRect(545, 14, 110, 18);
     ctx.fillStyle = g.gateHp > 10 ? '#7fe3a8' : g.gateHp > 5 ? '#ffd76a' : '#ff7a6a';
-    ctx.fillRect(545, 14, 150 * Math.max(0, g.gateHp / g.gateMaxHp), 18);
+    ctx.fillRect(545, 14, 110 * Math.max(0, g.gateHp / g.gateMaxHp), 18);
     ctx.strokeStyle = '#e8b64c';
     ctx.lineWidth = 1;
-    ctx.strokeRect(545, 14, 150, 18);
+    ctx.strokeRect(545, 14, 110, 18);
     ctx.fillStyle = '#ffe9a8';
     ctx.font = 'bold 14px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`${g.gateHp}/${g.gateMaxHp}`, 620, 24);
+    ctx.fillText(`${g.gateHp}/${g.gateMaxHp}`, 600, 24);
+    ctx.textAlign = 'left';
+    if (g.gateHp < g.gateMaxHp) {
+      this.button(ctx, 'repair', 665, 12, 88, 20, 'Perbaiki ◆100', { disabled: g.coins < 100, size: 12 });
+    }
     ctx.textAlign = 'right';
     ctx.fillStyle = '#9db8e8';
     ctx.font = '15px sans-serif';
@@ -302,7 +308,11 @@ export class UI {
 
   drawPadPanel(ctx) {
     const g = this.game;
-    const px = 880, py = 56, pw = 388, ph = 148;
+    // Flip the panel to the left when the selected pad is on the right half,
+    // so it never covers the tower it describes or its range circle.
+    const padIndex = g.selectedTower ? g.selectedTower.padIndex : g.selectedPad;
+    const padX = padIndex !== null && PADS[padIndex] ? PADS[padIndex].x : 0;
+    const px = padX > 640 ? 12 : 880, py = 56, pw = 388, ph = 148;
     this.panel(ctx, px, py, pw, ph);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';

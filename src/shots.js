@@ -220,7 +220,16 @@ export function checkShot(game) {
     // shows a battle already underway — v2.8's kills>=2 caught the wave
     // at t≈9 s (kills 2, combo x2.05 grade A) and the field read young.
     const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 5 && game.stats.kills >= 5;
-    if (holdReady(game, (afterBanner && spread && bottomFight) || fallback)) {
+    // v2.9: NO hold here — the hold (see holdReady) broke this pose: wave 6
+    // has only 4 tanky slira and the rest are weak, so the ghosts that
+    // satisfy spread/bottomFight die in <1 s and the condition never holds
+    // a full second — the probe run with the hold never fired until the
+    // 120 s safety, on an empty field (31/32). The frame without the hold
+    // was already verified good (kills 7, lower=2 fighting the centre
+    // bonang, S grade x2.27) and the pose passed the probe 32/32 twice
+    // pre-hold. The hold stays on big + boss, where the qualifying ghosts
+    // are tanky enough to survive it.
+    if ((afterBanner && spread && bottomFight) || fallback) {
       game.shotReady = true;
     }
   } else if (game.shot === 'big') {

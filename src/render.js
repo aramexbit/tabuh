@@ -217,6 +217,22 @@ export function drawScene(ctx, game, time) {
   drawHouse(ctx, 300, 330, 100, 58, true);
   drawHouse(ctx, 480, 300, 130, 76, true);
   drawHouse(ctx, 700, 250, 110, 62, false);
+  // Houses (lower-middle — fills the empty field between path segments).
+  drawHouse(ctx, 860, 470, 110, 64, true);
+  drawHouse(ctx, 1060, 530, 100, 58, true);
+  // Bamboo cluster (lower-middle, right of the path).
+  ctx.strokeStyle = '#3f7a4a';
+  ctx.lineWidth = 3;
+  for (const [bx, by, bh] of [[770, 600, 70], [790, 605, 55], [810, 598, 62]]) {
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.quadraticCurveTo(bx + 6, by - bh / 2, bx + 2, by - bh);
+    ctx.stroke();
+    ctx.fillStyle = '#4a9a58';
+    ctx.beginPath();
+    ctx.ellipse(bx + 2, by - bh - 6, 16, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
   // The stone path.
   drawPath(ctx);
   // Empty build pads (occupied ones are drawn by the tower).

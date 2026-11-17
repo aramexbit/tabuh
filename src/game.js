@@ -33,6 +33,7 @@ export class Game {
     this.spawner = new WaveSpawner(this);
     this.menuTime = 0;
     this.timeScale = 1;
+    this.beatDur = BEAT; // towers.js uses game.beatDur for slow/stun timers
     this.shotReady = false;
     this.best = this.loadBest();
     this.reset();
@@ -185,6 +186,16 @@ export class Game {
     this.selectedTower = null;
   }
 
+  // Late-game money sink: spend surplus coins to patch the village gate.
+  repairGate() {
+    if (this.state !== 'playing') return false;
+    if (this.gateHp >= this.gateMaxHp || this.coins < 100) return false;
+    this.coins -= 100;
+    this.gateHp = Math.min(this.gateMaxHp, this.gateHp + 5);
+    this.effects.text(620, 60, '+5 Gerbang', '#7fe3a8', 18);
+    return true;
+  }
+
   waveCleared() {
     const bonus = waveClearBonus(this.wave);
     this.coins += bonus;
@@ -223,6 +234,7 @@ export class Game {
     if (id === 'quit-menu') { this.state = 'menu'; return; }
     if (id === 'wave') { this.startWave(); return; }
     if (id === 'tabuh') { this.tabuh(); return; }
+    if (id === 'repair') { this.repairGate(); return; }
     if (id === 'upgrade' && this.selectedTower) { this.upgradeTower(this.selectedTower); return; }
     if (id === 'sell' && this.selectedTower) { this.sellTower(this.selectedTower); return; }
     if (id === 'close-panel') { this.selectedPad = null; this.selectedTower = null; return; }

@@ -79,12 +79,18 @@ export const WAVES = [
   { groups: [{ type: 'slira', count: 4, interval: 2.6, delay: 0 }, { type: 'bayang', count: 10, interval: 1.1, delay: 2 }, { type: 'wisik', count: 12, interval: 0.7, delay: 6 }] },
   { groups: [{ type: 'raksasa', count: 1, interval: 1, delay: 0 }, { type: 'slira', count: 4, interval: 2.4, delay: 3 }, { type: 'bayang', count: 10, interval: 1.0, delay: 5 }, { type: 'kunang', count: 12, interval: 0.45, delay: 8 }] },
   { groups: [{ type: 'raksasa', count: 2, interval: 6.0, delay: 0 }, { type: 'slira', count: 6, interval: 2.2, delay: 2 }, { type: 'bayang', count: 12, interval: 0.9, delay: 4 }, { type: 'kunang', count: 14, interval: 0.4, delay: 8 }] },
-  { groups: [{ type: 'raksasa', count: 3, interval: 5.0, delay: 0 }, { type: 'slira', count: 8, interval: 2.0, delay: 2 }, { type: 'bayang', count: 12, interval: 0.9, delay: 4 }, { type: 'wisik', count: 16, interval: 0.6, delay: 8 }] },
-  { groups: [{ type: 'raksasa', count: 5, interval: 4.0, delay: 0 }, { type: 'slira', count: 10, interval: 1.8, delay: 2 }, { type: 'bayang', count: 14, interval: 0.8, delay: 4 }, { type: 'kunang', count: 16, interval: 0.4, delay: 8 }] },
+  { groups: [{ type: 'raksasa', count: 4, interval: 5.0, delay: 0 }, { type: 'slira', count: 8, interval: 2.0, delay: 2 }, { type: 'bayang', count: 12, interval: 0.9, delay: 4 }, { type: 'wisik', count: 16, interval: 0.6, delay: 8 }] },
+  { groups: [{ type: 'raksasa', count: 6, interval: 4.0, delay: 0 }, { type: 'slira', count: 12, interval: 1.8, delay: 2 }, { type: 'bayang', count: 14, interval: 0.8, delay: 4 }, { type: 'kunang', count: 16, interval: 0.4, delay: 8 }] },
 ];
 
 export function enemyHp(type, wave) {
-  return Math.round(ENEMIES[type].hp * (1 + 0.12 * (wave - 1)));
+  // Late waves scale harder (+18%/wave) so a maxed board without the rhythm
+  // combo cannot hold the gate — TABUH has to matter.
+  return Math.round(ENEMIES[type].hp * (1 + 0.18 * (wave - 1)));
+}
+
+export function enemySpeed(type, wave) {
+  return ENEMIES[type].speed * (1 + 0.02 * (wave - 1));
 }
 
 export function waveClearBonus(wave) {

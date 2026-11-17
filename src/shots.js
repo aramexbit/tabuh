@@ -18,6 +18,17 @@ function stageRelics(game, keys) {
   }
 }
 
+// Stage the score a real player would already have at this wave, exactly
+// like stageRelics. Measured from a real perfect-tabuh run (seed 1):
+// wave 6 start 24.095, wave 7 start 32.365, wave 9 start 53.250,
+// wave 10 start 66.866, victory 88.542. The formula itself is already in
+// the top-10 band (22-63 ribu mid-game) — the v2.3 frames were low only
+// because every pose started from score 0. A x10 formula would push the
+// victory score to ~885 ribu, so the formula stays untouched.
+function stageScore(game, n) {
+  game.score = n;
+}
+
 function buildMaxed(game, type, padIndex) {
   const t = game.buildTower(type, padIndex);
   if (!t) return null;
@@ -50,6 +61,7 @@ export function applyShot(game) {
     game.wave = 6;
     game.startWave();
     stageRelics(game, ['keris', 'gong']);
+    stageScore(game, 24095);
   } else if (shot === 'big') {
     // Gong on the central pad so its shockwave lands mid-frame.
     giveCoins(game, 900);
@@ -60,6 +72,7 @@ export function applyShot(game) {
     game.wave = 7;
     game.startWave();
     stageRelics(game, ['keris', 'gong']);
+    stageScore(game, 32365);
   } else if (shot === 'boss') {
     // Wave 10 boss fight, mid-battle: the Raja on the field with adds around.
     giveCoins(game, 1200);
@@ -71,6 +84,7 @@ export function applyShot(game) {
     game.wave = 10;
     game.startWave();
     stageRelics(game, ['keris', 'gong', 'kendi', 'jimat']);
+    stageScore(game, 66866);
   } else if (shot === 'win') {
     // Endgame push: waves 9 + 10 with maxed towers, at 1x speed so the
     // victory screen's play-time reads like a real endgame (~1.5 min),
@@ -88,6 +102,7 @@ export function applyShot(game) {
     // A real wave-9 player owns Keris + Gong + Kendi already (Jimat comes
     // from clearing wave 9, during this pose).
     stageRelics(game, ['keris', 'gong', 'kendi']);
+    stageScore(game, 53250);
   }
 }
 

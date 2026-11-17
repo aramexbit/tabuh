@@ -63,18 +63,26 @@ const PLAN = [
 
     let planIdx = 0;
     let lastWave = 0;
+    let lastBeatLog = Date.now();
     const t0 = Date.now();
-    while (Date.now() - t0 < 600000) {
+    while (Date.now() - t0 < 420000) {
       const s = await page.evaluate(() => {
         const g = window.__game;
         return {
           state: g.state, phase: g.phase, wave: g.wave, coins: g.coins,
           gateHp: g.gateHp, kills: g.stats.kills,
+          time: +g.time.toFixed(1), enemies: g.enemies.length,
+          remaining: g.spawner.remaining,
           towers: g.towers.map(t => `${t.type}@${t.padIndex}L${t.level}`),
           acc: g.stats.beatPresses ? Math.round(100 * (g.stats.perfectHits + g.stats.goodHits) / g.stats.beatPresses) : 0,
           combo: g.stats.maxCombo,
         };
       });
+      // Heartbeat: if the run stalls, this shows the exact game state.
+      if (Date.now() - lastBeatLog > 15000) {
+        console.log(`  [hb t=${Math.round((Date.now() - t0) / 1000)}s] state=${s.state} phase=${s.phase} wave=${s.wave} time=${s.time} enemies=${s.enemies} remaining=${s.remaining} kills=${s.kills} coins=${s.coins} gate=${s.gateHp}`);
+        lastBeatLog = Date.now();
+      }
       if (s.state === 'victory' || s.state === 'defeat') {
         console.log(`\n${TABUH ? 'WITH' : 'WITHOUT'} tabuh: ${s.state.toUpperCase()} — wave ${s.wave}, gate ${s.gateHp}/20, kills ${s.kills}, coins ${s.coins}, accuracy ${s.acc}%, maxCombo ${s.combo}`);
         console.log(`towers: ${s.towers.join(', ')}`);
@@ -122,7 +130,7 @@ const PLAN = [
       }
       await sleep(250);
     }
-    if (code === 2) console.log('TIMEOUT after 600 s');
+    if (code === 2) console.log('TIMEOUT after 420 s');
   } finally {
     await browser.close();
     server.kill();

@@ -78,22 +78,24 @@ export function applyShot(game) {
     stageRelics(game, ['keris', 'gong']);
     stageScore(game, 24095);
   } else if (shot === 'big') {
-    // Wave 8: three Buto Ijo (raksasa) + 8 Genderuwo (slira) — the tanks
-    // that survive the long walk to the far pads, so at least 2 overlap in
-    // the lower half. Wave 7's single raksasa made it alone (max lowerHalf
-    // 1, diagnostic 18 Nov). Gong on the central pad so its shockwave
-    // lands mid-frame. Lower pads filled (R4): saron@7. All towers L1
-    // (see the play pose: L2 firepower shreds the walkers).
+    // Wave 7: one Buto Ijo + 6 Genderuwo + fast Pocong/Tuyul. The gong
+    // sits on pad 5 (640,482, centre of the LOWER half), not the central
+    // pad 4: at pad 4 the gong's AoE sat on the diagonal to the lower pads
+    // and shredded every walker before it reached y>360 (wave 7: max
+    // lowerHalf 0, 0, 1). At pad 5 the ghosts hunting the gong ARRIVE in
+    // the lower half and fight it there — which is exactly the frame's
+    // point. Lower pads filled (R4): gong@5 + saron@7. All towers L1
+    // (see the play pose).
     giveCoins(game, 900);
-    game.buildTower('gong', 4);
+    game.buildTower('gong', 5);
     game.buildTower('kenong', 2);
     game.buildTower('bonang', 3);
     game.buildTower('saron', 1);
     game.buildTower('saron', 7);
-    game.wave = 8;
+    game.wave = 7;
     game.startWave();
     stageRelics(game, ['keris', 'gong']);
-    stageScore(game, 42500);
+    stageScore(game, 32365);
   } else if (shot === 'boss') {
     // Wave 10 boss fight, mid-battle: the Raja on the field with adds around.
     // No towers on pads 0/1 (near the spirit gate): the boss hunts the
@@ -181,9 +183,15 @@ export function checkShot(game) {
       game.shotReady = true;
     }
   } else if (game.shot === 'big') {
-    // Capture the gong at its best: a shockwave that caught at least 2
-    // spirits, with plenty of action still on the field.
-    if (((game.stats.lastGongHits || 0) >= 2 && game.enemies.length >= 5 && spread) || fallback) {
+    // Capture the gong at its best: a busy field with the pack spread into
+    // the lower half. The gong condition is a preference, not a gate: once
+    // the gong has ever caught 2+ spirits, capture as soon as the field
+    // spreads; otherwise capture once the battle is well underway (t>=30)
+    // — the gong fires constantly in a busy wave, so a shockwave ring is
+    // usually visible anyway. Requiring maxGongHits>=2 alone made the pose
+    // flaky (ready 1 run in 3).
+    const gongReady = (game.stats.maxGongHits || 0) >= 2 || game.time >= 30;
+    if ((game.enemies.length >= 5 && spread && gongReady) || fallback) {
       game.shotReady = true;
     }
   } else if (game.shot === 'boss') {

@@ -155,6 +155,10 @@ export function updateTowers(game, dtBeats) {
       // gong's hit reads as the biggest moment on the field.
       const n = applyHit(game, target.x, target.y, stats.dmg, stats.aoe, 0, 0, stats.stunBeats, game.comboMult() * game.dmgMul(), 'gong');
       game.stats.lastGongHits = n;
+      // Best gong hit so far: the big pose captures on the best hit, not
+      // the latest — the latest hit is often a lone straggler, so requiring
+      // lastGongHits>=2 made the pose flaky (probe 31/32, big never ready).
+      game.stats.maxGongHits = Math.max(game.stats.maxGongHits || 0, n);
       game.effects.ring(target.x, target.y, stats.aoe * 1.35, '#f5c542', 1.2, 6);
       game.effects.ring(target.x, target.y, stats.aoe * 0.8, '#fff2b0', 0.9, 4);
       // The gong's hit lands as light: a shaft from the sky + a pool of

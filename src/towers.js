@@ -3,7 +3,7 @@
 // Saron/Bonang/Kenong fire homing note projectiles; Kendang pulses a slow;
 // Gong lands an instant area shockwave + stun.
 import { TOWERS, UPGRADES, SELL_RATE } from './config.js';
-import { PADS, GATE } from './world.js';
+import { PADS } from './world.js';
 
 export function towerStats(tower, game) {
   const base = TOWERS[tower.type];
@@ -60,20 +60,21 @@ export function createTower(type, padIndex) {
 }
 
 function firstTargetInRange(game, tower, range) {
-  // v2.7: ghosts roam free (no path distance anymore), so towers shoot the
-  // spirit nearest the village gate — the most advanced threat — and break
-  // ties by distance to the tower itself.
+  // v2.7: each tower shoots the spirit nearest ITSELF. The old rule (nearest
+  // the village gate) made every tower in range focus-fire the single most
+  // advanced walker, so the hunting pack was picked off one by one and never
+  // reached the far pads (diagnostic 18 Nov: far-hunters died at y~250).
+  // Nearest-to-tower spreads the fire across the pack — walkers survive the
+  // crossing, reach their tower, and that tower defends itself against its
+  // own attackers. That is the hunt-the-towers game the user asked for.
   let best = null;
-  let bestGate = Infinity;
   let bestD = Infinity;
   for (const e of game.enemies) {
     if (e.hp <= 0) continue;
     const d = Math.hypot(e.x - tower.x, e.y - tower.y);
     if (d > range) continue;
-    const dg = Math.hypot(e.x - GATE.x, e.y - GATE.y);
-    if (dg < bestGate - 1 || (Math.abs(dg - bestGate) <= 1 && d < bestD)) {
+    if (d < bestD) {
       best = e;
-      bestGate = dg;
       bestD = d;
     }
   }

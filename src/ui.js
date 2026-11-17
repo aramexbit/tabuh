@@ -263,108 +263,107 @@ export class UI {
     ctx.fillRect(0, H - 102, W, 102);
     ctx.fillStyle = '#e8b64c';
     ctx.fillRect(0, H - 102, W, 2);
-    // Tower cards.
+    // Tower cards: icon + hotkey + name + cost only — smaller now (66 px),
+    // so the beat bar and the TABUH drum can grow into the freed space.
     let cx = 10;
     for (const type of TOWER_ORDER) {
       const def = TOWERS[type];
       const afford = g.coins >= def.cost;
       const sel = g.selectedType === type;
       ctx.fillStyle = sel ? '#6b5222' : afford ? '#232c3d' : '#1a2029';
-      rr(ctx, cx, H - 94, 92, 86, 10);
+      rr(ctx, cx, H - 94, 66, 86, 10);
       ctx.fill();
       ctx.strokeStyle = sel ? '#ffd76a' : afford ? '#e8b64c' : 'rgba(150,150,150,0.35)';
       ctx.lineWidth = sel ? 2.5 : 1.5;
-      rr(ctx, cx, H - 94, 92, 86, 10);
+      rr(ctx, cx, H - 94, 66, 86, 10);
       ctx.stroke();
       ctx.fillStyle = afford || sel ? def.color : '#7a7f8a';
       ctx.beginPath();
-      ctx.arc(cx + 46, H - 70, 13, 0, Math.PI * 2);
+      ctx.arc(cx + 33, H - 70, 12, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = '#0b1020';
       ctx.font = 'bold 12px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(def.key, cx + 46, H - 66);
+      ctx.fillText(def.key, cx + 33, H - 66);
       ctx.fillStyle = afford || sel ? '#ffe9a8' : '#7a7f8a';
-      ctx.font = 'bold 14px sans-serif';
-      ctx.fillText(def.name, cx + 46, H - 44);
+      ctx.font = 'bold 13px sans-serif';
+      ctx.fillText(def.name, cx + 33, H - 44);
       ctx.fillStyle = afford || sel ? '#ffd76a' : '#7a7f8a';
-      ctx.font = '13px sans-serif';
-      ctx.fillText(`◆ ${def.cost}`, cx + 46, H - 24);
-      this.addHit('tower:' + type, cx, H - 94, 92, 86);
-      cx += 98;
+      ctx.font = '12px sans-serif';
+      ctx.fillText(`◆ ${def.cost}`, cx + 33, H - 24);
+      this.addHit('tower:' + type, cx, H - 94, 66, 86);
+      cx += 72;
     }
-    // Beat bar (center). Narrower now: the PUSAKA strip lives to its right.
-    const bx = 510, bw = 240, by = H - 82;
+    // Beat bar (center): wide and tall now — the rhythm timing bar is the
+    // heart of the game, and the PUSAKA strip has moved to the DATANG panel.
+    const bx = 380, bw = 420, by = H - 86;
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    rr(ctx, bx, by, bw, 30, 8);
+    rr(ctx, bx, by, bw, 36, 8);
     ctx.fill();
     // Hit zone — wider while the Gong Pusaka is owned (visible proof).
     const hz = g.relics.has('gong') ? 38 : 26;
     const hz2 = g.relics.has('gong') ? 15 : 10;
     ctx.fillStyle = 'rgba(127,227,168,0.35)';
-    ctx.fillRect(bx + bw / 2 - hz, by, hz * 2, 30);
+    ctx.fillRect(bx + bw / 2 - hz, by, hz * 2, 36);
     ctx.fillStyle = 'rgba(127,227,168,0.7)';
-    ctx.fillRect(bx + bw / 2 - hz2, by, hz2 * 2, 30);
+    ctx.fillRect(bx + bw / 2 - hz2, by, hz2 * 2, 36);
     // Moving marker: at the beat instant it sits in the middle of the bar
     // (phase 0 -> center), so "press when the marker is centered" matches
     // the game's timing windows.
     const ph = g.beatPhase();
     const mx = bx + ((ph + 0.5) % 1) * bw;
     ctx.fillStyle = '#ffd76a';
-    ctx.fillRect(mx - 2, by - 4, 4, 38);
+    ctx.fillRect(mx - 2, by - 4, 4, 44);
     ctx.beginPath();
     ctx.arc(mx, by - 4, 5, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#cfe8dd';
     ctx.font = '13px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Tekan Spasi saat penanda di tengah', bx + bw / 2, by + 48);
+    ctx.fillText('Tekan Spasi saat penanda di tengah', bx + bw / 2, by + 52);
     // Combo text (the big grade letter lives in the badge, bottom right).
     ctx.fillStyle = g.combo > 0 ? '#ffd76a' : '#8a94a8';
     ctx.font = 'bold 18px sans-serif';
-    ctx.fillText(g.combo > 0 ? `Kombo ${g.combo}  •  x${g.comboMult().toFixed(2)}` : 'Kombo 0', bx + bw / 2, by + 70);
-    // PUSAKA strip: four small medallions with their effect labels, between
-    // the beat bar and the TABUH drum — inside the bar, never over the field.
-    this.drawRelicsBottom(ctx);
-    // TABUH drum button.
-    const tx = 930, ty = H - 52;
+    ctx.fillText(g.combo > 0 ? `Kombo ${g.combo}  •  x${g.comboMult().toFixed(2)}` : 'Kombo 0', bx + bw / 2, by + 72);
+    // TABUH drum button (bigger now: the rhythm action is the centrepiece).
+    const tx = 880, ty = H - 52;
     // Gong Raksasa ready: the drum glows gold and calls for G.
     if (g.gongRaksasaReady()) {
       const pulse = 0.6 + 0.4 * Math.sin(g.time * 6);
       ctx.strokeStyle = `rgba(255,215,106,${pulse})`;
       ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.arc(tx, ty, 50 + 3 * Math.sin(g.time * 6), 0, Math.PI * 2);
+      ctx.arc(tx, ty, 58 + 3 * Math.sin(g.time * 6), 0, Math.PI * 2);
       ctx.stroke();
       ctx.strokeStyle = `rgba(255,242,176,${pulse * 0.7})`;
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(tx, ty, 57, 0, Math.PI * 2);
+      ctx.arc(tx, ty, 66, 0, Math.PI * 2);
       ctx.stroke();
       ctx.fillStyle = '#ffd76a';
       ctx.font = 'bold 15px sans-serif';
-      ctx.fillText('GONG RAKSASA! (G)', tx, ty - 56);
+      ctx.fillText('GONG RAKSASA! (G)', tx, ty - 66);
     }
-    const hov = Math.hypot(this.hover.x - tx, this.hover.y - ty) <= 44;
-    const dg = ctx.createRadialGradient(tx - 10, ty - 12, 4, tx, ty, 46);
+    const hov = Math.hypot(this.hover.x - tx, this.hover.y - ty) <= 54;
+    const dg = ctx.createRadialGradient(tx - 12, ty - 14, 4, tx, ty, 58);
     dg.addColorStop(0, g.gongRaksasaReady() ? '#ffe9a8' : hov ? '#f0d060' : '#c97b3d');
     dg.addColorStop(1, '#7a4a1e');
     ctx.fillStyle = dg;
     ctx.beginPath();
-    ctx.arc(tx, ty, 42, 0, Math.PI * 2);
+    ctx.arc(tx, ty, 54, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#ffd76a';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.arc(tx, ty, 42, 0, Math.PI * 2);
+    ctx.arc(tx, ty, 54, 0, Math.PI * 2);
     ctx.stroke();
     ctx.fillStyle = '#ffe9a8';
-    ctx.font = 'bold 15px sans-serif';
+    ctx.font = 'bold 17px sans-serif';
     ctx.fillText('TABUH', tx, ty + 1);
     ctx.fillStyle = '#e8d9b0';
-    ctx.font = '11px sans-serif';
-    ctx.fillText('Spasi', tx, ty + 16);
-    this.addHit('tabuh', tx - 42, ty - 42, 84, 84, true);
+    ctx.font = '12px sans-serif';
+    ctx.fillText('Spasi', tx, ty + 18);
+    this.addHit('tabuh', tx - 54, ty - 54, 108, 108, true);
     // Wave button.
     const waveReady = g.phase === 'build' && (g.state === 'playing');
     this.button(ctx, 'wave', 1010, H - 88, 150, 42,
@@ -494,7 +493,9 @@ export class UI {
     // width: the judge must read the relics BY NAME, not just see small
     // icons. Greedy wrap over "Keris • Gong • Kendi • Jimat".
     const ownedRelics = RELICS.filter((r) => g.relics.has(r.key));
-    const relicShort = { keris: 'Keris', gong: 'Gong', kendi: 'Kendi', jimat: 'Jimat' };
+    // Name + effect in one short tag each, so the buff is shown once here
+    // (the kill pops no longer repeat "(+50%)" on every kill).
+    const relicShort = { keris: 'Keris +25%', gong: 'Gong Lebar', kendi: 'Kendi +50%', jimat: 'Jimat +5HP' };
     const pusakaLines = [];
     if (ownedRelics.length > 0) {
       ctx.font = 'bold 12px sans-serif';
@@ -560,46 +561,6 @@ export class UI {
       pusakaLines.forEach((ln, i) => ctx.fillText(ln, x + 14, ry + 62 + i * 15));
     }
     ctx.textBaseline = 'middle';
-  }
-
-  // PUSAKA: four relic medallions, top right. Earned ones glow gold.
-  // (v2 size kept as-is per user feedback — the panel must not grow.)
-  // PUSAKA strip in the bottom bar: earned relics light up as medallions
-  // with their NAME (readable) and effect under each icon. Display only —
-  // no hit rect, clicks pass through to the scene.
-  drawRelicsBottom(ctx) {
-    const g = this.game;
-    const labels = { keris: '+25%', gong: 'Lebar', kendi: '+50%', jimat: '+5 HP' };
-    const names = { keris: 'Keris', gong: 'Gong', kendi: 'Kendi', jimat: 'Jimat' };
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#f5c542';
-    ctx.font = 'bold 11px sans-serif';
-    ctx.fillText('PUSAKA', 817, 636);
-    RELICS.forEach((r, i) => {
-      const cx = 766 + i * 34, cy = 662;
-      const lit = g.relics.has(r.key);
-      ctx.beginPath();
-      ctx.arc(cx, cy, 15, 0, Math.PI * 2);
-      ctx.fillStyle = lit ? 'rgba(245,197,66,0.30)' : 'rgba(0,0,0,0.45)';
-      ctx.fill();
-      ctx.strokeStyle = lit ? '#f5c542' : 'rgba(138,148,168,0.5)';
-      ctx.lineWidth = lit ? 2 : 1;
-      ctx.stroke();
-      ctx.save();
-      ctx.globalAlpha = lit ? 1 : 0.45;
-      this.drawRelicGlyph(ctx, r.key, cx, cy, lit ? '#ffd76a' : '#7a7f8a');
-      ctx.restore();
-      // Two lines, no longer one cramped run-on: the relic NAME (bold) and
-      // its effect underneath.
-      ctx.fillStyle = lit ? '#ffe9a8' : '#8a94a8';
-      ctx.font = 'bold 10px sans-serif';
-      ctx.fillText(names[r.key], cx, 684);
-      ctx.fillStyle = lit ? '#ffd76a' : '#8a94a8';
-      ctx.font = '9px sans-serif';
-      ctx.fillText(labels[r.key], cx, 697);
-    });
-    ctx.textAlign = 'left';
   }
 
   // Small persistent twist indicator under the top bar (below the boss bar

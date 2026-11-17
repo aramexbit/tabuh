@@ -530,12 +530,12 @@ export class Game {
   }
 
   summonWisik(boss, n) {
+    // Spawned around the boss's real position (v2.7: ghosts roam free, so
+    // there is no path distance to place them behind anymore).
     for (let i = 0; i < n; i++) {
       const w = createEnemy('wisik', this.wave, this.rng);
-      w.dist = Math.max(0, boss.dist - 90 - i * 40);
-      const p = pointAt(w.dist);
-      w.x = p.x;
-      w.y = p.y;
+      w.x = Math.max(30, Math.min(W - 30, boss.x + this.rng.range(-70, 70)));
+      w.y = Math.max(70, Math.min(H - 130, boss.y + this.rng.range(-50, 50)));
       this.enemies.push(w);
     }
   }

@@ -136,13 +136,13 @@ function maintainWinBoard(game) {
 export function checkShot(game) {
   if (game.shotReady) return;
   if (game.shot === 'play') {
-    // Wave 6 Purnama: capture while the twist banner is still up — ideally
-    // right after the first x2 coin pop, otherwise at 4.2 s into the wave
-    // (banner runs 5 s). Fallback: a full field still yields a busy frame.
-    const early = game.enemies.length >= 3 && game.projectiles.length >= 1;
-    if ((early && game.stats.kills >= 1)
-      || (early && game.spawner.t >= 4.2)
-      || game.enemies.length >= 8) game.shotReady = true;
+    // Wave 6 Purnama: capture AFTER the 6 s twist banner has faded
+    // (spawner.t >= 6.8), so the field + spirits are visible instead of
+    // hidden behind the banner — the twist pill under the top bar still
+    // names it. Require a busy field and at least 2 kills, so x2 coin pops
+    // have already happened. Fallback: a full field still yields a frame.
+    const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 5 && game.stats.kills >= 2;
+    if (afterBanner || game.enemies.length >= 10) game.shotReady = true;
   } else if (game.shot === 'big') {
     // Capture the gong at its best: a shockwave that caught at least 2
     // spirits, with plenty of action still on the field.

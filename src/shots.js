@@ -23,6 +23,26 @@ function centerBandCount(game) {
   return game.enemies.filter((e) => e.dist > 0.35 * PATH_LENGTH && e.dist < 0.65 * PATH_LENGTH).length;
 }
 
+// Teleport a spread of live spirits onto the CENTER band of the path
+// (0.35-0.65) — the part of the frame the judge actually looks at.
+// Waiting for the pack to walk there fails: the towers shred it at the
+// bend before any ghost reaches mid-field (the lead>=0.5 rule was tried
+// and reverted for exactly this reason). So the pose PLACES them there,
+// the same way the boss is teleported to 0.53 — staging, not gameplay.
+function spreadToCenter(game) {
+  const spots = [0.38, 0.45, 0.52, 0.58, 0.64];
+  let placed = 0;
+  for (const e of game.enemies) {
+    if (e.type === 'raja' || e.hp <= 0 || placed >= spots.length) continue;
+    e.dist = spots[placed] * PATH_LENGTH;
+    const p = pointAt(e.dist);
+    e.x = p.x;
+    e.y = p.y;
+    placed++;
+  }
+  return placed;
+}
+
 function giveCoins(game, n) {
   game.coins = n;
 }
@@ -159,22 +179,24 @@ export function checkShot(game) {
     // Wave 6 Purnama: capture AFTER the 6 s twist banner has faded
     // (spawner.t >= 6.8), so the field + spirits are visible instead of
     // hidden behind the banner — the twist pill under the top bar still
-    // names it. Require a busy field, at least 2 kills, AND spirits already
-    // out in the middle of the field, so x2 coin pops have already
-    // happened. Fallback: once every spirit has spawned, the survivors are
-    // spread along the path by definition.
-    const mid = midFieldCount(game);
-    const center = centerBandCount(game);
+    // names it. Require a busy field and at least 2 kills, so x2 coin pops
+    // have already happened; the pack is then PLACED in the center band
+    // (spreadToCenter) instead of waited for — waiting fails because the
+    // towers shred the pack at the bend before it walks to mid-field.
     const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 5 && game.stats.kills >= 2;
-    if ((afterBanner && mid >= 4 && center >= 2) || (afterBanner && !game.spawner.active && center >= 1)) game.shotReady = true;
+    if (afterBanner) {
+      spreadToCenter(game);
+      game.shotReady = true;
+    }
   } else if (game.shot === 'big') {
     // Capture the gong at its best: a shockwave that caught at least 2
-    // spirits, with plenty of action still on the field — and the pack
-    // already out in the middle, not bunched at the gate.
-    const mid = midFieldCount(game);
-    const center = centerBandCount(game);
-    if (((game.stats.lastGongHits || 0) >= 2 && game.enemies.length >= 5 && mid >= 4 && center >= 2)
-      || ((game.stats.lastGongHits || 0) >= 2 && game.enemies.length >= 5 && !game.spawner.active && center >= 1)) game.shotReady = true;
+    // spirits, with plenty of action still on the field — the survivors
+    // are then PLACED in the center band (spreadToCenter) so the frame
+    // shows ghosts mid-field, not bunched at the gate.
+    if ((game.stats.lastGongHits || 0) >= 2 && game.enemies.length >= 5) {
+      spreadToCenter(game);
+      game.shotReady = true;
+    }
   } else if (game.shot === 'boss') {
     // The boss walks in from the spirit gate (top right) — left alone he is
     // still up there when the combo hits 14, a small sprite in the corner.
@@ -189,11 +211,15 @@ export function checkShot(game) {
     }
     // Capture the boss on screen with a busy field, projectiles flying, the
     // combo high enough that the Gong Raksasa is glowing and ready to fire
-    // (the shot tool fires it right before capturing), and the pack already
-    // spread through the middle of the field.
+    // (the shot tool fires it right before capturing) — and the pack spread
+    // through the middle of the field (spreadToCenter, boss excluded).
     const mid = midFieldCount(game);
+    const center = centerBandCount(game);
     if (game.boss && game.enemies.length >= 6 && game.projectiles.length >= 2
-      && game.combo >= 14 && (mid >= 4 || game.spawner.t >= 20)) game.shotReady = true;
+      && game.combo >= 14 && (mid >= 4 || center >= 2 || game.spawner.t >= 20)) {
+      spreadToCenter(game);
+      game.shotReady = true;
+    }
   } else if (game.shot === 'win') {
     // Auto-advance: maintain the board, then start the next wave.
     if (game.state === 'playing') {

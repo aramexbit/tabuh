@@ -10,6 +10,7 @@ export class Effects {
     this.lightning = []; // jagged sky bolts for the Gong Raksasa
     this.beams = []; // vertical light shafts (gong strikes, Gong Raksasa)
     this.glows = []; // expanding pools of light on the ground
+    this.bigQueue = []; // v2.8 (P1): big announcement texts wait their turn
   }
 
   // A shaft of light from the sky down to (x, y): a gong strike landing
@@ -88,6 +89,16 @@ export class Effects {
       const small = this.texts.filter((t) => t.size < 22).length;
       if (small >= 4) return;
     } else if (this.texts.length >= 12) return;
+    // v2.8 (P1): at most ONE big announcement text (size >= 22) on screen
+    // at a time. "GONG RAKSASA!" + "TUYUL EMAS! +150" + a "TUYUL EMAS
+    // +500" kill pop used to stack in the same band and read as one
+    // unreadable blob (v2.7 boss frame). A big text that arrives while one
+    // is live waits in a short queue (max 2, further arrivals dropped)
+    // and shows when the slot frees — the event still reads, just in turn.
+    if (size >= 22 && this.texts.some((t) => t.size >= 22)) {
+      if (this.bigQueue.length < 2) this.bigQueue.push({ x, y, str, color, size });
+      return;
+    }
     // Texts are drawn center-aligned, so a string's real width is
     // ~0.6 * size per character — the collision test must use it, not the
     // font size: "+225 ◆ (+50%)" at 17 px is ~120 px wide.
@@ -96,8 +107,9 @@ export class Effects {
     // drift, so they fan out instead of stacking into one unreadable blob.
     // Clamp inside the frame with a real margin (center-aligned: keep half
     // the width clear) — a long golden-tuyul pop used to touch the right
-    // edge at the old 8 px margin; 40 px now.
-    let px = Math.min(Math.max(x + (Math.random() * 28 - 14), estW / 2 + 40), W - estW / 2 - 40);
+    // edge at the old 8 px margin; 48 px now (P4: "+14" was still clipped
+    // at the win frame's right edge in v2.7).
+    let px = Math.min(Math.max(x + (Math.random() * 28 - 14), estW / 2 + 48), W - estW / 2 - 48);
     let py = y + (Math.random() * 12 - 6);
     // De-collide: a number that would land on top of a live one steps away
     // (up to 8 steps), so a multi-kill reads as a stack. The horizontal
@@ -114,8 +126,8 @@ export class Effects {
     if (size >= 30) {
       // Banners (GONG RAKSASA!): fixed position high on the field, never
       // de-collided DOWN onto the boss's crown/face — clamp to the upper
-      // band [56, 280] and skip the loop entirely.
-      py = Math.min(Math.max(py, 56), 280);
+      // band [64, 280] and skip the loop entirely.
+      py = Math.min(Math.max(py, 64), 280);
     } else {
       // Medium texts (22-29) step UP, small texts step down: a medium pop
       // stepped down used to land on the sprite below it.
@@ -130,7 +142,8 @@ export class Effects {
       // Keep pops inside the field: a kill pop spawned near the gate used to
       // slide under the TABUH drum (bottom bar), and the de-collision steps
       // only push DOWN — so clamp after the loop, not before it.
-      py = Math.min(Math.max(py, 56), H - 150);
+      // P4: keep clear of the top bar too (64, was 56).
+      py = Math.min(Math.max(py, 64), H - 150);
     }
     // Grade-badge exclusion: the big S/A/B/C badge lives at x 1064-1268,
     // y 496-608 (bottom right, always visible while playing). A kill pop
@@ -154,14 +167,25 @@ export class Effects {
       p.life -= dt;
     }
     this.particles = this.particles.filter((p) => p.life > 0);
+    // Crowded fights fade their numbers faster (P1), so the field never
+    // fills with stale pops.
+    const crowded = this.texts.length > 8;
     for (const t of this.texts) {
       t.x += (t.vx || 0) * dt;
       t.y -= 40 * dt;
-      // Rising pops must not climb into the top bar.
-      t.y = Math.max(t.y, 60);
-      t.life -= dt * (t.decay || 0.75);
+      // Rising pops must not climb into the top bar (P4: 64, was 60).
+      t.y = Math.max(t.y, 64);
+      // Drift must never carry a pop off the side edge (P4).
+      t.x = Math.min(Math.max(t.x, t.estW / 2 + 24), W - t.estW / 2 - 24);
+      t.life -= dt * (t.decay || 0.75) * (crowded ? 1.5 : 1);
     }
     this.texts = this.texts.filter((t) => t.life > 0);
+    // Drain the big-text queue (P1): one announcement at a time — a queued
+    // text shows as soon as the slot is free.
+    if (this.bigQueue.length > 0 && !this.texts.some((t) => t.size >= 22)) {
+      const q = this.bigQueue.shift();
+      this.text(q.x, q.y, q.str, q.color, q.size);
+    }
     for (const r of this.rings) {
       r.r += (r.maxR - r.r) * dt * 6 + 30 * dt;
       r.life -= dt;

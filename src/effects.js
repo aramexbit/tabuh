@@ -1,6 +1,6 @@
 // Particles, floating text and expanding beat rings. Purely visual: nothing
 // here touches game logic, so the probe can disable it without changing a run.
-import { W } from './config.js';
+import { W, H } from './config.js';
 
 export class Effects {
   constructor() {
@@ -77,8 +77,10 @@ export class Effects {
     const estW = str.length * size * 0.6;
     // Spread numbers from the same blast: a random offset + slow sideways
     // drift, so they fan out instead of stacking into one unreadable blob.
-    // Clamp inside the frame (center-aligned: keep half the width clear).
-    let px = Math.min(Math.max(x + (Math.random() * 28 - 14), estW / 2 + 8), W - estW / 2 - 8);
+    // Clamp inside the frame with a real margin (center-aligned: keep half
+    // the width clear) — a long golden-tuyul pop used to touch the right
+    // edge at the old 8 px margin.
+    let px = Math.min(Math.max(x + (Math.random() * 28 - 14), estW / 2 + 24), W - estW / 2 - 24);
     let py = y + (Math.random() * 12 - 6);
     // De-collide: a number that would land on top of a live one steps down
     // (up to 8 steps), so a multi-kill reads as a vertical stack. The window
@@ -97,6 +99,10 @@ export class Effects {
       if (!hit) break;
       py += step;
     }
+    // Keep pops inside the field: a kill pop spawned near the gate used to
+    // slide under the TABUH drum (bottom bar), and the de-collision steps
+    // only push DOWN — so clamp after the loop, not before it.
+    py = Math.min(Math.max(py, 56), H - 150);
     this.texts.push({
       x: px, y: py, estW,
       vx: (Math.random() - 0.5) * 16, str, color, size, life: 1.0,

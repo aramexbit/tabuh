@@ -38,6 +38,47 @@ export function createEnemy(type, wave, rng) {
   return e;
 }
 
+function drawTuyulEmas(ctx, e, time) {
+  const { x } = e;
+  const y = e.y + Math.sin(time * 6 + e.wobble) * 1.5;
+  // Pulsing gold halo so the bonus spirit reads instantly.
+  ctx.save();
+  ctx.shadowColor = '#ffd76a';
+  ctx.shadowBlur = 14 + Math.sin(time * 6) * 6;
+  ctx.fillStyle = '#ffd76a';
+  ctx.beginPath();
+  ctx.arc(x, y - 2, 11, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  // Body: tiny gold sarong.
+  ctx.fillStyle = '#8a6d1f';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 6, 5.5, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Head: bald, bright gold.
+  ctx.fillStyle = '#ffe9a8';
+  ctx.beginPath();
+  ctx.arc(x, y - 3, 7, 0, Math.PI * 2);
+  ctx.fill();
+  // Ears.
+  ctx.beginPath();
+  ctx.arc(x - 7, y - 3, 2, 0, Math.PI * 2);
+  ctx.arc(x + 7, y - 3, 2, 0, Math.PI * 2);
+  ctx.fill();
+  // Big eyes + small mouth.
+  eyes(ctx, x, y - 4, 2.8, 0, 1.8);
+  ctx.fillStyle = '#0b1020';
+  ctx.beginPath();
+  ctx.arc(x, y + 1, 1.6, 0, Math.PI);
+  ctx.fill();
+  // Floating coin glint above the head.
+  ctx.fillStyle = '#ffd76a';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('◆', x, y - 14);
+  ctx.textAlign = 'left';
+}
+
 export function updateEnemy(game, e, dt) {
   e.flash = Math.max(0, e.flash - dt * 4);
   if (game.time < e.stunUntil) return; // stunned: no movement
@@ -157,6 +198,7 @@ export function drawEnemy(ctx, e, time) {
   // The figure itself. The Raja is a Buto drawn 1.5x with a gold crown.
   if (e.type === 'wisik') drawKuntilanak(ctx, e, time);
   else if (e.type === 'kunang') drawTuyul(ctx, e, time);
+  else if (e.type === 'emas') drawTuyulEmas(ctx, e, time);
   else if (e.type === 'bayang') drawPocong(ctx, e, time);
   else if (e.type === 'slira') drawGenderuwo(ctx, e, time);
   else if (e.type === 'raja') {
@@ -189,10 +231,11 @@ export function drawEnemy(ctx, e, time) {
     ctx.arc(e.x, e.y, e.radius * 1.1, 0, Math.PI * 2);
     ctx.fill();
   }
-  // HP bar: always visible for the big brutes and the boss, otherwise only
-  // once damaged — the player must see how much boss is left at a glance.
+  // HP bar: always visible for the big brutes, the boss and the golden
+  // tuyul, otherwise only once damaged — the player must see how much
+  // boss is left at a glance.
   // Thick (6 px) with a dark border so it reads over any background.
-  if (e.hp < e.maxHp || e.type === 'raksasa' || e.type === 'raja') {
+  if (e.hp < e.maxHp || e.type === 'raksasa' || e.type === 'raja' || e.type === 'emas') {
     const w = e.radius * 2 + 8;
     const pct = Math.max(0, e.hp / e.maxHp);
     ctx.fillStyle = 'rgba(0,0,0,0.75)';

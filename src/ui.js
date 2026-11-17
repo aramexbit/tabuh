@@ -180,6 +180,7 @@ export class UI {
       'GONG RAKSASA: saat kombo x2.0, tombol TABUH bersinar — klik / tekan G:',
       '  ledakan seluruh layar, damage besar ke semua hantu (naik tiap malam),',
       '  + setrum 2 ketuk, 1x per malam.',
+      'TUYUL EMAS: kombo 10 / 20 memunculkan tuyul emas cepat (+150 ◆, +500 skor).',
       'TWIST TIAP 3 MALAM: M3 Berkabut (jangkauan -20%), M6 Purnama',
       '  (hantu +HP, koin x2), M9 Hujan (jendela sempit, damage +25%).',
       '',

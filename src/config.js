@@ -81,6 +81,10 @@ export const ENEMIES = {
     name: 'Tuyul', hp: 12, speed: 86, reward: 2, gateDmg: 1, radius: 10,
     color: '#b8e986', desc: 'Tuyul — bocah kecil, lari cepat bergerombol.',
   },
+  emas: {
+    name: 'Tuyul Emas', hp: 40, speed: 110, reward: 150, gateDmg: 1, radius: 14,
+    color: '#ffd76a', desc: 'Tuyul Emas — cepat, berkilau, hadiah koin besar.',
+  },
   bayang: {
     name: 'Pocong', hp: 46, speed: 40, reward: 5, gateDmg: 1, radius: 16,
     color: '#f5f2e8', desc: 'Pocong — melompat dengan kain kafan.',

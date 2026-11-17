@@ -103,9 +103,10 @@ export class Game {
     this.score = 0; // run score: kills x100 x combo + tabuh + wave/boss bonus
     this.shake = 0;
     this.emberTimer = 0; // ambient ember spawner (visual only)
-    this.banner = null; // {title, sub, until, color} — big center-screen banner
+    this.banner = null; // {title, sub, until, dur, color} — big center-screen banner
     this.twist = null; // wave twist key ('kabut' | 'purnama' | 'hujan') or null
     this.gongUsedWave = 0; // the wave the Gong Raksasa was last fired on
+    this.emasSpawned = {}; // "wave:combo" keys for Tuyul Emas spawns
     this.flash = 0; // full-screen flash (Gong Raksasa), decays in update()
     this.shotReady = false;
     this.endless = false;
@@ -160,6 +161,30 @@ export class Game {
     hujan: { name: 'Hujan Deras', desc: 'Jendela ketuk lebih sempit • Damage +25%' },
   };
 
+  // Tuyul Emas: a fast golden bonus spirit that appears when the combo
+  // hits 10 and 20, once per wave each, one at a time. Big coin reward
+  // (+150) + score — the payoff for keeping the rhythm.
+  maybeSpawnGolden() {
+    if (this.state !== 'playing' || this.phase !== 'wave') return;
+    if (this.combo !== 10 && this.combo !== 20) return;
+    const key = `${this.wave}:${this.combo}`;
+    if (this.emasSpawned[key]) return;
+    this.emasSpawned[key] = true;
+    if (this.enemies.some((e) => e.type === 'emas')) return; // one at a time
+    this.spawnGoldenTuyul();
+  }
+
+  spawnGoldenTuyul() {
+    const e = createEnemy('emas', this.wave, this.rng);
+    const p = this.pathStart();
+    e.x = p.x;
+    e.y = p.y;
+    this.enemies.push(e);
+    this.effects.ring(p.x, p.y, 90, '#ffd76a', 1.0, 5);
+    this.effects.text(640, 180, 'TUYUL EMAS! +150 ◆', '#ffd76a', 26);
+    this.audio.strike('gong');
+  }
+
   // Gong Raksasa: the special move. Available while the combo multiplier is
   // at x2.0 or more, once per wave. Clicking the glowing TABUH button or
   // pressing G fires it; Space always stays a normal tabuh.
@@ -204,6 +229,8 @@ export class Game {
     this.waveStartKills = this.stats.kills;
     this.selectedPad = null;
     this.selectedTower = null;
+    // Fresh Tuyul Emas thresholds each wave.
+    this.emasSpawned = {};
     // Wave twist banner (every 3rd wave).
     this.twist = Game.twistForWave(this.wave);
     if (this.twist) {
@@ -276,6 +303,7 @@ export class Game {
       this.combo = wide ? Math.floor(this.combo / 2) : 0;
     }
     this.stats.maxCombo = Math.max(this.stats.maxCombo, this.combo);
+    if (verdict === 'perfect' || verdict === 'good') this.maybeSpawnGolden();
     this.effects.ring(930, H - 52, 60, verdict === 'perfect' ? '#7fe3a8' : verdict === 'good' ? '#ffd76a' : '#ff7a6a');
     this.effects.text(930, H - 130, verdict === 'perfect' ? 'PERFECT!' : verdict === 'good' ? 'Good' : 'Meleset',
       verdict === 'perfect' ? '#7fe3a8' : verdict === 'good' ? '#ffd76a' : '#ff7a6a', 20);
@@ -314,9 +342,13 @@ export class Game {
         this.score += 5000;
         this.effects.text(e.x, e.y - 44, 'BOSS +5000', '#ffd76a', 26);
       }
+      if (e.type === 'emas') {
+        this.score += 500;
+        this.effects.text(e.x, e.y - 44, 'TUYUL EMAS +500', '#ffd76a', 22);
+      }
       this.effects.burst(e.x, e.y, e.def.color, 16);
       const bonus = (this.relics.has('kendi') ? ' (+50%)' : '') + (this.twist === 'purnama' ? ' (x2)' : '');
-      this.effects.text(e.x, e.y - 18, `+${reward} ◆${bonus}`, '#ffd76a', 17);
+      this.effects.text(e.x, e.y - 18, `+${reward} ◆${bonus}`, '#ffd76a', e.type === 'emas' ? 24 : 17);
     }
   }
 

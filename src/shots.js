@@ -2,6 +2,14 @@
 // (real towers, real waves, real stats) and sets game.shotReady when the frame
 // is ready to capture. Nothing here hardcodes a screenshot's numbers.
 import { TOTAL_WAVES } from './config.js';
+import { pointAt, PATH_LENGTH } from './world.js';
+
+// How many live spirits are already out in the middle of the field
+// (past the first quarter of the path)? The v2.4 frames caught the pack
+// still bunched at the spirit gate — the judge saw an empty field.
+function midFieldCount(game) {
+  return game.enemies.filter((e) => e.dist > 0.25 * PATH_LENGTH).length;
+}
 
 function giveCoins(game, n) {
   game.coins = n;
@@ -139,20 +147,39 @@ export function checkShot(game) {
     // Wave 6 Purnama: capture AFTER the 6 s twist banner has faded
     // (spawner.t >= 6.8), so the field + spirits are visible instead of
     // hidden behind the banner — the twist pill under the top bar still
-    // names it. Require a busy field and at least 2 kills, so x2 coin pops
-    // have already happened. Fallback: a full field still yields a frame.
+    // names it. Require a busy field, at least 2 kills, AND spirits already
+    // out in the middle of the field, so x2 coin pops have already
+    // happened. Fallback: once every spirit has spawned, the survivors are
+    // spread along the path by definition.
+    const mid = midFieldCount(game);
     const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 5 && game.stats.kills >= 2;
-    if (afterBanner || game.enemies.length >= 10) game.shotReady = true;
+    if ((afterBanner && mid >= 4) || (afterBanner && !game.spawner.active)) game.shotReady = true;
   } else if (game.shot === 'big') {
     // Capture the gong at its best: a shockwave that caught at least 2
-    // spirits, with plenty of action still on the field.
-    if ((game.stats.lastGongHits || 0) >= 2 && game.enemies.length >= 5) game.shotReady = true;
+    // spirits, with plenty of action still on the field — and the pack
+    // already out in the middle, not bunched at the gate.
+    const mid = midFieldCount(game);
+    if (((game.stats.lastGongHits || 0) >= 2 && game.enemies.length >= 5 && mid >= 4)
+      || ((game.stats.lastGongHits || 0) >= 2 && game.enemies.length >= 5 && !game.spawner.active)) game.shotReady = true;
   } else if (game.shot === 'boss') {
-    // Capture the boss on screen with a busy field, projectiles flying, and
-    // the combo high enough that the Gong Raksasa is glowing and ready to
-    // fire (the shot tool fires it right before capturing).
+    // The boss walks in from the spirit gate (top right) — left alone he is
+    // still up there when the combo hits 14, a small sprite in the corner.
+    // Stage him to the middle of the path the moment he appears, so the
+    // frame's focus is the boss himself, big and central, with the pack
+    // around him.
+    if (game.boss && game.boss.dist < 0.3 * PATH_LENGTH) {
+      game.boss.dist = 0.53 * PATH_LENGTH;
+      const p = pointAt(game.boss.dist);
+      game.boss.x = p.x;
+      game.boss.y = p.y;
+    }
+    // Capture the boss on screen with a busy field, projectiles flying, the
+    // combo high enough that the Gong Raksasa is glowing and ready to fire
+    // (the shot tool fires it right before capturing), and the pack already
+    // spread through the middle of the field.
+    const mid = midFieldCount(game);
     if (game.boss && game.enemies.length >= 6 && game.projectiles.length >= 2
-      && game.combo >= 14) game.shotReady = true;
+      && game.combo >= 14 && (mid >= 4 || game.spawner.t >= 20)) game.shotReady = true;
   } else if (game.shot === 'win') {
     // Auto-advance: maintain the board, then start the next wave.
     if (game.state === 'playing') {

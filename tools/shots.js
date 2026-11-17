@@ -65,8 +65,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         });
         await sleep(350);
       } else if (s.shot === 'play') {
-        // The play frame is the twist banner mid-flight: capture at the
-        // ready moment, no settle sleep, or the banner fades first.
+        // The play frame is captured AFTER the twist banner fades (checkShot
+        // waits for spawner.t >= 6.8), so the field is visible: no settle
+        // sleep needed, the banner is already gone.
       } else {
         await sleep(400);
       }

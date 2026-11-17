@@ -320,7 +320,10 @@ export class Game {
     e.flash = 1;
     // Floating damage numbers: shown for almost every hit now, and big
     // enough to read at a glance (the mockup's -80 / -34 / -16).
-    if (dmg >= 5) {
+    // Gong Raksasa hits skip the per-enemy number: the blast already shows
+    // the giant "GONG RAKSASA!" + shockwaves, and a dozen "-200" at once
+    // was the unreadable blob in the v2.3 boss frame. Kill pops still show.
+    if (dmg >= 5 && kind !== 'gong') {
       const big = dmg >= 50;
       const mid = dmg >= 20;
       this.effects.text(
@@ -340,18 +343,22 @@ export class Game {
       this.stats.kills++;
       // Score: 100 per kill, scaled by the combo multiplier at kill time.
       this.score += Math.round(100 * this.comboMult());
+      // Bonus label merged into the coin pop below (one text per kill):
+      // two texts at the same spot ("TUYUL EMAS +500" + "+225 ◆") overlapped
+      // in the boss frame no matter how the de-collision stacked them.
+      let bonusLabel = '';
       if (e.type === 'raja') {
         this.score += 5000;
-        this.effects.text(e.x, e.y - 44, 'BOSS +5000', '#ffd76a', 26);
+        bonusLabel = 'BOSS +5000 • ';
       }
       if (e.type === 'emas') {
         this.score += 500;
-        this.effects.text(e.x, e.y - 44, 'TUYUL EMAS +500', '#ffd76a', 22);
+        bonusLabel = 'TUYUL EMAS +500 • ';
       }
       this.effects.burst(e.x, e.y, e.def.color, 16);
       const bonus = (this.relics.has('kendi') ? ' (+50%)' : '') + (this.twist === 'purnama' ? ' (x2)' : '');
       // Kill pop sits above the damage number (radius + 32), not on top of it.
-      this.effects.text(e.x, e.y - e.radius - 32, `+${reward} ◆${bonus}`, '#ffd76a', e.type === 'emas' ? 24 : 17);
+      this.effects.text(e.x, e.y - e.radius - 32, `${bonusLabel}+${reward} ◆${bonus}`, '#ffd76a', e.type === 'emas' || e.type === 'raja' ? 22 : 17);
     }
   }
 

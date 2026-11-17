@@ -1,5 +1,7 @@
 // Particles, floating text and expanding beat rings. Purely visual: nothing
 // here touches game logic, so the probe can disable it without changing a run.
+import { W } from './config.js';
+
 export class Effects {
   constructor() {
     this.particles = [];
@@ -65,10 +67,34 @@ export class Effects {
     // drop small ones so the big numbers stay readable, like the top-10
     // frames' clean numbers.
     if (this.texts.length >= 20 && size < 22) return;
+    // Texts are drawn center-aligned, so a string's real width is
+    // ~0.6 * size per character — the collision test must use it, not the
+    // font size: "+225 ◆ (+50%)" at 17 px is ~120 px wide.
+    const estW = str.length * size * 0.6;
     // Spread numbers from the same blast: a random offset + slow sideways
     // drift, so they fan out instead of stacking into one unreadable blob.
+    // Clamp inside the frame (center-aligned: keep half the width clear).
+    let px = Math.min(Math.max(x + (Math.random() * 28 - 14), estW / 2 + 8), W - estW / 2 - 8);
+    let py = y + (Math.random() * 12 - 6);
+    // De-collide: a number that would land on top of a live one steps down
+    // (up to 8 steps), so a multi-kill reads as a vertical stack. The window
+    // is deliberately wide — (sizeA + sizeB) * 1.2 vertically: texts are
+    // drawn on an alphabetic baseline, so two texts whose centers are only
+    // ~11 px apart still overlap their glyphs, and texts spawned a beat
+    // apart have already risen into each other's space by capture time.
+    // The step (3x the font) MUST exceed the window: a step smaller than
+    // the window re-hits the same text and burns all 8 tries without
+    // clearing it — that was the remaining boss-frame overlap.
+    const step = size * 3;
+    for (let tries = 0; tries < 8; tries++) {
+      const hit = this.texts.find((t) =>
+        Math.abs(t.x - px) < (t.estW + estW) / 2 + 6
+        && Math.abs(t.y - py) < (t.size + size) * 1.2);
+      if (!hit) break;
+      py += step;
+    }
     this.texts.push({
-      x: x + (Math.random() * 28 - 14), y: y + (Math.random() * 12 - 6),
+      x: px, y: py, estW,
       vx: (Math.random() - 0.5) * 16, str, color, size, life: 1.0,
     });
   }

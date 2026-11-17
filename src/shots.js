@@ -283,18 +283,24 @@ export function checkShot(game) {
     // 3 s grace (holdSince + 4 s total), so a wave without deep ghosts
     // still yields a frame instead of waiting forever.
     // v2.12 (reviewer #11, R2): deep bar raised 1 -> 2 AND the pack must
-    // be WIDE (>=3 ghosts on the left half, x<640) — the v2.11 frame was
+    // be WIDE (>=2 ghosts on the left half, x<640) — the v2.11 frame was
     // still top-heavy: a transit pack top-right, bottom fight invisible.
     // NOTE (honest): deep>=5 as literally requested is NOT achievable —
     // diagnostics show deep maxes at ~2 in wave 9 (only the saron@7
     // attackers + gate-walkers ever get below y=480). deep>=2 + wide is
     // the closest achievable version; the 3 s grace still backstops it.
+    // v2.12c: wide is left>=2, NOT >=3 — diagnostics: left>=3 holds in
+    // only 15% of wave-9 samples, left>=2 in 25%; and wide is REMOVED
+    // from the FALLBACK — the fallback is the reliable backstop (v2.11
+    // proved it fires), and gating it on wide broke the pose (31/32:
+    // the wave cleared without a frame). The strict branch keeps wide
+    // as the "ideal" filter; the fallback fires on a good-enough field.
     const deep = deepCount(game) >= 2;
-    const wide = game.enemies.filter((e) => e.x < 640).length >= 3;
+    const wide = game.enemies.filter((e) => e.x < 640).length >= 2;
     const deepOk = deep;
     const graceExpired = game.shotHoldSince != null && game.time - game.shotHoldSince >= 4.0;
     const bigOk = (game.enemies.length >= 5 && spread && bottomFight && centre && gongReady && bottomAttackCount(game) >= 2 && deep && wide)
-      || (fallback && centreLoose && wide);
+      || (fallback && centreLoose);
     if (holdReady(game, bigOk) && (deepOk || graceExpired)) {
       game.shotReady = true;
     } else if (game.phase === 'build' && game.state === 'playing' && game.wave < TOTAL_WAVES) {

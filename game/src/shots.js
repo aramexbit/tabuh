@@ -15,18 +15,12 @@ function midFieldCount(game) {
 // field the judge actually looks at. The path's first half runs along the
 // top-right edge, so "mid-field" alone still reads as a top-right cluster;
 // the center band is what puts ghosts in the middle of the frame.
+// (A stricter lead>=0.5 rule was tried and REVERTED: the towers shred the
+// pack at the bend before any ghost reaches the true screen centre, so the
+// pose waited out the 120 s safety and captured an empty build-phase
+// frame. The centre band is the level the pack actually reaches alive.)
 function centerBandCount(game) {
   return game.enemies.filter((e) => e.dist > 0.35 * PATH_LENGTH && e.dist < 0.65 * PATH_LENGTH).length;
-}
-
-// How far the pack's LEAD spirit has walked. The first bend (0.35) is
-// still top-right on screen; the true screen centre is the 0.5 mark
-// (the (765,375)->(565,415) segment). A frame is only "ghosts out" once
-// the lead has reached it.
-function leadDist(game) {
-  let m = 0;
-  for (const e of game.enemies) m = Math.max(m, e.dist);
-  return m;
 }
 
 function giveCoins(game, n) {
@@ -171,22 +165,16 @@ export function checkShot(game) {
     // spread along the path by definition.
     const mid = midFieldCount(game);
     const center = centerBandCount(game);
-    const lead = leadDist(game);
     const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 5 && game.stats.kills >= 2;
-    // Primary: the pack's lead has reached the true screen centre (0.5).
-    // Fallback: once everyone has spawned and the clock is past 22 s, take
-    // the frame with at least one spirit in the centre band.
-    if ((afterBanner && mid >= 4 && lead >= 0.5 * PATH_LENGTH)
-      || (afterBanner && !game.spawner.active && center >= 1 && game.time >= 22)) game.shotReady = true;
+    if ((afterBanner && mid >= 4 && center >= 2) || (afterBanner && !game.spawner.active && center >= 1)) game.shotReady = true;
   } else if (game.shot === 'big') {
     // Capture the gong at its best: a shockwave that caught at least 2
-    // spirits, with plenty of action still on the field — and the pack's
-    // lead already in the screen centre, not bunched at the gate.
+    // spirits, with plenty of action still on the field — and the pack
+    // already out in the middle, not bunched at the gate.
     const mid = midFieldCount(game);
     const center = centerBandCount(game);
-    const lead = leadDist(game);
-    if (((game.stats.lastGongHits || 0) >= 2 && game.enemies.length >= 5 && mid >= 4 && lead >= 0.5 * PATH_LENGTH)
-      || ((game.stats.lastGongHits || 0) >= 2 && game.enemies.length >= 5 && !game.spawner.active && center >= 1 && game.time >= 22)) game.shotReady = true;
+    if (((game.stats.lastGongHits || 0) >= 2 && game.enemies.length >= 5 && mid >= 4 && center >= 2)
+      || ((game.stats.lastGongHits || 0) >= 2 && game.enemies.length >= 5 && !game.spawner.active && center >= 1)) game.shotReady = true;
   } else if (game.shot === 'boss') {
     // The boss walks in from the spirit gate (top right) — left alone he is
     // still up there when the combo hits 14, a small sprite in the corner.

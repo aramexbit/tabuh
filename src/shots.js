@@ -12,6 +12,23 @@ function lowerHalfCount(game) {
   return game.enemies.filter((e) => e.y > 360).length;
 }
 
+// v2.8: how many ghosts are actually FIGHTING a lower-half tower right
+// now (in range, target below y=360)? Spread alone is not enough — the
+// reviewer caught frames where 2 ghosts stood low but nothing was
+// happening down there. The capture needs a real fight in the lower half.
+function bottomAttackCount(game) {
+  return game.enemies.filter(
+    (e) => e.inRange && e.targetTower && e.targetTower.y > 360,
+  ).length;
+}
+
+// v2.8: how many ghosts are fighting in the CENTRE band (x 448-832)?
+// The big pose must catch the action in the middle of the field, not a
+// pack piled on the right edge while a beam fills the centre.
+function centerFightCount(game) {
+  return game.enemies.filter((e) => e.inRange && e.x >= 448 && e.x <= 832).length;
+}
+
 function giveCoins(game, n) {
   game.coins = n;
 }
@@ -98,14 +115,14 @@ export function applyShot(game) {
     stageScore(game, 32365);
   } else if (shot === 'boss') {
     // Wave 10 boss fight, mid-battle: the Raja on the field with adds around.
-    // No towers on pads 0/1 (near the spirit gate): the boss hunts the
-    // nearest tower, so with the gate-side pads empty he walks into the
-    // field instead of camping the top-right corner. Lower pads filled
-    // (R4): saron@7 + bonang@5.
+    // No towers on pads 0/1 (near the spirit gate) AND none on pads 2/3:
+    // the boss hunts the nearest tower, so with the gate-side pads empty he
+    // walks into the field instead of camping the top-right corner — and
+    // with pads 2/3 empty too, his target is the gong on pad 4 (660,288),
+    // dead centre, instead of the kenong/bonang at x~900-1020. Lower pads
+    // filled (R4): kendang@6 + saron@7 + bonang@5 — the far hunters' ground.
     giveCoins(game, 1200);
     game.buildTower('gong', 4);
-    game.buildTower('kenong', 2);
-    game.buildTower('bonang', 3);
     game.buildTower('kendang', 6);
     game.buildTower('saron', 7);
     game.buildTower('bonang', 5);
@@ -168,10 +185,17 @@ function maintainWinBoard(game) {
 // for a busy field with at least 2 ghosts in the lower half (y > 360);
 // a time fallback (45 s with enemies still out) keeps a slow pose from
 // falling through to the 120 s safety with an empty build-phase frame.
+// v2.8: the v2.7 fallback fired on clustered frames and bypassed the
+// spread the poses exist to show (reviewer #7: 0 ghosts below y=360 in
+// frames 1-2). The fallback now waits longer (60 s) and STILL requires
+// real spread — it only relaxes the stricter fight/position conditions.
+// The strict conditions additionally require a REAL fight in the lower
+// half (a ghost in range of a bottom tower), not just ghosts standing low.
 export function checkShot(game) {
   if (game.shotReady) return;
   const spread = lowerHalfCount(game) >= 2;
-  const fallback = game.time >= 45 && game.enemies.length >= 5;
+  const bottomFight = bottomAttackCount(game) >= 1;
+  const fallback = game.time >= 60 && game.enemies.length >= 5 && spread;
   if (game.shot === 'play') {
     // Wave 6 Purnama: capture AFTER the 6 s twist banner has faded
     // (spawner.t >= 6.8), so the field + spirits are visible instead of
@@ -179,7 +203,7 @@ export function checkShot(game) {
     // names it. Require a busy field and at least 2 kills, so x2 coin pops
     // have already happened.
     const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 5 && game.stats.kills >= 2;
-    if ((afterBanner && spread) || fallback) {
+    if ((afterBanner && spread && bottomFight) || fallback) {
       game.shotReady = true;
     }
   } else if (game.shot === 'big') {
@@ -190,8 +214,12 @@ export function checkShot(game) {
     // — the gong fires constantly in a busy wave, so a shockwave ring is
     // usually visible anyway. Requiring maxGongHits>=2 alone made the pose
     // flaky (ready 1 run in 3).
+    // v2.8 (P3): the fight itself must be in the CENTRE band — 2+ ghosts
+    // in range at x 448-832 — so the frame shows the battle mid-field,
+    // not a pack piled on the right edge behind a beam.
     const gongReady = (game.stats.maxGongHits || 0) >= 2 || game.time >= 30;
-    if ((game.enemies.length >= 5 && spread && gongReady) || fallback) {
+    const centre = centerFightCount(game) >= 2;
+    if ((game.enemies.length >= 5 && spread && bottomFight && centre && gongReady) || fallback) {
       game.shotReady = true;
     } else if (game.phase === 'build' && game.state === 'playing' && game.wave < TOTAL_WAVES) {
       // Wave cleared without a good frame: press on to the next wave
@@ -201,17 +229,21 @@ export function checkShot(game) {
       game.startWave();
     }
   } else if (game.shot === 'boss') {
-    // Capture the boss on screen with a busy field, projectiles flying, the
-    // combo high enough that the Gong Raksasa is glowing and ready to fire
-    // (the shot tool fires it right before capturing) — and the boss walked
-    // into the field (y > 180) hunting the nearest tower, not camped at
-    // the spirit gate. NOTE: no projectiles>=2 requirement — live
+    // Capture the boss on screen with a busy field, the combo high enough
+    // that the Gong Raksasa is glowing and ready to fire — and the boss
+    // walked into the field (y > 180) hunting the nearest tower, not camped
+    // at the spirit gate. NOTE: no projectiles>=2 requirement — live
     // projectiles last ~0.2 s, so the count is 0 in ~90% of frames and the
     // pose was flaky (240 s timeout, victory screen captured instead).
-    // The frame's action comes from the boss, the pack, and the Gong
-    // Raksasa blast the shot tool fires before capturing.
+    // v2.8 (P2): the boss must be in the CENTRE band (x 512-768) — with
+    // pads 2/3 empty he parks on the pad-4 gong at x~660. v2.8 (P0): a
+    // real fight in the lower half, not just ghosts standing low. The
+    // frame's action comes from the boss, the pack, and the gong's own
+    // beams — the capture tool no longer fires the Gong Raksasa blast
+    // right before the shot (it killed the spread-out weak ghosts).
+    const bossCentred = game.boss && game.boss.x >= 512 && game.boss.x <= 768;
     if (game.boss && game.enemies.length >= 6
-      && game.combo >= 14 && game.boss.y > 180 && spread) {
+      && game.combo >= 14 && game.boss.y > 180 && bossCentred && spread && bottomFight) {
       game.shotReady = true;
     } else if (fallback && game.boss) {
       game.shotReady = true;

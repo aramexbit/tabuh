@@ -44,6 +44,26 @@ const GRASS = [
   [980, 560], [1180, 450],
 ];
 
+// Ground patches: large soft dark + faint green blobs that break the flat
+// lawn into depth, like the mockup's uneven field. Never on the path/pads.
+const PATCHES = [];
+{
+  const rng = makeRng(31337);
+  let placed = 0;
+  let guard = 0;
+  while (placed < 24 && guard++ < 600) {
+    const x = rng.range(40, W - 40);
+    const y = rng.range(320, 610);
+    if (distanceToPath(x, y) < 55) continue;
+    if (PADS.some((p) => Math.hypot(x - p.x, y - p.y) < 60)) continue;
+    PATCHES.push({
+      x, y, rx: rng.range(42, 95), ry: rng.range(12, 26),
+      dark: rng.range(0, 1) > 0.33,
+    });
+    placed++;
+  }
+}
+
 function drawGrass(ctx, x, y) {
   ctx.strokeStyle = '#4a9a58';
   ctx.lineWidth = 2;
@@ -72,6 +92,11 @@ function drawCloud(ctx, x, y, s) {
 }
 
 function drawHouse(ctx, x, y, w, h, lit) {
+  // Ground shadow: the house sits ON the field now, not pasted on it.
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(x + w / 2, y + h + 4, w * 0.62, 9, 0, 0, Math.PI * 2);
+  ctx.fill();
   // Walls.
   ctx.fillStyle = '#2a2118';
   ctx.fillRect(x, y, w, h);
@@ -96,11 +121,11 @@ function drawHouse(ctx, x, y, w, h, lit) {
     ctx.fillStyle = '#ffb85c';
     ctx.fillRect(x + w * 0.2, y + h * 0.35, w * 0.2, h * 0.3);
     ctx.fillRect(x + w * 0.62, y + h * 0.35, w * 0.2, h * 0.3);
-    const g = ctx.createRadialGradient(x + w / 2, y + h * 0.5, 2, x + w / 2, y + h * 0.5, 46);
-    g.addColorStop(0, 'rgba(255,184,92,0.28)');
+    const g = ctx.createRadialGradient(x + w / 2, y + h * 0.5, 2, x + w / 2, y + h * 0.5, 64);
+    g.addColorStop(0, 'rgba(255,184,92,0.38)');
     g.addColorStop(1, 'rgba(255,184,92,0)');
     ctx.fillStyle = g;
-    ctx.fillRect(x + w / 2 - 46, y + h * 0.5 - 46, 92, 92);
+    ctx.fillRect(x + w / 2 - 64, y + h * 0.5 - 64, 128, 128);
   }
 }
 
@@ -208,13 +233,18 @@ function drawVillageGate(ctx, time, hp, maxHp) {
 }
 
 export function drawScene(ctx, game, time) {
-  // Sky: dusk gradient, warm band at the horizon.
+  // Sky: deeper dusk gradient with a warm glow low on the horizon.
   const sky = ctx.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, '#0b1c2e');
+  sky.addColorStop(0, '#081626');
   sky.addColorStop(0.45, '#14384a');
   sky.addColorStop(0.72, '#2c4a4a');
   sky.addColorStop(1, '#6b5a3a');
   ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+  const horizon = ctx.createRadialGradient(W / 2, 310, 40, W / 2, 310, 560);
+  horizon.addColorStop(0, 'rgba(232,182,76,0.10)');
+  horizon.addColorStop(1, 'rgba(232,182,76,0)');
+  ctx.fillStyle = horizon;
   ctx.fillRect(0, 0, W, H);
   // Stars.
   for (const s of stars) {
@@ -258,6 +288,13 @@ export function drawScene(ctx, game, time) {
   ground.addColorStop(1, '#0e241d');
   ctx.fillStyle = ground;
   ctx.fillRect(0, 300, W, H - 300);
+  // Ground patches: soft dark/light blobs so the lawn has depth.
+  for (const p of PATCHES) {
+    ctx.fillStyle = p.dark ? 'rgba(0,0,0,0.16)' : 'rgba(140,200,140,0.07)';
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y, p.rx, p.ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
   // Rice terraces (bottom left).
   ctx.strokeStyle = 'rgba(120,180,120,0.18)';
   ctx.lineWidth = 2;
@@ -382,5 +419,12 @@ export function drawScene(ctx, game, time) {
   pg.addColorStop(0, `rgba(232,182,76,${0.09 * pulse})`);
   pg.addColorStop(1, 'rgba(232,182,76,0)');
   ctx.fillStyle = pg;
+  ctx.fillRect(0, 0, W, H);
+  // Vignette: darkened edges pull the eye to the village centre and give
+  // the flat canvas a photographic depth the top-10 frames all have.
+  const vg = ctx.createRadialGradient(W / 2, H / 2, 300, W / 2, H / 2, 780);
+  vg.addColorStop(0, 'rgba(4,8,16,0)');
+  vg.addColorStop(1, 'rgba(4,8,16,0.45)');
+  ctx.fillStyle = vg;
   ctx.fillRect(0, 0, W, H);
 }

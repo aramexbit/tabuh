@@ -631,13 +631,15 @@ export class Game {
       this.audio.onBeat(this.beatIndex);
       // Beat rings along the whole stone path: six glowing rings bloom on
       // the ketuk so the rhythm is visible everywhere, like the mockup.
+      // Smaller now (48, was 64): in the v2.4 frames the rings read as big
+      // empty circles that swallowed the field.
       for (const f of [0.08, 0.25, 0.42, 0.58, 0.75, 0.92]) {
         const p = pointAt(f * PATH_LENGTH);
-        this.effects.ring(p.x, p.y, 64, 'rgba(232,182,76,0.9)', 0.55, 5);
+        this.effects.ring(p.x, p.y, 48, 'rgba(232,182,76,0.9)', 0.55, 4);
       }
       // Beat rings at both gates: the whole arena pulses with the ketuk.
-      this.effects.ring(150, 648, 90, 'rgba(232,182,76,0.6)', 0.55, 5);
-      this.effects.ring(1234, 58, 80, 'rgba(127,227,200,0.5)', 0.55, 5);
+      this.effects.ring(150, 648, 70, 'rgba(232,182,76,0.6)', 0.55, 4);
+      this.effects.ring(1234, 58, 64, 'rgba(127,227,200,0.5)', 0.55, 4);
       // Screenshot poses play the rhythm for real: a perfect tabuh on every
       // beat, so their stats show genuine engagement (and the grade badge
       // shows a real S/A, not a faked number).

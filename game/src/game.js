@@ -9,7 +9,7 @@ import { makeRng } from './rng.js';
 import { GamelanAudio } from './audio.js';
 import { pointAt, PATH_LENGTH, PADS } from './world.js';
 import {
-  createTower, towerStats, upgradeCost, sellValue, updateTowers,
+  createTower, towerStats, upgradeCost, sellValue, towerSpent, updateTowers,
   updateProjectiles, drawTower,
 } from './towers.js';
 import { createEnemy, updateEnemy, drawEnemy } from './enemies.js';
@@ -196,8 +196,10 @@ export class Game {
       verdict === 'perfect' ? '#7fe3a8' : verdict === 'good' ? '#ffd76a' : '#ff7a6a', 20);
   }
 
-  damageEnemy(e, dmg) {
+  damageEnemy(e, dmg, kind) {
     if (e.hp <= 0) return;
+    // Resistance: Kuntilanak takes less damage from Saron.
+    if (kind === 'saron' && e.type === 'wisik') dmg = Math.max(1, Math.round(dmg * 0.6));
     e.hp -= dmg;
     e.flash = 1;
     // Floating damage numbers (big hits only, so the field stays readable).
@@ -245,6 +247,39 @@ export class Game {
     this.coins += sellValue(t);
     this.towers = this.towers.filter((x) => x !== t);
     this.selectedTower = null;
+  }
+
+  // Ghosts damage towers. At 0 durability the tower is destroyed: the pad
+  // empties and half of what was sunk into it comes back as coins.
+  damageTower(t, dmg) {
+    if (!this.towers.includes(t)) return;
+    t.durability -= dmg;
+    this.effects.text(t.x, t.y - 30, `-${dmg}`, '#ff7a6a', 14);
+    this.effects.burst(t.x, t.y - 10, '#8a94a8', 4);
+    if (t.durability <= 0) {
+      const refund = Math.round(towerSpent(t) * 0.5);
+      this.coins += refund;
+      this.towers = this.towers.filter((x) => x !== t);
+      if (this.selectedTower === t) this.selectedTower = null;
+      this.effects.text(t.x, t.y - 44, `Hancur! +${refund} ◆`, '#ff9a7a', 16);
+      this.effects.burst(t.x, t.y, '#ff7a6a', 14);
+      this.shake = Math.max(this.shake, 0.3);
+    }
+  }
+
+  repairTowerCost(t) {
+    const missing = 1 - t.durability / t.maxDurability;
+    return Math.max(10, Math.round(missing * TOWERS[t.type].cost * 0.5));
+  }
+
+  repairTower(t) {
+    const cost = this.repairTowerCost(t);
+    if (!this.towers.includes(t) || t.durability >= t.maxDurability || this.coins < cost) return false;
+    this.coins -= cost;
+    t.durability = t.maxDurability;
+    this.effects.ring(t.x, t.y, 44, '#7fe3a8');
+    this.effects.text(t.x, t.y - 34, 'Diperbaiki!', '#7fe3a8', 14);
+    return true;
   }
 
   // Late-game money sink: spend surplus coins to patch the village gate.
@@ -367,6 +402,7 @@ export class Game {
     if (id === 'tabuh') { this.tabuh(); return; }
     if (id === 'repair') { this.repairGate(); return; }
     if (id === 'upgrade' && this.selectedTower) { this.upgradeTower(this.selectedTower); return; }
+    if (id === 'repair-tower' && this.selectedTower) { this.repairTower(this.selectedTower); return; }
     if (id === 'sell' && this.selectedTower) { this.sellTower(this.selectedTower); return; }
     if (id === 'close-panel') { this.selectedPad = null; this.selectedTower = null; return; }
     if (id && id.startsWith('tower:')) {

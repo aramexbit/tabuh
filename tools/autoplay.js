@@ -71,7 +71,6 @@ const PLAN = [
       }
     }, [SPEED, TABUH]);
 
-    let planIdx = 0;
     let lastWave = 0;
     let lastBeatLog = Date.now();
     const t0 = Date.now();
@@ -105,18 +104,36 @@ const PLAN = [
         lastWave = s.wave;
       }
       if (s.phase === 'build') {
-        // Repair when chipped and affordable.
+        // Repair the gate when chipped and affordable.
         if (s.gateHp <= 15 && s.coins >= 100) {
           await page.evaluate(() => window.__game.repairGate());
           continue;
         }
-        // Build next planned tower.
-        if (planIdx < PLAN.length) {
-          const [type, pad] = PLAN[planIdx];
-          const built = await page.evaluate(([ty, pd]) => window.__game.buildTower(ty, pd), [type, pad]);
-          if (built) { console.log(`  built ${type}@pad${pad}`); planIdx++; continue; }
-          if (s.coins < 250) { /* can't afford the next one yet — upgrade instead */ }
-        }
+        // Repair chipped towers first (cheapest repair wins).
+        const repaired = await page.evaluate(() => {
+          const g = window.__game;
+          const cands = g.towers.filter(t => t.durability < t.maxDurability * 0.55)
+            .map(t => ({ t, cost: g.repairTowerCost(t) }))
+            .sort((a, b) => a.cost - b.cost);
+          for (const c of cands) {
+            if (c.cost <= 80 && g.coins >= c.cost && g.repairTower(c.t)) return `${c.t.type}@pad${c.t.padIndex} ◆${c.cost}`;
+          }
+          return null;
+        });
+        if (repaired) { console.log(`  repaired ${repaired}`); continue; }
+        // Rebuild any destroyed planned tower (earliest in the plan first),
+        // then build the next planned tower.
+        const built = await page.evaluate((plan) => {
+          const g = window.__game;
+          for (const [ty, pd] of plan) {
+            if (!g.towers.some(t => t.padIndex === pd)) {
+              const b = g.buildTower(ty, pd);
+              if (b) return `${ty}@pad${pd}`;
+            }
+          }
+          return null;
+        }, PLAN);
+        if (built) { console.log(`  built ${built}`); continue; }
         // Upgrade cheapest affordable tower (L1->L2 first, then L2->L3).
         const upgraded = await page.evaluate(async () => {
           const g = window.__game;

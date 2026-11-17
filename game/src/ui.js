@@ -146,13 +146,13 @@ export class UI {
 
   drawHowto(ctx) {
     const g = this.game;
-    this.panel(ctx, W / 2 - 340, 70, 680, 580);
+    this.panel(ctx, W / 2 - 340, 60, 680, 610);
     ctx.textAlign = 'center';
     ctx.fillStyle = '#f5c542';
     ctx.font = 'bold 30px Georgia, serif';
-    ctx.fillText('Cara Main', W / 2, 118);
+    ctx.fillText('Cara Main', W / 2, 108);
     ctx.fillStyle = '#e8e2d0';
-    ctx.font = '17px sans-serif';
+    ctx.font = '16px sans-serif';
     ctx.textAlign = 'left';
     const lines = [
       '1. Klik sebuah pad batu, lalu pilih instrumen (atau tekan 1–5) untuk',
@@ -160,11 +160,16 @@ export class UI {
       '2. Tekan SPASI (atau klik gendang TABUH) tepat saat penanda sampai',
       '    di tengah garis ketuk. Perfect / Good menaikkan kombo — kombo',
       '    melipatgandakan damage semua menara. Meleset = kombo putus.',
-      '3. Klik menara yang sudah dibangun untuk upgrade atau menjualnya.',
+      '3. Klik menara yang sudah dibangun untuk upgrade, perbaiki, atau jual.',
       '4. Tekan MULAI MALAM untuk memulai gelombang berikutnya. Roh yang',
       '    sampai ke gerbang desa mengurangi HP gerbang. Gerbang jatuh = kalah.',
-      '5. Bertahanlah 10 malam untuk menang.',
-      '6. Gerbang rusak? Klik Perbaiki di atas (◆100, +5 HP) selama bermain.',
+      '5. Bertahanlah 10 malam untuk menang — lalu lanjut Endless bila mau.',
+      '6. Hantu menyerang balik! Kuntilanak menyetrum menara, Tuyul mencuri',
+      '    koin, Pocong membungkus menara, Genderuwo & Buto menghantamnya.',
+      '    Menara rusak: perbaiki di panelnya; bila hancur, bangun ulang',
+      '    (50% biaya kembali). Koin didapat dari TABUH dan kill.',
+      '7. Pocong kebal lambat Kendang; Kuntilanak kebal sebagian dari Saron.',
+      '8. Gerbang rusak? Klik Perbaiki di atas (◆100, +5 HP) selama bermain.',
       '',
       'Instrumen:',
       '  Saron (50) — cepat, satu sasaran.   Kendang (70) — melambatkan roh.',
@@ -173,12 +178,12 @@ export class UI {
       '',
       'Kontrol: 1–5 pilih instrumen • Spasi tabuh • P jeda • M bisu • R ulang',
     ];
-    let y = 152;
+    let y = 142;
     for (const ln of lines) {
       ctx.fillText(ln, W / 2 - 310, y);
-      y += 24;
+      y += 22;
     }
-    this.button(ctx, 'back-menu', W / 2 - 110, 578, 220, 48, 'Kembali', { size: 18 });
+    this.button(ctx, 'back-menu', W / 2 - 110, 612, 220, 48, 'Kembali', { size: 18 });
     ctx.textBaseline = 'alphabetic';
   }
 
@@ -412,8 +417,16 @@ export class UI {
       }
     }
     const rows = ORDER.filter((t) => counts.get(t) > 0);
-    const x = 12, y = 212, w = 200;
-    const h = 36 + rows.length * 22 + 50;
+    const GHOST_POWER = {
+      wisik: 'Tawa: setrum menara 2 ketuk',
+      kunang: 'Mencuri 3 koin',
+      bayang: 'Kafan: serang -75% 4 ketuk',
+      slira: 'Pukulan: -18 daya tahan',
+      raksasa: 'Hantaman: -30 daya tahan',
+      raja: 'Hantaman: -45 daya tahan',
+    };
+    const x = 12, y = 260, w = 200;
+    const h = 36 + rows.length * 30 + 50;
     this.panel(ctx, x, y, w, h, 0.9);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -441,7 +454,10 @@ export class UI {
       ctx.font = 'bold 15px sans-serif';
       ctx.fillText(String(counts.get(t)), x + w - 14, ry);
       ctx.textAlign = 'left';
-      ry += 22;
+      ctx.fillStyle = '#9db8e8';
+      ctx.font = '11px sans-serif';
+      ctx.fillText(GHOST_POWER[t], x + 36, ry + 12);
+      ry += 30;
     }
     // Wave progress bar.
     const prog = g.waveTotal > 0 && g.phase === 'wave'
@@ -545,7 +561,7 @@ export class UI {
     // so it never covers the tower it describes or its range circle.
     const padIndex = g.selectedTower ? g.selectedTower.padIndex : g.selectedPad;
     const padX = padIndex !== null && PADS[padIndex] ? PADS[padIndex].x : 0;
-    const px = padX > 640 ? 12 : 880, py = 56, pw = 388, ph = 148;
+    const px = padX > 640 ? 12 : 880, py = 56, pw = 388, ph = 196;
     this.panel(ctx, px, py, pw, ph);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
@@ -570,6 +586,15 @@ export class UI {
       }
       this.button(ctx, 'sell', px + 200, py + 96, 90, 38, `Jual ◆ ${sellValue(t)}`, { size: 15 });
       this.button(ctx, 'close-panel', px + 304, py + 96, 68, 38, 'Tutup', { size: 15 });
+      // Repair row (only when chipped): cost scales with the missing part.
+      if (t.durability < t.maxDurability) {
+        const rc = g.repairTowerCost(t);
+        const pct = Math.round((t.durability / t.maxDurability) * 100);
+        ctx.fillStyle = pct > 50 ? '#7fe3a8' : pct > 25 ? '#ffd76a' : '#ff7a6a';
+        ctx.font = '14px sans-serif';
+        ctx.fillText(`Daya tahan: ${pct}%`, px + 16, py + 164);
+        this.button(ctx, 'repair-tower', px + 200, py + 144, 172, 38, `Perbaiki ◆ ${rc}`, { disabled: g.coins < rc, size: 15 });
+      }
     } else if (g.selectedPad !== null) {
       ctx.fillStyle = '#f5c542';
       ctx.font = 'bold 18px sans-serif';

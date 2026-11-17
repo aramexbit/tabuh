@@ -25,21 +25,34 @@ export function upgradeCost(tower) {
 }
 
 export function sellValue(tower) {
+  return Math.round(towerSpent(tower) * SELL_RATE);
+}
+
+// Total coins sunk into a tower (build + upgrades) — the base for both the
+// sell refund (70%) and the destroy refund (50%).
+export function towerSpent(tower) {
   let spent = TOWERS[tower.type].cost;
   for (let l = 2; l <= tower.level; l++) {
     spent += Math.round(TOWERS[tower.type].cost * UPGRADES[l].costMul);
   }
-  return Math.round(spent * SELL_RATE);
+  return spent;
 }
 
 export function createTower(type, padIndex) {
   const pad = PADS[padIndex];
+  // Durability: ghosts fight back. 60 + 40% of the build cost.
+  const maxDurability = 60 + Math.round(TOWERS[type].cost * 0.4);
   return {
     type, padIndex, level: 1,
     x: pad.x, y: pad.y,
     cooldown: 0, // beats until the next strike
     flash: 0, // animation timer after firing
     angle: -Math.PI / 2,
+    durability: maxDurability,
+    maxDurability,
+    stunUntil: 0, // Kuntilanak laugh: no firing at all
+    slowUntil: 0, // Pocong wrap: firing slows to slowFactor
+    slowFactor: 1,
   };
 }
 
@@ -69,7 +82,7 @@ function fireProjectile(game, tower, target, stats) {
   game.audio.strike(tower.type);
 }
 
-function applyHit(game, x, y, dmg, aoe, slow, slowBeats, stunBeats, mult) {
+function applyHit(game, x, y, dmg, aoe, slow, slowBeats, stunBeats, mult, kind) {
   const hitAll = [];
   if (aoe > 0) {
     for (const e of game.enemies) {
@@ -81,7 +94,7 @@ function applyHit(game, x, y, dmg, aoe, slow, slowBeats, stunBeats, mult) {
     }
   }
   for (const e of hitAll) {
-    game.damageEnemy(e, Math.round(dmg * mult));
+    game.damageEnemy(e, Math.round(dmg * mult), kind);
     if (slow > 0 && !e.def.slowResist) {
       e.slowUntil = game.time + slowBeats * game.beatDur;
       e.slowFactor = 1 - slow;
@@ -96,7 +109,12 @@ function applyHit(game, x, y, dmg, aoe, slow, slowBeats, stunBeats, mult) {
 export function updateTowers(game, dtBeats) {
   for (const tower of game.towers) {
     tower.flash = Math.max(0, tower.flash - dtBeats * 2);
-    tower.cooldown -= dtBeats;
+    // Kuntilanak laugh: stunned towers do not fire at all.
+    if (game.time < tower.stunUntil) continue;
+    // Pocong wrap: the cooldown ticks at slowFactor speed.
+    let beats = dtBeats;
+    if (game.time < tower.slowUntil) beats *= tower.slowFactor;
+    tower.cooldown -= beats;
     if (tower.cooldown > 0) continue;
     const stats = towerStats(tower);
     const target = firstTargetInRange(game, tower, stats.range);
@@ -110,7 +128,7 @@ export function updateTowers(game, dtBeats) {
       for (const e of game.enemies) {
         if (e.hp <= 0) continue;
         if (Math.hypot(e.x - tower.x, e.y - tower.y) <= stats.range) {
-          game.damageEnemy(e, Math.round(stats.dmg * game.comboMult() * game.dmgMul()));
+          game.damageEnemy(e, Math.round(stats.dmg * game.comboMult() * game.dmgMul()), 'kendang');
           if (!e.def.slowResist) {
             e.slowUntil = game.time + stats.slowBeats * game.beatDur;
             e.slowFactor = 1 - stats.slow;
@@ -122,7 +140,7 @@ export function updateTowers(game, dtBeats) {
       game.audio.strike('kendang');
     } else if (tower.type === 'gong') {
       // Instant shockwave at the target: big area damage + stun.
-      const n = applyHit(game, target.x, target.y, stats.dmg, stats.aoe, 0, 0, stats.stunBeats, game.comboMult() * game.dmgMul());
+      const n = applyHit(game, target.x, target.y, stats.dmg, stats.aoe, 0, 0, stats.stunBeats, game.comboMult() * game.dmgMul(), 'gong');
       game.stats.lastGongHits = n;
       game.effects.ring(target.x, target.y, stats.aoe, '#f5c542', 1.2);
       game.effects.burst(target.x, target.y, '#f5c542', 14);
@@ -152,7 +170,7 @@ export function updateProjectiles(game, dt) {
     p.angle = Math.atan2(dy, dx);
     const step = p.speed * dt;
     if (d <= step + p.target.radius * 0.5) {
-      const n = applyHit(game, p.target.x, p.target.y, p.dmg, p.aoe, p.slow, p.slowBeats, p.stunBeats, game.comboMult() * game.dmgMul());
+      const n = applyHit(game, p.target.x, p.target.y, p.dmg, p.aoe, p.slow, p.slowBeats, p.stunBeats, game.comboMult() * game.dmgMul(), p.kind);
       game.effects.burst(p.target.x, p.target.y, p.color, p.aoe > 0 ? 10 : 5);
       if (n > 0 && p.kind === 'bonang') game.effects.ring(p.target.x, p.target.y, p.aoe, p.color);
       p.dead = true;
@@ -302,5 +320,58 @@ export function drawTower(ctx, tower, time) {
     ctx.beginPath();
     ctx.arc(x - 8 + i * 8, y + 18, 3, 0, Math.PI * 2);
     ctx.fill();
+  }
+  // Durability bar above the tower (always visible once chipped).
+  const durPct = tower.durability / tower.maxDurability;
+  if (durPct < 1) {
+    const bw = 36;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(x - bw / 2, y - 44, bw, 5);
+    ctx.fillStyle = durPct > 0.5 ? '#7fe3a8' : durPct > 0.25 ? '#ffd76a' : '#ff7a6a';
+    ctx.fillRect(x - bw / 2, y - 44, bw * Math.max(0, durPct), 5);
+  }
+  // Cracks + smoke when badly damaged; a wrapped tower shows its shroud.
+  if (durPct < 0.5) {
+    ctx.strokeStyle = 'rgba(20,16,12,0.85)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x - 12, y - 20);
+    ctx.lineTo(x - 4, y - 8);
+    ctx.lineTo(x - 10, y + 2);
+    ctx.moveTo(x + 12, y - 18);
+    ctx.lineTo(x + 4, y - 6);
+    ctx.stroke();
+    ctx.fillStyle = `rgba(160,160,160,${0.25 + 0.15 * Math.sin(time * 2 + tower.padIndex)})`;
+    ctx.beginPath();
+    ctx.arc(x + 6 + Math.sin(time * 1.3 + tower.padIndex) * 4, y - 30, 6, 0, Math.PI * 2);
+    ctx.arc(x - 8, y - 36, 5, 0, Math.PI * 2);
+    ctx.fill();
+    if (durPct < 0.35) {
+      ctx.fillStyle = '#ff4a3d';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('!', x, y - 52);
+      ctx.textAlign = 'left';
+    }
+  }
+  if (time < tower.stunUntil) {
+    // Dizzy stars while stunned by a Kuntilanak laugh.
+    ctx.fillStyle = '#ffe9a8';
+    for (let i = 0; i < 3; i++) {
+      const a = time * 3 + (i * Math.PI * 2) / 3;
+      ctx.beginPath();
+      ctx.arc(x + Math.cos(a) * 16, y - 26 + Math.sin(a) * 4, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (time < tower.slowUntil) {
+    // White wrap bands while a Pocong shrouds the tower.
+    ctx.strokeStyle = 'rgba(245,242,232,0.9)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x - 18, y - 22);
+    ctx.lineTo(x + 18, y - 14);
+    ctx.moveTo(x - 18, y - 8);
+    ctx.lineTo(x + 18, y - 2);
+    ctx.stroke();
   }
 }

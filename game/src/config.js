@@ -82,6 +82,7 @@ export const ENEMIES = {
   bayang: {
     name: 'Pocong', hp: 46, speed: 40, reward: 5, gateDmg: 1, radius: 16,
     color: '#f5f2e8', desc: 'Pocong — melompat dengan kain kafan.',
+    slowResist: true, // Kafan Membungkus: kebal lambat Kendang
   },
   slira: {
     name: 'Genderuwo', hp: 92, speed: 30, reward: 9, gateDmg: 2, radius: 19,
@@ -93,7 +94,7 @@ export const ENEMIES = {
     color: '#69b34c', desc: 'Buto Ijo — raksasa hijau bertaring.',
   },
   raja: {
-    name: 'Raja Buto Ijo', hp: 700, speed: 16, reward: 150, gateDmg: 5, radius: 40,
+    name: 'Raja Buto Ijo', hp: 1200, speed: 16, reward: 150, gateDmg: 5, radius: 40,
     color: '#7ed957', desc: 'Raja Buto Ijo — boss malam kesepuluh, bermahkota emas.',
     slowResist: true,
   },
@@ -110,9 +111,10 @@ export const WAVES = [
   { groups: [{ type: 'raksasa', count: 1, interval: 1, delay: 0 }, { type: 'slira', count: 6, interval: 2.4, delay: 3 }, { type: 'bayang', count: 10, interval: 1.0, delay: 5 }, { type: 'kunang', count: 12, interval: 0.45, delay: 8 }] },
   { groups: [{ type: 'raksasa', count: 3, interval: 6.0, delay: 0 }, { type: 'slira', count: 8, interval: 2.2, delay: 2 }, { type: 'bayang', count: 12, interval: 0.9, delay: 4 }, { type: 'kunang', count: 14, interval: 0.4, delay: 8 }] },
   { groups: [{ type: 'raksasa', count: 5, interval: 5.0, delay: 0 }, { type: 'slira', count: 10, interval: 2.0, delay: 2 }, { type: 'bayang', count: 12, interval: 0.9, delay: 4 }, { type: 'wisik', count: 16, interval: 0.6, delay: 8 }] },
-  // Malam 10: boss Raja Buto Ijo + pengawal yang lebih sedikit dari v1, supaya
-  // boss-nya yang jadi ancaman utama dan autoplay tetap bisa menang.
-  { groups: [{ type: 'raja', count: 1, interval: 1, delay: 2 }, { type: 'raksasa', count: 4, interval: 4.0, delay: 0 }, { type: 'slira', count: 8, interval: 2.0, delay: 2 }, { type: 'bayang', count: 10, interval: 0.9, delay: 4 }, { type: 'kunang', count: 8, interval: 0.5, delay: 8 }] },
+  // Malam 10: boss Raja Buto Ijo + pengawal. Total HP sengaja di atas v1 —
+  // Pusaka (Keris +25%, Kendi +50% koin, Jimat +5 gerbang) membuat board
+  // lebih kuat, jadi tanpa ritme TABUH gerbang harus tetap jatuh.
+  { groups: [{ type: 'raja', count: 1, interval: 1, delay: 2 }, { type: 'raksasa', count: 6, interval: 4.0, delay: 0 }, { type: 'slira', count: 12, interval: 2.0, delay: 2 }, { type: 'bayang', count: 14, interval: 0.9, delay: 4 }, { type: 'kunang', count: 12, interval: 0.5, delay: 8 }] },
 ];
 
 export function enemyHp(type, wave) {

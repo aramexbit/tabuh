@@ -45,7 +45,8 @@ export function applyShot(game) {
     const bon = game.buildTower('bonang', 3);
     if (bon) game.upgradeTower(bon);
     game.buildTower('kendang', 6);
-    game.buildTower('kenong', 0);
+    const ken = game.buildTower('kenong', 0);
+    if (ken) game.upgradeTower(ken);
     game.wave = 6;
     game.startWave();
     stageRelics(game, ['keris', 'gong']);

@@ -62,13 +62,15 @@ export function applyShot(game) {
     // Lower pads filled too (R4): saron@7 + bonang@5, so the bottom half
     // of the field has towers for the hunting ghosts to attack.
     giveCoins(game, 900);
-    const sar = game.buildTower('saron', 1);
-    if (sar) game.upgradeTower(sar);
-    const bon = game.buildTower('bonang', 3);
-    if (bon) game.upgradeTower(bon);
-    game.buildTower('kendang', 6);
-    const ken = game.buildTower('kenong', 0);
-    if (ken) game.upgradeTower(ken);
+    // All towers stay LEVEL 1 in this pose: L2 firepower (~40% more DPS)
+    // shreds the far-hunting ghosts on the long walk, so none ever reached
+    // the lower half (diagnostics 18 Nov: max lowerHalf 0 at L2, 1 at wave
+    // 7). L1 is also what a real wave-6 player can afford (~450 coins,
+    // not 630) — and the ghosts that survive the walk then fight the
+    // towers in the lower half, which is the frame's whole point.
+    game.buildTower('saron', 1);
+    game.buildTower('bonang', 3);
+    game.buildTower('kenong', 0);
     game.buildTower('saron', 7);
     game.buildTower('bonang', 5);
     game.wave = 6;
@@ -76,19 +78,22 @@ export function applyShot(game) {
     stageRelics(game, ['keris', 'gong']);
     stageScore(game, 24095);
   } else if (shot === 'big') {
-    // Gong on the central pad so its shockwave lands mid-frame.
-    // Lower pads filled (R4): kendang@6 + saron@7.
+    // Wave 8: three Buto Ijo (raksasa) + 8 Genderuwo (slira) — the tanks
+    // that survive the long walk to the far pads, so at least 2 overlap in
+    // the lower half. Wave 7's single raksasa made it alone (max lowerHalf
+    // 1, diagnostic 18 Nov). Gong on the central pad so its shockwave
+    // lands mid-frame. Lower pads filled (R4): saron@7. All towers L1
+    // (see the play pose: L2 firepower shreds the walkers).
     giveCoins(game, 900);
     game.buildTower('gong', 4);
     game.buildTower('kenong', 2);
     game.buildTower('bonang', 3);
     game.buildTower('saron', 1);
-    game.buildTower('kendang', 6);
     game.buildTower('saron', 7);
-    game.wave = 7;
+    game.wave = 8;
     game.startWave();
     stageRelics(game, ['keris', 'gong']);
-    stageScore(game, 32365);
+    stageScore(game, 42500);
   } else if (shot === 'boss') {
     // Wave 10 boss fight, mid-battle: the Raja on the field with adds around.
     // No towers on pads 0/1 (near the spirit gate): the boss hunts the

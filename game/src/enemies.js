@@ -154,6 +154,15 @@ export function updateEnemy(game, e, dt) {
   if (e.retargetCd <= 0) pickTarget(game, e, false);
   // Destination: the hunted tower (with a per-ghost lane offset so the pack
   // doesn't stack on one point) or the village gate.
+  // The RANGE check uses the distance to the tower CENTER, not to the lane
+  // point: ghostAttack measures from the ghost to the tower center with the
+  // same radius, and the lane offset (up to ~20 px) used to park ghosts in
+  // a dead zone — in range to stop, out of range to hit — where they stood
+  // forever dealing no damage while the tower shot the walkers instead
+  // (diagnostic 18 Nov: three ghosts frozen at (1219,118)/(1207,125)/
+  // (1208,135) for 20 s, kenong untouched). The walk direction still aims
+  // at the lane point, so ghosts spread around the tower instead of
+  // stacking on one spot.
   let tx, ty, range;
   if (e.targetTower) {
     tx = e.targetTower.x + e.lane;
@@ -167,7 +176,12 @@ export function updateEnemy(game, e, dt) {
   const dx = tx - e.x;
   const dy = ty - e.y;
   const d = Math.hypot(dx, dy);
-  if (d <= range) {
+  // Range check: distance to the tower center (or the gate), so the ghost
+  // only stops where its attack can actually reach.
+  const dc = e.targetTower
+    ? Math.hypot(e.targetTower.x - e.x, e.targetTower.y - e.y)
+    : d;
+  if (dc <= range) {
     if (e.targetGate) { e.reachedGate = true; return; }
     // In range: stand and fight. First arrival gets a wind-up so the tower
     // lands a few free hits ("ghosts size up the towers before striking").
@@ -177,10 +191,12 @@ export function updateEnemy(game, e, dt) {
     return;
   }
   e.inRange = false;
-  // March speed: 1.5x while more than 350 px from the target, combat speed
-  // close in. Without it the pack never reaches the far pads alive — the
-  // towers shred it on the long walk, so the lower half stays empty.
-  const march = d > 350 ? 1.5 : 1;
+  // March speed: 2.0x while more than 350 px from the target, combat speed
+  // close in. The walk from the spirit gate to the far pads crosses 3-4
+  // tower ranges; at 1.5x the far-hunting ghosts died around y=250-280,
+  // ~100 px short of the lower half (diagnostic 18 Nov). At 2.0x they
+  // cross fast enough to arrive alive and fight.
+  const march = d > 350 ? 2.0 : 1;
   const step = speed * march * dt;
   e.x += (dx / d) * step;
   e.y += (dy / d) * step;

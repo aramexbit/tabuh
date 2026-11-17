@@ -44,14 +44,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       page.on('console', m => { if (m.type() === 'error') errors.push(`${s.name}: ${m.text()}`); });
       page.on('pageerror', e => errors.push(`${s.name}: pageerror: ${e.message}`));
       await page.goto(`${BASE}/?shot=${s.shot}&seed=1`, { waitUntil: 'networkidle' });
-      // Wait for the pose to be ready (max 120 s for the win pose).
+      // Wait for the pose to be ready (max 240 s for the 1x win pose).
       const t0 = Date.now();
       let ready = false;
-      while (Date.now() - t0 < 120000) {
+      while (Date.now() - t0 < 240000) {
         if (await page.evaluate(() => window.__game && window.__game.shotReady)) { ready = true; break; }
         await sleep(250);
       }
-      if (!ready) console.log(`WARN  ${s.name}: pose not ready after 120 s, capturing anyway`);
+      if (!ready) console.log(`WARN  ${s.name}: pose not ready after 240 s, capturing anyway`);
       await sleep(400);
       const file = path.join(OUT, s.name);
       await page.screenshot({ path: file, type: 'jpeg', quality: 82 });

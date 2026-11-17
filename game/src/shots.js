@@ -40,9 +40,11 @@ export function applyShot(game) {
     game.wave = 7;
     game.startWave();
   } else if (shot === 'win') {
-    // Endgame push: waves 9 + 10 with maxed towers, 4x speed. The pose plays
-    // the rhythm for real (auto-tabuh on every beat, see game.js), so the
-    // victory screen shows genuine accuracy/combo stats, not zeros.
+    // Endgame push: waves 9 + 10 with maxed towers, at 1x speed so the
+    // victory screen's play-time reads like a real endgame (~1.5 min),
+    // not a fast-forward. The pose plays the rhythm for real (auto-tabuh
+    // on every beat, see game.js), so the victory screen shows genuine
+    // accuracy/combo stats, not zeros.
     giveCoins(game, 3000);
     buildMaxed(game, 'gong', 0);
     buildMaxed(game, 'kenong', 2);
@@ -50,7 +52,6 @@ export function applyShot(game) {
     buildMaxed(game, 'saron', 4);
     buildMaxed(game, 'kendang', 5);
     game.wave = 9;
-    game.timeScale = 4;
     game.startWave();
   }
 }

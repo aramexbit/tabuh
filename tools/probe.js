@@ -155,7 +155,7 @@ async function tabuhOnBeat(page) {
 
     // ---------- win pose: maxed towers, wave 10, 4x speed ----------
     page = await newPage(browser, BASE + '/?shot=win&seed=1');
-    const won = await waitFor(page, () => window.__game.state === 'victory', 120000);
+    const won = await waitFor(page, () => window.__game.state === 'victory', 240000);
     check('win pose reaches victory', won,
       await page.evaluate(() => `state=${window.__game.state} wave=${window.__game.wave} kills=${window.__game.stats.kills} coins=${window.__game.stats.coinsEarned}`));
     check('victory stats consistent (kills>0, coins>0)', await page.evaluate(() => window.__game.stats.kills > 0 && window.__game.stats.coinsEarned > 0));

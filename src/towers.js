@@ -149,6 +149,10 @@ export function updateTowers(game, dtBeats) {
       game.stats.lastGongHits = n;
       game.effects.ring(target.x, target.y, stats.aoe * 1.35, '#f5c542', 1.2, 6);
       game.effects.ring(target.x, target.y, stats.aoe * 0.8, '#fff2b0', 0.9, 4);
+      // The gong's hit lands as light: a shaft from the sky + a pool of
+      // gold on the ground, so the biggest moment reads as light, not text.
+      game.effects.beam(target.x, target.y);
+      game.effects.glow(target.x, target.y, stats.aoe * 1.6);
       game.effects.burst(target.x, target.y, '#f5c542', 22);
       game.effects.burst(target.x, target.y, '#fff2b0', 10);
       game.shake = Math.max(game.shake, 0.35);

@@ -8,6 +8,20 @@ export class Effects {
     this.texts = [];
     this.rings = [];
     this.lightning = []; // jagged sky bolts for the Gong Raksasa
+    this.beams = []; // vertical light shafts (gong strikes, Gong Raksasa)
+    this.glows = []; // expanding pools of light on the ground
+  }
+
+  // A shaft of light from the sky down to (x, y): a gong strike landing
+  // as light, not just a ring — the Lanternkeep moment TABUH showed as
+  // text instead of light.
+  beam(x, y) {
+    this.beams.push({ x, y, life: 0.7 });
+  }
+
+  // An expanding pool of gold light on the ground.
+  glow(x, y, maxR, color = '#ffd76a') {
+    this.glows.push({ x, y, r: 12, maxR, life: 0.9, color });
   }
 
   // A lightning bolt from the sky down to (x, y): jagged polyline, short life.
@@ -132,9 +146,36 @@ export class Effects {
     this.rings = this.rings.filter((r) => r.life > 0 && r.r < r.maxR * 1.05);
     for (const b of this.lightning) b.life -= dt;
     this.lightning = this.lightning.filter((b) => b.life > 0);
+    for (const b of this.beams) b.life -= dt;
+    this.beams = this.beams.filter((b) => b.life > 0);
+    for (const gl of this.glows) {
+      gl.r += (gl.maxR - gl.r) * dt * 5 + 60 * dt;
+      gl.life -= dt;
+    }
+    this.glows = this.glows.filter((gl) => gl.life > 0 && gl.r < gl.maxR * 1.05);
   }
 
   draw(ctx) {
+    // Light pools first (under the rings), then the beams.
+    for (const gl of this.glows) {
+      const a = Math.max(0, gl.life);
+      const gg = ctx.createRadialGradient(gl.x, gl.y, 4, gl.x, gl.y, gl.r);
+      gg.addColorStop(0, `rgba(255,220,130,${0.5 * a})`);
+      gg.addColorStop(1, 'rgba(255,220,130,0)');
+      ctx.fillStyle = gg;
+      ctx.beginPath();
+      ctx.arc(gl.x, gl.y, gl.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    for (const b of this.beams) {
+      const a = Math.max(0, b.life / 0.7);
+      const bg = ctx.createLinearGradient(b.x - 26, 0, b.x + 26, 0);
+      bg.addColorStop(0, 'rgba(255,220,130,0)');
+      bg.addColorStop(0.5, `rgba(255,220,130,${0.45 * a})`);
+      bg.addColorStop(1, 'rgba(255,220,130,0)');
+      ctx.fillStyle = bg;
+      ctx.fillRect(b.x - 26, 0, 52, b.y);
+    }
     for (const r of this.rings) {
       const a = Math.max(0, r.life * 1.6);
       // Soft glow fill under the ring so it reads as light, not just a line.

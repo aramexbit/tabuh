@@ -242,13 +242,15 @@ export class UI {
     ctx.textAlign = 'right';
     ctx.fillStyle = '#9db8e8';
     ctx.font = '15px sans-serif';
-    ctx.fillText(`Kombo x${g.comboMult().toFixed(2)}`, 1058, 24);
-    // Combo grade letter (S/A/B/C), colored, beside the multiplier.
+    ctx.fillText(`Kombo x${g.comboMult().toFixed(2)}`, 1088, 24);
+    // Combo grade letter (S/A/B/C), colored, beside the multiplier — one
+    // cluster with the multiplier, ending at x=1112 (8 px before the mute
+    // button at 1120), so it never crowds it.
     const grade = g.comboGrade();
     ctx.fillStyle = grade === 'S' ? '#ffd76a' : grade === 'A' ? '#7fe3a8' : grade === 'B' ? '#9db8e8' : grade === 'C' ? '#cfe8dd' : '#8a94a8';
     ctx.font = 'bold 20px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText(grade, 1064, 24);
+    ctx.textAlign = 'right';
+    ctx.fillText(grade, 1112, 24);
     ctx.textAlign = 'right';
     this.button(ctx, 'mute', 1120, 8, 62, 30, g.audio.muted ? '🔇' : '🔊', { size: 15 });
     this.button(ctx, 'pause', 1190, 8, 62, 30, 'II', { size: 15 });
@@ -374,6 +376,23 @@ export class UI {
     ctx.font = '12px sans-serif';
     ctx.fillText('Spasi', tx, ty + 18);
     this.addHit('tabuh', tx - 54, ty - 54, 108, 108, true);
+    // Beat verdict as a fixed HUD label above the drum (1 s, fading):
+    // the old floating verdict collided with kill pops ("-4444" over
+    // "PERFECT!"). A dark pill behind it keeps it readable over the field.
+    if (g.lastVerdict && g.time - (g.lastVerdictTime || 0) < 1.0) {
+      const va = Math.max(0, 1 - (g.time - g.lastVerdictTime));
+      const vtext = g.lastVerdict === 'perfect' ? 'PERFECT!' : g.lastVerdict === 'good' ? 'Good' : 'Meleset';
+      const vcol = g.lastVerdict === 'perfect' ? '#7fe3a8' : g.lastVerdict === 'good' ? '#ffd76a' : '#ff7a6a';
+      ctx.globalAlpha = va;
+      ctx.fillStyle = 'rgba(8,14,26,0.85)';
+      rr(ctx, tx - 54, H - 130 - 15, 108, 30, 8);
+      ctx.fill();
+      ctx.fillStyle = vcol;
+      ctx.font = 'bold 18px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(vtext, tx, H - 130 + 7);
+      ctx.globalAlpha = 1;
+    }
     // Wave button.
     const waveReady = g.phase === 'build' && (g.state === 'playing');
     this.button(ctx, 'wave', 1010, H - 88, 150, 42,

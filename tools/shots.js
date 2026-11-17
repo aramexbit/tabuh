@@ -69,6 +69,20 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         // The play frame is captured AFTER the twist banner fades (checkShot
         // waits for spawner.t >= 6.8), so the field is visible: no settle
         // sleep needed, the banner is already gone.
+      } else if (s.shot === 'big') {
+        // Fresh light shaft on the gong right before capture: the gong
+        // fires beams on strike, but the capture must not depend on the
+        // last strike being recent — re-fire one so the beam is bright
+        // in the frame (1.4 s life, still ~0.9 alpha after the 200 ms set).
+        await page.evaluate(() => {
+          const g = window.__game;
+          const gong = g.towers.find((t) => t.type === 'gong');
+          if (gong) {
+            g.effects.beam(gong.x, gong.y - 14);
+            g.effects.glow(gong.x, gong.y, 130);
+          }
+        });
+        await sleep(200);
       } else {
         await sleep(400);
       }

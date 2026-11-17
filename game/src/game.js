@@ -212,10 +212,10 @@ export class Game {
     this.effects.bolt(640, 360);
     this.effects.beam(640, 360);
     this.effects.glow(640, 360, 420);
-    // The blast text sits high (y=208) now: at y=300 it landed on the
-    // boss's crown — the teleported boss stands at mid-field, and the big
-    // text covered his head in the v2.5 boss frame.
-    this.effects.text(640, 208, 'GONG RAKSASA!', '#ffd76a', 40);
+    // The blast text sits high (y=150) now: at y=300 it landed on the
+    // boss's crown, and at y=208 it still grazed it. The banner skips
+    // de-collision (effects.js) so it stays put, clear of the boss.
+    this.effects.text(640, 150, 'GONG RAKSASA!', '#ffd76a', 40);
     // Damage scales with the wave (110-200) + 2-beat stun to every spirit
     // on screen. Strong late, but no longer a free wave-clear early.
     const dmg = 100 + 10 * this.wave;
@@ -313,8 +313,11 @@ export class Game {
     this.stats.maxCombo = Math.max(this.stats.maxCombo, this.combo);
     if (verdict === 'perfect' || verdict === 'good') this.maybeSpawnGolden();
     this.effects.ring(880, H - 52, 60, verdict === 'perfect' ? '#7fe3a8' : verdict === 'good' ? '#ffd76a' : '#ff7a6a');
-    this.effects.text(880, H - 130, verdict === 'perfect' ? 'PERFECT!' : verdict === 'good' ? 'Good' : 'Meleset',
-      verdict === 'perfect' ? '#7fe3a8' : verdict === 'good' ? '#ffd76a' : '#ff7a6a', 20);
+    // Beat verdict as a HUD label (drawn by ui.js above the TABUH drum),
+    // NOT a floating text: the floating verdict collided with kill pops
+    // ("-4444" over "PERFECT!", v2.6 frame 2).
+    this.lastVerdict = verdict;
+    this.lastVerdictTime = this.time;
   }
 
   damageEnemy(e, dmg, kind) {

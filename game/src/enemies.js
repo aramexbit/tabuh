@@ -310,23 +310,29 @@ export function drawEnemy(ctx, e, time) {
   ctx.beginPath();
   ctx.ellipse(e.x, e.y + vr * 0.8, vr * 0.9, vr * 0.3, 0, 0, Math.PI * 2);
   ctx.fill();
-  // Faint aura so the figure reads against the dark field.
+  // Faint aura so the figure reads against the dark field. Stronger now
+  // (0.55, was 0.4): the v2.6 frames read the spirits as pale blobs —
+  // the aura + foot ring must carry the type colour.
   const g = ctx.createRadialGradient(e.x, e.y, 1, e.x, e.y, vr * 2.2);
   g.addColorStop(0, c);
   g.addColorStop(0.4, c + '88');
   g.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.globalAlpha = 0.4 * pulse;
+  ctx.globalAlpha = 0.55 * pulse;
   ctx.fillStyle = g;
   ctx.beginPath();
   ctx.arc(e.x, e.y, vr * 2.2, 0, Math.PI * 2);
   ctx.fill();
   ctx.globalAlpha = 1;
   // The figure itself, scaled around its own centre. The Raja is a Buto
-  // drawn 2.2x with a gold crown sized to match.
+  // drawn 2.2x with a gold crown sized to match. A soft type-colour glow
+  // (shadowBlur) lifts the figure off the dark field so it never reads
+  // as a flat blob.
   ctx.save();
   ctx.translate(e.x, e.y);
   ctx.scale(vs, vs);
   ctx.translate(-e.x, -e.y);
+  ctx.shadowColor = c;
+  ctx.shadowBlur = 10;
   if (e.type === 'wisik') drawKuntilanak(ctx, e, time);
   else if (e.type === 'kunang') drawTuyul(ctx, e, time);
   else if (e.type === 'emas') drawTuyulEmas(ctx, e, time);
@@ -357,7 +363,7 @@ export function drawEnemy(ctx, e, time) {
   // Type-color ring at the feet (drawn over the figure's base).
   ctx.strokeStyle = c;
   ctx.globalAlpha = 0.75;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.ellipse(e.x, e.y + vr * 0.8, vr * 0.95, vr * 0.32, 0, 0, Math.PI * 2);
   ctx.stroke();

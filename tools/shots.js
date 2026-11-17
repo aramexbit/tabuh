@@ -54,17 +54,23 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       }
       if (!ready) console.log(`WARN  ${s.name}: pose not ready after 240 s, capturing anyway`);
       if (s.shot === 'boss') {
-        // Fire the Gong Raksasa + spawn a Tuyul Emas for the frame: flash,
-        // shockwave, lightning and big damage numbers — then let the flash
-        // fall for 500 ms (peak 0.28, decay 2.4/s) so the frame reads clean
-        // instead of washed pale yellow like v2.3, and the "GONG RAKSASA!"
-        // text rises clear of the boss's crown.
+        // v2.8 (P0): NO Gong Raksasa blast and NO golden tuyul right before
+        // capture. The blast (200+ damage) killed the spread-out weak
+        // ghosts (Pocong/Kuntilanak/Tuyul) and its "GONG RAKSASA!" +
+        // "TUYUL EMAS!" texts piled up in the same band — the frame lost
+        // exactly the spread it was posed to show. The action comes from
+        // the boss, the pack, and the gong's own beams: re-fire a beam on
+        // the gong (visual only, no damage, no text) so the light shaft is
+        // bright in the frame, like the big pose does.
         await page.evaluate(() => {
           const g = window.__game;
-          g.spawnGoldenTuyul();
-          g.triggerGongRaksasa();
+          const gong = g.towers.find((t) => t.type === 'gong');
+          if (gong) {
+            g.effects.beam(gong.x, gong.y - 14);
+            g.effects.glow(gong.x, gong.y, 130);
+          }
         });
-        await sleep(500);
+        await sleep(200);
       } else if (s.shot === 'play') {
         // The play frame is captured AFTER the twist banner fades (checkShot
         // waits for spawner.t >= 6.8), so the field is visible: no settle

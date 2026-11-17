@@ -36,6 +36,8 @@ export class WaveSpawner {
     while (this.queue.length > 0 && this.queue[0].at <= this.t) {
       const ev = this.queue.shift();
       const e = createEnemy(ev.type, this.game.wave, this.game.rng);
+      // Bulan Purnama: ghosts have +30% HP.
+      if (this.game.twist === 'purnama') e.hp = e.maxHp = Math.round(e.hp * 1.3);
       const p = this.game.pathStart();
       e.x = p.x;
       e.y = p.y;

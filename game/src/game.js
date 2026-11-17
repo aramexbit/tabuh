@@ -13,7 +13,7 @@ import {
   updateProjectiles, drawTower,
 } from './towers.js';
 import { createEnemy, updateEnemy, drawEnemy } from './enemies.js';
-import { WaveSpawner } from './waves.js';
+import { WaveSpawner, waveDef } from './waves.js';
 import { Effects } from './effects.js';
 import { drawScene } from './render.js';
 import { UI } from './ui.js';
@@ -101,6 +101,11 @@ export class Game {
     this.selectedTower = null;
     this.combo = 0;
     this.shake = 0;
+    this.emberTimer = 0; // ambient ember spawner (visual only)
+    this.banner = null; // {title, sub, until, color} — big center-screen banner
+    this.twist = null; // wave twist key ('kabut' | 'purnama' | 'hujan') or null
+    this.gongUsedWave = 0; // the wave the Gong Raksasa was last fired on
+    this.flash = 0; // full-screen flash (Gong Raksasa), decays in update()
     this.shotReady = false;
     this.endless = false;
     this.boss = null;
@@ -133,6 +138,60 @@ export class Game {
     return 1 + Math.min(this.combo, 20) * 0.075;
   }
 
+  // Big center-screen banner (~2 s): relic earned, wave twist, boss intro.
+  showBanner(title, sub, dur = 2.2, color = '#ffd76a') {
+    this.banner = { title, sub, until: this.time + dur, dur, color };
+  }
+
+  // Wave twist every 3rd wave (rotating): 3/12/21 Berkabut, 6/15/24
+  // Purnama, 9/18/27 Hujan. Applies to the wave being started.
+  static twistForWave(wave) {
+    const m = wave % 9;
+    if (m === 3) return 'kabut';
+    if (m === 6) return 'purnama';
+    if (m === 0) return 'hujan';
+    return null;
+  }
+
+  static TWISTS = {
+    kabut: { name: 'Malam Berkabut', desc: 'Jangkauan menara -20% • Hantu lebih cepat' },
+    purnama: { name: 'Bulan Purnama', desc: 'Hantu +30% HP • Koin x2' },
+    hujan: { name: 'Hujan Deras', desc: 'Jendela ketuk lebih sempit • Damage +25%' },
+  };
+
+  // Gong Raksasa: the special move. Available while the combo multiplier is
+  // at x2.0 or more, once per wave. Clicking the glowing TABUH button or
+  // pressing G fires it; Space always stays a normal tabuh.
+  gongRaksasaReady() {
+    return this.state === 'playing' && this.phase === 'wave'
+      && this.comboMult() >= 2.0 && this.gongUsedWave !== this.wave;
+  }
+
+  triggerGongRaksasa() {
+    if (!this.gongRaksasaReady()) return false;
+    this.gongUsedWave = this.wave;
+    this.flash = 1;
+    this.shake = Math.max(this.shake, 0.8);
+    this.audio.strike('gong');
+    // Shockwaves from the village heart, lightning onto the field.
+    this.effects.ring(640, 360, 700, '#f5c542', 1.4, 8);
+    this.effects.ring(640, 360, 480, '#fff2b0', 1.1, 6);
+    this.effects.ring(640, 360, 300, '#ffd76a', 0.9, 5);
+    const alive = this.enemies.filter((e) => e.hp > 0);
+    for (let i = 0; i < Math.min(5, alive.length); i++) {
+      const e = alive[Math.floor(Math.random() * alive.length)];
+      this.effects.bolt(e.x, e.y);
+    }
+    this.effects.bolt(640, 360);
+    this.effects.text(640, 300, 'GONG RAKSASA!', '#ffd76a', 44);
+    // 200 damage + 2-beat stun to every spirit on screen.
+    for (const e of alive) {
+      this.damageEnemy(e, 200, 'gong');
+      e.stunUntil = this.time + 2 * this.beatDur;
+    }
+    return true;
+  }
+
   startWave() {
     if (this.state !== 'playing' || this.phase !== 'build') return;
     this.audio.ensure();
@@ -142,12 +201,28 @@ export class Game {
     this.waveStartKills = this.stats.kills;
     this.selectedPad = null;
     this.selectedTower = null;
+    // Wave twist banner (every 3rd wave).
+    this.twist = Game.twistForWave(this.wave);
+    if (this.twist) {
+      const t = Game.TWISTS[this.twist];
+      this.showBanner(t.name, t.desc, 2.5);
+    }
+    // Dramatic boss intro before any wave that fields a Raja.
+    const def = waveDef(this.wave);
+    if (def.groups.some((gr) => gr.type === 'raja')) {
+      this.showBanner('RAJA BUTO IJO DATANG!', 'Boss malam ini — siapkan gong dan pusakamu!', 2.5, '#ff9a3d');
+      this.shake = Math.max(this.shake, 0.6);
+      this.effects.ring(1234, 58, 140, '#ff9a3d', 1.0, 5);
+    }
   }
 
-  // Passive damage multiplier from relics (Keris +25%). Kept apart from
-  // comboMult() so the HUD still shows the honest combo multiplier.
+  // Passive damage multiplier from relics (Keris +25%) and the Hujan twist
+  // (+25%). Kept apart from comboMult() so the HUD still shows the honest
+  // combo multiplier.
   dmgMul() {
-    return this.relics.has('keris') ? 1.25 : 1;
+    let m = this.relics.has('keris') ? 1.25 : 1;
+    if (this.twist === 'hujan') m *= 1.25;
+    return m;
   }
 
   repairCost() {
@@ -164,15 +239,20 @@ export class Game {
 
   // The player taps TABUH on the beat. Timing windows (seconds to the nearest
   // beat): perfect <= 0.07, good <= 0.14, else a miss that breaks the combo.
-  // Gong Pusaka widens the windows and softens a miss (combo halves).
+  // Gong Pusaka widens the windows and softens a miss (combo halves);
+  // the Hujan twist narrows them again (x0.7).
   tabuh() {
     if (this.state !== 'playing') return;
     this.audio.ensure();
     const phase = this.beatPhase();
     const d = Math.min(phase, 1 - phase) * BEAT;
     const wide = this.relics.has('gong');
-    const perfectWin = wide ? 0.10 : 0.07;
-    const goodWin = wide ? 0.20 : 0.14;
+    let perfectWin = wide ? 0.10 : 0.07;
+    let goodWin = wide ? 0.20 : 0.14;
+    if (this.twist === 'hujan') {
+      perfectWin *= 0.7;
+      goodWin *= 0.7;
+    }
     this.stats.beatPresses++;
     let verdict;
     if (d <= perfectWin) {
@@ -203,23 +283,29 @@ export class Game {
     if (kind === 'saron' && e.type === 'wisik') dmg = Math.max(1, Math.round(dmg * 0.75));
     e.hp -= dmg;
     e.flash = 1;
-    // Floating damage numbers (big hits only, so the field stays readable).
-    if (dmg >= 10) {
+    // Floating damage numbers: shown for almost every hit now, and big
+    // enough to read at a glance (the mockup's -80 / -34 / -16).
+    if (dmg >= 5) {
       const big = dmg >= 50;
+      const mid = dmg >= 20;
       this.effects.text(
         e.x + (Math.random() * 16 - 8), e.y - e.radius - 8, `-${dmg}`,
-        big ? '#ff9a3d' : '#ffd76a', big ? 20 : 13,
+        big ? '#ff9a3d' : '#ffd76a', big ? 30 : mid ? 22 : 17,
       );
     }
-    if (dmg >= 30) this.effects.burst(e.x, e.y, e.def.color, 4);
+    if (dmg >= 30) this.effects.burst(e.x, e.y, e.def.color, 8);
     if (e.type === 'raja') this.shake = Math.max(this.shake, 0.18);
     if (e.hp <= 0) {
-      const reward = Math.round(e.reward * (this.relics.has('kendi') ? 1.5 : 1));
+      // Kill reward: Kendi +50%, Bulan Purnama x2 — and the coin pop says so.
+      let reward = e.reward;
+      if (this.relics.has('kendi')) reward = Math.round(reward * 1.5);
+      if (this.twist === 'purnama') reward *= 2;
       this.coins += reward;
       this.stats.coinsEarned += reward;
       this.stats.kills++;
-      this.effects.burst(e.x, e.y, e.def.color, 10);
-      this.effects.text(e.x, e.y - 18, `+${reward}`, '#ffd76a', 14);
+      this.effects.burst(e.x, e.y, e.def.color, 16);
+      const bonus = (this.relics.has('kendi') ? ' (+50%)' : '') + (this.twist === 'purnama' ? ' (x2)' : '');
+      this.effects.text(e.x, e.y - 18, `+${reward} ◆${bonus}`, '#ffd76a', 17);
     }
   }
 
@@ -255,8 +341,8 @@ export class Game {
   damageTower(t, dmg) {
     if (!this.towers.includes(t)) return;
     t.durability -= dmg;
-    this.effects.text(t.x, t.y - 30, `-${dmg}`, '#ff7a6a', 14);
-    this.effects.burst(t.x, t.y - 10, '#8a94a8', 4);
+    this.effects.text(t.x, t.y - 30, `-${dmg}`, '#ff7a6a', 18);
+    this.effects.burst(t.x, t.y - 10, '#8a94a8', 8);
     if (t.durability <= 0) {
       const refund = Math.round(towerSpent(t) * 0.5);
       this.coins += refund;
@@ -295,8 +381,8 @@ export class Game {
     return true;
   }
 
-  // A relic is earned automatically when its wave is cleared: the icon lights
-  // up in the PUSAKA panel and the name flashes on screen.
+  // A relic is earned automatically when its wave is cleared: a big banner
+  // announces it center-screen, so the effect is impossible to miss.
   awardRelic(relic) {
     if (this.relics.has(relic.key)) return;
     this.relics.add(relic.key);
@@ -304,13 +390,19 @@ export class Game {
       this.gateMaxHp += 5;
       this.gateHp = Math.min(this.gateMaxHp, this.gateHp + 5);
     }
-    this.effects.text(640, 200, `${relic.name} didapat!`, '#ffd76a', 26);
-    this.effects.text(640, 232, relic.desc, '#cfe8dd', 16);
+    const subs = {
+      keris: 'Damage menara +25% — angka damage naik!',
+      gong: 'Jendela ketuk lebih lebar — kombo lebih awet!',
+      kendi: 'Koin kill +50% — lihat pop koin emas!',
+      jimat: 'Gerbang +5 HP maks — bar gerbang 25/20!',
+    };
+    this.showBanner(`${relic.name.toUpperCase()}!`, subs[relic.key] || relic.desc, 2.2);
     this.effects.ring(640, 216, 260, '#ffd76a', 1.0);
   }
 
   waveCleared() {
-    const bonus = waveClearBonus(this.wave);
+    let bonus = waveClearBonus(this.wave);
+    if (this.twist === 'purnama') bonus *= 2; // Bulan Purnama: koin x2
     this.coins += bonus;
     this.stats.coinsEarned += bonus;
     this.effects.text(640, 120, `Malam ${this.wave} selesai!  +${bonus} koin`, '#7fe3a8', 22);
@@ -400,7 +492,13 @@ export class Game {
     if (id && id.startsWith('diff:')) { this.setDifficultyKey(id.slice(5)); return; }
     if (id === 'quit-menu') { this.state = 'menu'; return; }
     if (id === 'wave') { this.startWave(); return; }
-    if (id === 'tabuh') { this.tabuh(); return; }
+    // The TABUH button fires the Gong Raksasa while it glows; Space always
+    // stays a normal tabuh, and G fires the special directly.
+    if (id === 'tabuh') {
+      if (!this.triggerGongRaksasa()) this.tabuh();
+      return;
+    }
+    if (id === 'gong') { this.triggerGongRaksasa(); return; }
     if (id === 'repair') { this.repairGate(); return; }
     if (id === 'upgrade' && this.selectedTower) { this.upgradeTower(this.selectedTower); return; }
     if (id === 'repair-tower' && this.selectedTower) { this.repairTower(this.selectedTower); return; }
@@ -475,12 +573,27 @@ export class Game {
     this.beatIndex = Math.floor(this.beatTime / BEAT);
     if (this.beatIndex !== prevBeat) {
       this.audio.onBeat(this.beatIndex);
+      // Beat rings along the whole stone path: six glowing rings bloom on
+      // the ketuk so the rhythm is visible everywhere, like the mockup.
+      for (const f of [0.08, 0.25, 0.42, 0.58, 0.75, 0.92]) {
+        const p = pointAt(f * PATH_LENGTH);
+        this.effects.ring(p.x, p.y, 64, 'rgba(232,182,76,0.9)', 0.55, 5);
+      }
       // Beat rings at both gates: the whole arena pulses with the ketuk.
-      this.effects.ring(150, 648, 80, 'rgba(232,182,76,0.55)');
-      this.effects.ring(1234, 58, 70, 'rgba(127,227,200,0.45)');
-      // The win screenshot pose plays the rhythm for real: a perfect tabuh
-      // on every beat, so its victory stats show genuine engagement.
-      if (this.shot === 'win' && this.state === 'playing') this.tabuh();
+      this.effects.ring(150, 648, 90, 'rgba(232,182,76,0.6)', 0.55, 5);
+      this.effects.ring(1234, 58, 80, 'rgba(127,227,200,0.5)', 0.55, 5);
+      // Screenshot poses play the rhythm for real: a perfect tabuh on every
+      // beat, so their stats show genuine engagement (and the grade badge
+      // shows a real S/A, not a faked number).
+      if ((this.shot === 'win' || this.shot === 'play' || this.shot === 'big' || this.shot === 'boss')
+        && this.state === 'playing') this.tabuh();
+    }
+    // Ambient embers drift up off the field — a few per second, capped by
+    // the effects list, so the night air always glitters.
+    this.emberTimer -= dt;
+    if (this.emberTimer <= 0) {
+      this.emberTimer = 0.15;
+      this.effects.mote(60 + Math.random() * 1160, 380 + Math.random() * 220);
     }
     const dtBeats = dt / BEAT;
     this.spawner.update(dt);
@@ -500,6 +613,7 @@ export class Game {
     this.updateBoss();
     this.effects.update(dt);
     this.shake = Math.max(0, this.shake - dt * 1.8);
+    this.flash = Math.max(0, this.flash - dt * 1.5);
     if (this.gateHp <= 0) {
       this.gateHp = 0;
       this.defeat();
@@ -526,7 +640,7 @@ export class Game {
     if (this.state !== 'menu' && this.state !== 'howto') {
       // Range preview for the selected tower.
       if (this.selectedTower) {
-        const stats = towerStats(this.selectedTower);
+        const stats = towerStats(this.selectedTower, this);
         ctx.globalAlpha = 0.12;
         ctx.fillStyle = '#ffd76a';
         ctx.beginPath();
@@ -566,5 +680,10 @@ export class Game {
     }
     ctx.restore();
     this.ui.draw(ctx);
+    // Gong Raksasa flash: a white-gold wash over everything, fading fast.
+    if (this.flash > 0) {
+      ctx.fillStyle = `rgba(255,240,200,${0.5 * this.flash})`;
+      ctx.fillRect(0, 0, W, H);
+    }
   }
 }

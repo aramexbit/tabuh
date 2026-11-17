@@ -65,7 +65,8 @@ const PLAN = [
           const gg = window.__game;
           if (gg.state === 'playing' && gg.beatIndex !== lastBeat) {
             lastBeat = gg.beatIndex;
-            gg.tabuh();
+            // Fire the Gong Raksasa while it glows; otherwise a normal tabuh.
+            if (!gg.triggerGongRaksasa()) gg.tabuh();
           }
         }, 10);
       }

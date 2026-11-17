@@ -54,14 +54,15 @@ export class UI {
       else if (g.state === 'defeat') this.drawEnd(ctx, false);
       else if (g.selectedPad !== null || g.selectedTower) this.drawPadPanel(ctx);
     }
+    this.drawBanner(ctx);
   }
 
-  panel(ctx, x, y, w, h, alpha = 0.88) {
+  panel(ctx, x, y, w, h, alpha = 0.88, bw = 1.5) {
     ctx.fillStyle = `rgba(10,18,30,${alpha})`;
     rr(ctx, x, y, w, h, 14);
     ctx.fill();
     ctx.strokeStyle = 'rgba(232,182,76,0.55)';
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = bw;
     rr(ctx, x, y, w, h, 14);
     ctx.stroke();
   }
@@ -155,35 +156,34 @@ export class UI {
     ctx.font = '16px sans-serif';
     ctx.textAlign = 'left';
     const lines = [
-      '1. Klik sebuah pad batu, lalu pilih instrumen (atau tekan 1–5) untuk',
-      '    membangunnya. Instrumen menyerang roh yang lewat di jalurnya.',
-      '2. Tekan SPASI (atau klik gendang TABUH) tepat saat penanda sampai',
-      '    di tengah garis ketuk. Perfect / Good menaikkan kombo — kombo',
-      '    melipatgandakan damage semua menara. Meleset = kombo putus.',
-      '3. Klik menara yang sudah dibangun untuk upgrade, perbaiki, atau jual.',
-      '4. Tekan MULAI MALAM untuk memulai gelombang berikutnya. Roh yang',
-      '    sampai ke gerbang desa mengurangi HP gerbang. Gerbang jatuh = kalah.',
-      '5. Bertahanlah 10 malam untuk menang — lalu lanjut Endless bila mau.',
-      '6. Hantu menyerang balik! Kuntilanak menyetrum menara, Tuyul mencuri',
-      '    koin, Pocong membungkus menara, Genderuwo & Buto menghantamnya.',
-      '    Menara rusak: perbaiki di panelnya; bila hancur, bangun ulang',
-      '    (50% biaya kembali). Koin didapat dari TABUH dan kill.',
-      '7. Daya tahan ikut harga (Gong terkuat, Saron terrapuh) — tidak ada',
-      '    menara yang kebal; boss bisa menghancurkan gong sekalipun.',
-      '8. Pocong kebal lambat Kendang; Kuntilanak kebal sebagian dari Saron.',
-      '9. Gerbang rusak? Klik Perbaiki di atas (◆100, +5 HP) selama bermain.',
+      '1. Klik pad batu, pilih instrumen (1–5) untuk membangunnya.',
+      '2. Tekan SPASI tepat saat penanda di tengah garis ketuk.',
+      '   Perfect/Good menaikkan kombo — kombo melipatgandakan damage.',
+      '3. Klik menara untuk upgrade, perbaiki, atau jual.',
+      '4. Tekan MULAI MALAM — roh yang sampai ke gerbang mengurangi HP.',
+      '5. Bertahan 10 malam untuk menang, lalu lanjut Endless bila mau.',
+      '6. Hantu menyerang balik: Kuntilanak menyetrum, Tuyul mencuri koin,',
+      '   Pocong membungkus, Genderuwo & Buto menghantam menara.',
+      '   Menara hancur: bangun ulang (50% biaya kembali).',
+      '7. Gong terkuat, Saron terrapuh — tidak ada menara yang kebal.',
+      '8. Pocong kebal lambat Kendang; Kuntilanak kebal sebagian Saron.',
+      '9. Gerbang rusak? Perbaiki di atas (◆100, +5 HP).',
       '',
-      'Instrumen:',
-      '  Saron (50) — cepat, satu sasaran.   Kendang (70) — melambatkan roh.',
-      '  Bonang (100) — damage area kecil.   Kenong (150) — jauh dan kuat.',
-      '  Gong (250) — gema besar + setrum.',
+      'PUSAKA (otomatis, ikon di bar bawah):',
+      '  Keris (M3): damage +25%   •   Gong (M5): jendela ketuk lebar',
+      '  Kendi (M7): koin kill +50%   •   Jimat (M9): gerbang +5 HP',
+      'GONG RAKSASA: saat kombo x2.0, tombol TABUH bersinar — klik / tekan G:',
+      '  ledakan seluruh layar, 200 damage ke semua hantu, 1x per malam.',
+      'TWIST TIAP 3 MALAM: M3 Berkabut (jangkauan -20%), M6 Purnama',
+      '  (hantu +HP, koin x2), M9 Hujan (jendela sempit, damage +25%).',
       '',
-      'Kontrol: 1–5 pilih instrumen • Spasi tabuh • P jeda • M bisu • R ulang',
+      'Instrumen: Saron 50 • Kendang 70 • Bonang 100 • Kenong 150 • Gong 250',
+      'Kontrol: 1–5 pilih • Spasi tabuh • G Gong Raksasa • P jeda • M bisu',
     ];
-    let y = 140;
+    let y = 136;
     for (const ln of lines) {
       ctx.fillText(ln, W / 2 - 310, y);
-      y += 21;
+      y += 20;
     }
     this.button(ctx, 'back-menu', W / 2 - 110, 612, 220, 48, 'Kembali', { size: 18 });
     ctx.textBaseline = 'alphabetic';
@@ -246,7 +246,8 @@ export class UI {
     // Boss bar + side panels (over the scene, never over pads or the pad panel).
     if (g.boss) this.drawBossBar(ctx);
     this.drawIncoming(ctx);
-    this.drawRelics(ctx);
+    this.drawGradeBadge(ctx);
+    this.drawTwistPill(ctx);
     // Bottom bar.
     ctx.fillStyle = 'rgba(8,14,26,0.86)';
     ctx.fillRect(0, H - 102, W, 102);
@@ -282,16 +283,18 @@ export class UI {
       this.addHit('tower:' + type, cx, H - 94, 92, 86);
       cx += 98;
     }
-    // Beat bar (center).
-    const bx = 510, bw = 350, by = H - 82;
+    // Beat bar (center). Narrower now: the PUSAKA strip lives to its right.
+    const bx = 510, bw = 240, by = H - 82;
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
     rr(ctx, bx, by, bw, 30, 8);
     ctx.fill();
-    // Hit zone.
+    // Hit zone — wider while the Gong Pusaka is owned (visible proof).
+    const hz = g.relics.has('gong') ? 38 : 26;
+    const hz2 = g.relics.has('gong') ? 15 : 10;
     ctx.fillStyle = 'rgba(127,227,168,0.35)';
-    ctx.fillRect(bx + bw / 2 - 26, by, 52, 30);
+    ctx.fillRect(bx + bw / 2 - hz, by, hz * 2, 30);
     ctx.fillStyle = 'rgba(127,227,168,0.7)';
-    ctx.fillRect(bx + bw / 2 - 10, by, 20, 30);
+    ctx.fillRect(bx + bw / 2 - hz2, by, hz2 * 2, 30);
     // Moving marker: at the beat instant it sits in the middle of the bar
     // (phase 0 -> center), so "press when the marker is centered" matches
     // the game's timing windows.
@@ -305,24 +308,36 @@ export class UI {
     ctx.fillStyle = '#cfe8dd';
     ctx.font = '13px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('KETUK — tekan Spasi saat penanda di tengah', bx + bw / 2, by + 48);
-    // Combo text + big grade letter beside it.
+    ctx.fillText('Tekan Spasi saat penanda di tengah', bx + bw / 2, by + 48);
+    // Combo text (the big grade letter lives in the badge, bottom right).
     ctx.fillStyle = g.combo > 0 ? '#ffd76a' : '#8a94a8';
     ctx.font = 'bold 18px sans-serif';
     ctx.fillText(g.combo > 0 ? `Kombo ${g.combo}  •  x${g.comboMult().toFixed(2)}` : 'Kombo 0', bx + bw / 2, by + 70);
-    const gb = g.comboGrade();
-    if (gb !== '—') {
-      ctx.fillStyle = gb === 'S' ? '#ffd76a' : gb === 'A' ? '#7fe3a8' : gb === 'B' ? '#9db8e8' : '#cfe8dd';
-      ctx.font = 'bold 34px Georgia, serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(gb, bx + bw / 2 + 112, by + 72);
-      ctx.textAlign = 'center';
-    }
+    // PUSAKA strip: four small medallions with their effect labels, between
+    // the beat bar and the TABUH drum — inside the bar, never over the field.
+    this.drawRelicsBottom(ctx);
     // TABUH drum button.
     const tx = 930, ty = H - 52;
+    // Gong Raksasa ready: the drum glows gold and calls for G.
+    if (g.gongRaksasaReady()) {
+      const pulse = 0.6 + 0.4 * Math.sin(g.time * 6);
+      ctx.strokeStyle = `rgba(255,215,106,${pulse})`;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(tx, ty, 50 + 3 * Math.sin(g.time * 6), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = `rgba(255,242,176,${pulse * 0.7})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(tx, ty, 57, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = '#ffd76a';
+      ctx.font = 'bold 15px sans-serif';
+      ctx.fillText('GONG RAKSASA! (G)', tx, ty - 56);
+    }
     const hov = Math.hypot(this.hover.x - tx, this.hover.y - ty) <= 44;
     const dg = ctx.createRadialGradient(tx - 10, ty - 12, 4, tx, ty, 46);
-    dg.addColorStop(0, hov ? '#f0d060' : '#c97b3d');
+    dg.addColorStop(0, g.gongRaksasaReady() ? '#ffe9a8' : hov ? '#f0d060' : '#c97b3d');
     dg.addColorStop(1, '#7a4a1e');
     ctx.fillStyle = dg;
     ctx.beginPath();
@@ -352,6 +367,43 @@ export class UI {
     this.button(ctx, 'restart', 1170, H - 88, 96, 42, 'Ulang', { size: 15 });
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
+  }
+
+  // Grade badge: the big S/A/B/C + KOMBO multiplier, always visible at the
+  // bottom right while playing — the mockup's loudest HUD element. No hit
+  // rect: clicks pass through to the pads underneath (none are here).
+  drawGradeBadge(ctx) {
+    const g = this.game;
+    const x = 1064, y = 496, w = 204, h = 112;
+    this.panel(ctx, x, y, w, h, 0.94, 3);
+    const grade = g.comboGrade();
+    const col = grade === 'S' ? '#ffd76a' : grade === 'A' ? '#7fe3a8'
+      : grade === 'B' ? '#9db8e8' : grade === 'C' ? '#cfe8dd' : '#5a6478';
+    if (grade === 'S') {
+      // Sparkles around an S grade.
+      ctx.fillStyle = '#fff2b0';
+      for (const [sx, sy, sr] of [[x + 14, y + 16, 2.5], [x + w - 16, y + 22, 2], [x + w - 30, y + 12, 1.8], [x + 26, y + h - 14, 2]]) {
+        ctx.beginPath();
+        ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = col;
+    ctx.font = 'bold 62px Georgia, serif';
+    ctx.fillText(grade, x + 16, y + 58);
+    ctx.fillStyle = '#ffe9a8';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillText('KOMBO', x + 94, y + 34);
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillText(`x${g.comboMult().toFixed(2)}`, x + 94, y + 62);
+    ctx.fillStyle = '#cfe8dd';
+    ctx.font = '13px sans-serif';
+    const sub = grade === 'S' ? 'PERFECT!' : grade === 'A' ? 'BAGUS!' : grade === 'B' ? 'TERUS!'
+      : grade === 'C' ? 'AYO!' : 'Tekan Spasi!';
+    ctx.fillText(sub, x + 94, y + 90);
+    ctx.textAlign = 'left';
   }
 
   // Boss bar: big gold-framed red bar under the top bar, with the boss name
@@ -420,7 +472,7 @@ export class UI {
     }
     const rows = ORDER.filter((t) => counts.get(t) > 0);
     const GHOST_POWER = {
-      wisik: 'Tawa: setrum menara 2 ketuk',
+      wisik: 'Tawa: setrum menara 1 ketuk',
       kunang: 'Mencuri 3 koin',
       bayang: 'Kafan: serang -75% 4 ketuk',
       slira: 'Pukulan: -18 daya tahan',
@@ -475,38 +527,95 @@ export class UI {
   }
 
   // PUSAKA: four relic medallions, top right. Earned ones glow gold.
-  drawRelics(ctx) {
+  // (v2 size kept as-is per user feedback — the panel must not grow.)
+  // PUSAKA strip in the bottom bar: earned relics light up as small
+  // medallions with their effect label under each icon. Display only —
+  // no hit rect, clicks pass through to the scene.
+  drawRelicsBottom(ctx) {
     const g = this.game;
-    const x = 1064, y = 56, w = 204, h = 92;
-    this.panel(ctx, x, y, w, h, 1);
+    const labels = { keris: '+25%', gong: 'Lebar', kendi: '+50%', jimat: '+5 HP' };
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#f5c542';
-    ctx.font = 'bold 16px sans-serif';
-    ctx.fillText('PUSAKA', x + w / 2, y + 17);
-    const cy = y + 56;
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillText('PUSAKA', 811, 636);
     RELICS.forEach((r, i) => {
-      const cx = x + 32 + i * 48;
+      const cx = 772 + i * 26, cy = 664;
       const lit = g.relics.has(r.key);
       ctx.beginPath();
-      ctx.arc(cx, cy, 19, 0, Math.PI * 2);
-      ctx.fillStyle = lit ? '#6b5222' : 'rgba(30,36,48,0.9)';
+      ctx.arc(cx, cy, 13, 0, Math.PI * 2);
+      ctx.fillStyle = lit ? 'rgba(245,197,66,0.30)' : 'rgba(0,0,0,0.45)';
       ctx.fill();
-      ctx.strokeStyle = lit ? '#ffd76a' : 'rgba(150,150,150,0.4)';
-      ctx.lineWidth = lit ? 2.5 : 1.5;
+      ctx.strokeStyle = lit ? '#f5c542' : 'rgba(138,148,168,0.5)';
+      ctx.lineWidth = lit ? 2 : 1;
       ctx.stroke();
-      if (lit) {
-        ctx.shadowColor = '#ffd76a';
-        ctx.shadowBlur = 10;
-        ctx.beginPath();
-        ctx.arc(cx, cy, 19, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-      }
+      ctx.save();
+      ctx.globalAlpha = lit ? 1 : 0.45;
       this.drawRelicGlyph(ctx, r.key, cx, cy, lit ? '#ffd76a' : '#7a7f8a');
+      ctx.restore();
+      ctx.fillStyle = lit ? '#ffd76a' : '#8a94a8';
+      ctx.font = '9px sans-serif';
+      ctx.fillText(labels[r.key], cx, 688);
     });
     ctx.textAlign = 'left';
+  }
+
+  // Small persistent twist indicator under the top bar (below the boss bar
+  // when a boss is up). The banner at wave start is the announcement; this
+  // pill is the reminder.
+  drawTwistPill(ctx) {
+    const g = this.game;
+    if (!g.twist || g.state !== 'playing') return;
+    const names = { kabut: 'Malam Berkabut', purnama: 'Bulan Purnama', hujan: 'Hujan Deras' };
+    const y = g.boss ? 106 : 66;
+    ctx.font = 'bold 14px sans-serif';
+    const w = ctx.measureText(names[g.twist]).width + 34;
+    const x = W / 2 - w / 2;
+    ctx.fillStyle = 'rgba(10,18,30,0.85)';
+    rr(ctx, x, y, w, 26, 13);
+    ctx.fill();
+    ctx.strokeStyle = '#f5c542';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = '#ffd76a';
+    ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    ctx.fillText(names[g.twist], W / 2, y + 14);
+    ctx.textAlign = 'left';
+  }
+
+  // Big center-screen banner (relic / twist / boss intro) with fade in/out.
+  drawBanner(ctx) {
+    const g = this.game;
+    const b = g.banner;
+    if (!b || g.state !== 'playing') return;
+    const remain = b.until - g.time;
+    if (remain <= 0) { g.banner = null; return; }
+    const age = b.dur - remain;
+    const alpha = Math.min(1, age / 0.15) * Math.min(1, remain / 0.4);
+    const w = 700, h = 108, x = W / 2 - w / 2, y = 240;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(8,12,22,0.92)';
+    rr(ctx, x, y, w, h, 14);
+    ctx.fill();
+    ctx.strokeStyle = b.color;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,215,106,0.5)';
+    ctx.lineWidth = 1;
+    rr(ctx, x + 6, y + 6, w - 12, h - 12, 10);
+    ctx.stroke();
+    ctx.fillStyle = b.color;
+    ctx.font = 'bold 34px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(b.title, W / 2, y + 42);
+    ctx.fillStyle = '#e8e2d0';
+    ctx.font = '16px sans-serif';
+    ctx.fillText(b.sub, W / 2, y + 76);
+    ctx.restore();
+    ctx.textAlign = 'left';
   }
 
   drawRelicGlyph(ctx, key, x, y, color) {
@@ -570,7 +679,7 @@ export class UI {
     if (g.selectedTower) {
       const t = g.selectedTower;
       const def = TOWERS[t.type];
-      const stats = towerStats(t);
+      const stats = towerStats(t, g);
       ctx.fillStyle = '#f5c542';
       ctx.font = 'bold 18px sans-serif';
       ctx.fillText(`${def.name}  •  Level ${t.level}`, px + 16, py + 26);

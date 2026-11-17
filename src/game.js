@@ -278,19 +278,23 @@ export class Game {
 
   frame(dt) {
     this.menuTime += dt;
+    this.realDt = dt; // unscaled, for honest play-time stats
     if (this.state === 'playing') this.update(dt * this.timeScale);
     this.draw();
   }
 
   update(dt) {
     this.time += dt;
-    this.stats.timeSec += dt;
+    this.stats.timeSec += this.realDt;
     // Beat clock.
     const prevBeat = this.beatIndex;
     this.beatTime += dt;
     this.beatIndex = Math.floor(this.beatTime / BEAT);
     if (this.beatIndex !== prevBeat) {
       this.audio.onBeat(this.beatIndex);
+      // The win screenshot pose plays the rhythm for real: a perfect tabuh
+      // on every beat, so its victory stats show genuine engagement.
+      if (this.shot === 'win' && this.state === 'playing') this.tabuh();
     }
     const dtBeats = dt / BEAT;
     this.spawner.update(dt);

@@ -123,7 +123,8 @@ export function updateTowers(game, dtBeats) {
     } else if (tower.type === 'gong') {
       // Instant shockwave at the target: big area damage + stun.
       const n = applyHit(game, target.x, target.y, stats.dmg, stats.aoe, 0, 0, stats.stunBeats, game.comboMult());
-      game.effects.ring(target.x, target.y, stats.aoe, '#f5c542');
+      game.stats.lastGongHits = n;
+      game.effects.ring(target.x, target.y, stats.aoe, '#f5c542', 1.2);
       game.effects.burst(target.x, target.y, '#f5c542', 14);
       game.shake = Math.max(game.shake, 0.35);
       game.audio.strike('gong');

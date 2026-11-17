@@ -3,9 +3,56 @@
 // temporary slow / stun timers. Every figure is drawn in code — no image
 // assets — with its own silhouette, motion (float / hop / shamble), and HP bar.
 import { ENEMIES, enemyHp, enemySpeed } from './config.js';
-import { pointAt, PATH_LENGTH } from './world.js';
 
-let nextId = 1;
+// ---- Tower-hunting AI (v2.7) ----
+// Ghosts no longer walk the stone path. Each ghost hunts a tower: it picks
+// a target (nearest, with a penalty per ghost already hunting it so the pack
+// spreads instead of piling onto one tower), walks straight at it, and
+// attacks it until it breaks — then retargets. With no towers left, it
+// heads for the village gate. The gate is the finish line, not the first
+// stop: that is what the player asked for ("destroy the weapons first").
+// Powers are unchanged — only movement + targeting moved.
+const GATE_POS = { x: 150, y: 648 };
+const ATTACK_RANGE = { wisik: 80, kunang: 80, bayang: 90, slira: 100, raksasa: 110, raja: 120, emas: 0 };
+const HUNTER_PENALTY = 140; // px-equivalent per ghost already hunting a tower
+
+function huntersOn(game, tower, self) {
+  let n = 0;
+  for (const e of game.enemies) if (e.targetTower === tower && e !== self) n++;
+  return n;
+}
+
+function bestTarget(game, e) {
+  let best = null, bestScore = Infinity;
+  for (const t of game.towers) {
+    // A Tuyul never returns to a tower it already robbed.
+    if (e.type === 'kunang' && e.stolenFrom.includes(t.padIndex)) continue;
+    const d = Math.hypot(e.x - t.x, e.y - t.y);
+    const score = d + HUNTER_PENALTY * huntersOn(game, t, e) + (e.id % 5) * 17;
+    if (score < bestScore) { best = t; bestScore = score; }
+  }
+  return best;
+}
+
+// (Re)pick a hunt target. force=true when the target is gone (no
+// hysteresis); the periodic re-pick only switches when clearly better, so
+// ghosts don't flip-flop between two near-equal towers.
+function pickTarget(game, e, force = false) {
+  if (e.type === 'emas') { e.targetTower = null; e.targetGate = true; e.inRange = false; e.retargetCd = 2.5; return; }
+  const best = bestTarget(game, e);
+  if (!best) { e.targetTower = null; e.targetGate = true; e.inRange = false; e.retargetCd = 2.5; return; }
+  if (!force && e.targetTower && e.targetTower !== best) {
+    const cur = Math.hypot(e.x - e.targetTower.x, e.y - e.targetTower.y)
+      + HUNTER_PENALTY * huntersOn(game, e.targetTower, e) + (e.id % 5) * 17;
+    const next = Math.hypot(e.x - best.x, e.y - best.y)
+      + HUNTER_PENALTY * huntersOn(game, best, e) + (e.id % 5) * 17;
+    if (next > cur * 0.75) { e.retargetCd = 2.5; return; } // keep the current target
+  }
+  e.targetTower = best;
+  e.targetGate = false;
+  e.inRange = false;
+  e.retargetCd = 2.5;
+}
 
 export function createEnemy(type, wave, rng) {
   const def = ENEMIES[type];
@@ -14,7 +61,6 @@ export function createEnemy(type, wave, rng) {
     id: nextId++,
     type,
     def,
-    dist: 0,
     x: 0,
     y: 0,
     angle: 0,
@@ -35,6 +81,11 @@ export function createEnemy(type, wave, rng) {
     flash: 0,
     attackCd: 2 + rng.range(0, 1.5), // ghosts size up the towers before striking
     stolenFrom: [], // padIndex list a Tuyul already stole from
+    targetTower: null, // the tower this ghost is hunting (v2.7 AI)
+    targetGate: false, // true when no towers are left: head for the gate
+    retargetCd: 0, // periodic re-pick timer (keeps the spread adaptive)
+    inRange: false, // standing at the target, attacking
+    lane: rng.range(-18, 18), // per-ghost offset so the pack doesn't stack
   };
 }
 
@@ -86,20 +137,41 @@ export function updateEnemy(game, e, dt) {
   if (game.time < e.slowUntil) speed *= e.slowFactor;
   // Malam Berkabut: ghosts move 15% faster.
   if (game.twist === 'kabut') speed *= 1.15;
-  e.dist += speed * dt;
-  const p = pointAt(e.dist);
-  const wob = Math.sin(game.time * 3 + e.wobble) * e.wobbleAmp;
-  const nx = -Math.sin(p.angle);
-  const ny = Math.cos(p.angle);
-  e.x = p.x + nx * wob;
-  e.y = p.y + ny * wob - e.radius * 0.4;
-  e.angle = p.angle;
-  if (e.dist >= PATH_LENGTH) {
-    e.reachedGate = true;
+  // Targeting: no target yet, target gone (destroyed/sold), or periodic
+  // re-pick so the spread adapts as towers are built and destroyed.
+  if (!e.targetTower && !e.targetGate) pickTarget(game, e, true);
+  if (e.targetTower && !game.towers.includes(e.targetTower)) pickTarget(game, e, true);
+  e.retargetCd -= dt;
+  if (e.retargetCd <= 0) pickTarget(game, e, false);
+  // Destination: the hunted tower (with a per-ghost lane offset so the pack
+  // doesn't stack on one point) or the village gate.
+  let tx, ty, range;
+  if (e.targetTower) {
+    tx = e.targetTower.x + e.lane;
+    ty = e.targetTower.y + e.lane * 0.5;
+    range = ATTACK_RANGE[e.type] || 80;
+  } else {
+    tx = GATE_POS.x;
+    ty = GATE_POS.y;
+    range = 55;
   }
-  // Ghosts fight back: each type attacks towers it passes, on its own timer.
-  e.attackCd -= dt;
-  if (e.attackCd <= 0) e.attackCd = ghostAttack(game, e);
+  const dx = tx - e.x;
+  const dy = ty - e.y;
+  const d = Math.hypot(dx, dy);
+  if (d <= range) {
+    if (e.targetGate) { e.reachedGate = true; return; }
+    // In range: stand and fight. First arrival gets a wind-up so the tower
+    // lands a few free hits ("ghosts size up the towers before striking").
+    if (!e.inRange) { e.inRange = true; e.attackCd = 2.0; }
+    e.attackCd -= dt;
+    if (e.attackCd <= 0) e.attackCd = ghostAttack(game, e);
+    return;
+  }
+  e.inRange = false;
+  const step = speed * dt;
+  e.x += (dx / d) * step;
+  e.y += (dy / d) * step;
+  e.angle = Math.atan2(dy, dx);
 }
 
 function nearestTower(game, e, radius) {
@@ -140,6 +212,9 @@ function ghostAttack(game, e) {
     const steal = Math.min(3, game.coins);
     game.coins -= steal;
     game.effects.text(t.x, t.y - 34, `-${steal} ◆`, '#ff9a3d', 15);
+    // Robbed this tower: move on to the next one (or the gate, if every
+    // tower has been robbed) instead of parking here forever.
+    e.targetTower = null;
     return 2.0;
   }
   if (e.type === 'bayang') {

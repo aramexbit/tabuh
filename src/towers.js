@@ -3,7 +3,7 @@
 // Saron/Bonang/Kenong fire homing note projectiles; Kendang pulses a slow;
 // Gong lands an instant area shockwave + stun.
 import { TOWERS, UPGRADES, SELL_RATE } from './config.js';
-import { PADS } from './world.js';
+import { PADS, GATE } from './world.js';
 
 export function towerStats(tower, game) {
   const base = TOWERS[tower.type];
@@ -60,14 +60,21 @@ export function createTower(type, padIndex) {
 }
 
 function firstTargetInRange(game, tower, range) {
+  // v2.7: ghosts roam free (no path distance anymore), so towers shoot the
+  // spirit nearest the village gate — the most advanced threat — and break
+  // ties by distance to the tower itself.
   let best = null;
-  let bestDist = -1;
+  let bestGate = Infinity;
+  let bestD = Infinity;
   for (const e of game.enemies) {
     if (e.hp <= 0) continue;
     const d = Math.hypot(e.x - tower.x, e.y - tower.y);
-    if (d <= range && e.dist > bestDist) {
+    if (d > range) continue;
+    const dg = Math.hypot(e.x - GATE.x, e.y - GATE.y);
+    if (dg < bestGate - 1 || (Math.abs(dg - bestGate) <= 1 && d < bestD)) {
       best = e;
-      bestDist = e.dist;
+      bestGate = dg;
+      bestD = d;
     }
   }
   return best;

@@ -254,7 +254,6 @@ export function checkShot(game) {
     // tool timeout captured a victory screen instead. x≈776 is 61%
     // across the field — clearly mid-field, not the v2.7 corner.
     const bossCentred = game.boss && game.boss.x >= 512 && game.boss.x <= 800;
-    const bossCentred = game.boss && game.boss.x >= 512 && game.boss.x <= 768;
     if (game.boss && game.enemies.length >= 6
       && game.combo >= 14 && game.boss.y > 180 && bossCentred && spread && bottomFight) {
       game.shotReady = true;

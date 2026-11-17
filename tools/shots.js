@@ -45,11 +45,12 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       page.on('pageerror', e => errors.push(`${s.name}: pageerror: ${e.message}`));
       await page.goto(`${BASE}/?shot=${s.shot}&seed=1`, { waitUntil: 'networkidle' });
       // Wait for the pose to be ready (max 240 s for the 1x win pose).
+      // Tight 100 ms poll: the play frame's twist banner is time-critical.
       const t0 = Date.now();
       let ready = false;
       while (Date.now() - t0 < 240000) {
         if (await page.evaluate(() => window.__game && window.__game.shotReady)) { ready = true; break; }
-        await sleep(250);
+        await sleep(100);
       }
       if (!ready) console.log(`WARN  ${s.name}: pose not ready after 240 s, capturing anyway`);
       if (s.shot === 'boss') {

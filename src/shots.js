@@ -179,6 +179,22 @@ function maintainWinBoard(game) {
   }
 }
 
+// v2.9: a capture condition must HOLD for 1.0 s before the shot fires.
+// The ghosts that satisfy centre/bottomFight are the ones being shot, so
+// they can die within ~500 ms of the trigger and the screenshot (taken
+// ~300 ms later) shows them gone — wave-9 diag: the pose fired on
+// low=2/bF=2/ctr=2 and 0.5 s later all three were 0. A field that stays
+// good for a full second is held by survivors, so the frame survives the
+// capture delay. One call per update per pose: each branch below computes
+// a SINGLE combined boolean and passes it here once, so the hold timer
+// cannot be reset by a second call in the same update. The 120 s safety
+// still bypasses the hold.
+function holdReady(game, ok) {
+  if (!ok) { game.shotHoldSince = null; return false; }
+  if (game.shotHoldSince == null) game.shotHoldSince = game.time;
+  return game.time - game.shotHoldSince >= 1.0;
+}
+
 // Called every update while a shot pose is active.
 // v2.7: captures come from REAL gameplay now — the hunting AI spreads the
 // pack itself, so no ghost is ever teleported for a frame. Each pose waits
@@ -204,7 +220,7 @@ export function checkShot(game) {
     // shows a battle already underway — v2.8's kills>=2 caught the wave
     // at t≈9 s (kills 2, combo x2.05 grade A) and the field read young.
     const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 5 && game.stats.kills >= 5;
-    if ((afterBanner && spread && bottomFight) || fallback) {
+    if (holdReady(game, (afterBanner && spread && bottomFight) || fallback)) {
       game.shotReady = true;
     }
   } else if (game.shot === 'big') {
@@ -228,13 +244,25 @@ export function checkShot(game) {
     // corner. The fallback for big still relaxes the centre bar, but
     // only 3 -> 2, never to zero.
     const centreLoose = centerFightCount(game) >= 2;
-    if ((game.enemies.length >= 5 && spread && bottomFight && centre && gongReady) || (fallback && centreLoose)) {
+    const bigOk = (game.enemies.length >= 5 && spread && bottomFight && centre && gongReady)
+      || (fallback && centreLoose);
+    if (holdReady(game, bigOk)) {
       game.shotReady = true;
     } else if (game.phase === 'build' && game.state === 'playing' && game.wave < TOTAL_WAVES) {
       // Wave cleared without a good frame: press on to the next wave
       // (the win pose does the same). The towers are already chipped or
       // destroyed, so the next wave's pack spreads into the lower half
       // more easily — one wave alone was flaky (2/3 in the probe harness).
+      // v2.9: rebuild the two lower-half towers if they were destroyed —
+      // once they are gone the far hunters' pool falls back to near
+      // towers and the lower half empties for the whole wave (wave-8
+      // diag: low=0 throughout, even with all 5 towers up at first —
+      // the bottom two died in wave 7 and nothing replaced them). L1
+      // only, like the rest of this pose; buildTower returns null when
+      // the pad is occupied or the coins run out.
+      for (const [type, pad] of [['gong', 5], ['saron', 7]]) {
+        if (!game.towers.some((t) => t.padIndex === pad)) game.buildTower(type, pad);
+      }
       game.startWave();
     }
   } else if (game.shot === 'boss') {
@@ -254,10 +282,10 @@ export function checkShot(game) {
     // tool timeout captured a victory screen instead. x≈776 is 61%
     // across the field — clearly mid-field, not the v2.7 corner.
     const bossCentred = game.boss && game.boss.x >= 512 && game.boss.x <= 800;
-    if (game.boss && game.enemies.length >= 6
-      && game.combo >= 14 && game.boss.y > 180 && bossCentred && spread && bottomFight) {
-      game.shotReady = true;
-    } else if (fallback && game.boss) {
+    const bossOk = (game.boss && game.enemies.length >= 6
+      && game.combo >= 14 && game.boss.y > 180 && bossCentred && spread && bottomFight)
+      || (fallback && game.boss);
+    if (holdReady(game, bossOk)) {
       game.shotReady = true;
     }
   } else if (game.shot === 'win') {

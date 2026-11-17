@@ -80,15 +80,18 @@ export function applyShot(game) {
   }
   game.start();
   if (shot === 'play') {
-    // v2.12 (reviewer #11, R1): wave 7 — frames 2 and 4 were BOTH wave 9
-    // rain, wasting one contact-sheet slot. Wave 7 is deep violet (band
-    // 2), wave 9 is storm-blue, wave 10 is boss-red: three palettes.
-    // Wave 7's ghosts are tanky (1 Buto + 6 Genderuwo), so the 1 s hold
-    // works here (unlike wave 6's weak pack, which broke the hold in
-    // v2.9). Kills >= 15 of 29 leaves ~14 alive — a busy field. Stage
-    // the measured wave-7 start score (32.365) and the relics a real
-    // wave-7 player owns (Keris M3, Gong M5 — Kendi is earned AT wave 7,
-    // owned from wave 8).
+    // v2.12b (reviewer #11, R1): wave 6 (Purnama) — frames 2 and 4 were
+    // BOTH wave 9 rain, wasting one contact-sheet slot. Wave 6 is purple
+    // (band 1) + the Purnama twist (moon, coins x2), wave 9 is
+    // storm-blue, wave 10 is boss-red: three palettes.
+    // The wave-7 attempt FAILED the probe (31/32): the 1 s hold never
+    // held in wave 7 (low>=3 + bF>=1 never stable for 1 s). Wave 6 is
+    // the PROVEN play field: the v2.9 play pose fired there (kills 7,
+    // busy frame) WITHOUT the hold. So: wave 6, kills >= 12 of 26
+    // (leaves ~14 alive), low >= 2, and the play pose is EXEMPT from
+    // the 1 s hold (see checkShot). Stage the measured wave-6 start
+    // score (28.500) and the relics a real wave-6 player owns (Keris M3,
+    // Gong M5 — Kendi is earned AT wave 7, owned from wave 8).
     // Kenong on pad 0 covers the spirit gate, so it fires from the first
     // beat and the first kill lands early.
     // Lower pads filled too (R4): saron@7 + bonang@5, so the bottom half
@@ -97,7 +100,7 @@ export function applyShot(game) {
     // All towers stay LEVEL 1 in this pose: L2 firepower (~40% more DPS)
     // shreds the far-hunting ghosts on the long walk, so none ever reached
     // the lower half (diagnostics 18 Nov: max lowerHalf 0 at L2, 1 at wave
-    // 7). L1 is also what a real wave-7 player can afford — and the ghosts
+    // 7). L1 is also what a real wave-6 player can afford — and the ghosts
     // that survive the walk then fight the towers in the lower half, which
     // is the frame's whole point.
     game.buildTower('saron', 1);
@@ -105,10 +108,10 @@ export function applyShot(game) {
     game.buildTower('kenong', 0);
     game.buildTower('saron', 7);
     game.buildTower('bonang', 5);
-    game.wave = 7;
+    game.wave = 6;
     game.startWave();
     stageRelics(game, ['keris', 'gong']);
-    stageScore(game, 32365);
+    stageScore(game, 28500);
   } else if (shot === 'big') {
     // Wave 7: one Buto Ijo + 6 Genderuwo + fast Pocong/Tuyul. The gong
     // sits on pad 5 (640,482, centre of the LOWER half), not the central
@@ -229,13 +232,22 @@ export function checkShot(game) {
   const fallback = game.time >= 60 && game.enemies.length >= 5 && spread;
   if (game.shot === 'play') {
     // v2.10 (reviewer #9, R1): kills >= 20 — frame 4 must show a battle
-    // already underway, not a young field. v2.12 (reviewer #11, R1):
-    // wave 7 has 29 ghosts, so kills >= 15 leaves ~14 alive (busy);
-    // the wave-9 bar (>=20) would leave ~9 and thin the field.
-    // The hold works on wave 7's tanky ghosts (Buto + Genderuwo).
-    const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 10 && game.stats.kills >= 15;
-    const playOk = (afterBanner && spread && bottomFight) || (fallback && game.enemies.length >= 10);
-    if (holdReady(game, playOk)) {
+    // already underway, not a young field. v2.12b: wave 6 has 26 ghosts,
+    // so kills >= 12 leaves ~14 alive (busy); low >= 2 (the v2.9 wave-6
+    // frame had low=2 and read busy). The play pose is EXEMPT from the
+    // 1 s hold — the hold broke the wave-7 play pose (31/32: the
+    // condition never held 1 s) and the wave-6 pose in v2.9; v2.9 proved
+    // the no-hold play pose fires and captures a good frame (the capture
+    // is ~300 ms after the trigger, before the qualifying ghosts die).
+    const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 10 && game.stats.kills >= 12;
+    const playSpread = lowerHalfCount(game) >= 2;
+    const playOk = (afterBanner && playSpread && bottomFight) || (fallback && game.enemies.length >= 10);
+    // v2.12b: NO hold for play — the 1 s hold broke the wave-7 play pose
+    // (31/32) and the wave-6 pose in v2.9; the no-hold pose fires the
+    // moment the condition holds (v2.9 proved it captures a good frame).
+    // The big and boss poses keep their hold (their ghosts are tanky
+    // enough for a stable 1 s hold).
+    if (playOk) {
       game.shotReady = true;
     }
   } else if (game.shot === 'big') {

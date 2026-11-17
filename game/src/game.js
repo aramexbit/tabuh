@@ -209,7 +209,10 @@ export class Game {
       this.effects.bolt(e.x, e.y);
     }
     this.effects.bolt(640, 360);
-    this.effects.text(640, 300, 'GONG RAKSASA!', '#ffd76a', 44);
+    // The blast text sits high (y=208) now: at y=300 it landed on the
+    // boss's crown — the teleported boss stands at mid-field, and the big
+    // text covered his head in the v2.5 boss frame.
+    this.effects.text(640, 208, 'GONG RAKSASA!', '#ffd76a', 40);
     // Damage scales with the wave (110-200) + 2-beat stun to every spirit
     // on screen. Strong late, but no longer a free wave-clear early.
     const dmg = 100 + 10 * this.wave;

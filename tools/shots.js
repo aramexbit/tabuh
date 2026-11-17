@@ -55,13 +55,15 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       if (!ready) console.log(`WARN  ${s.name}: pose not ready after 240 s, capturing anyway`);
       if (s.shot === 'boss') {
         // Fire the Gong Raksasa + spawn a Tuyul Emas for the frame: flash,
-        // shockwave, lightning and big damage numbers, captured before the
-        // flash fades (no 400 ms settle sleep here).
+        // shockwave, lightning and big damage numbers — then let the flash
+        // fall for 350 ms (peak 0.28, decay 2.4/s) so the frame reads clean
+        // instead of washed pale yellow like v2.3.
         await page.evaluate(() => {
           const g = window.__game;
           g.spawnGoldenTuyul();
           g.triggerGongRaksasa();
         });
+        await sleep(350);
       } else if (s.shot === 'play') {
         // The play frame is the twist banner mid-flight: capture at the
         // ready moment, no settle sleep, or the banner fades first.

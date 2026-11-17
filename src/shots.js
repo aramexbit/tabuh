@@ -205,8 +205,12 @@ export function checkShot(game) {
     // combo high enough that the Gong Raksasa is glowing and ready to fire
     // (the shot tool fires it right before capturing) — and the boss walked
     // into the field (y > 180) hunting the nearest tower, not camped at
-    // the spirit gate.
-    if (game.boss && game.enemies.length >= 6 && game.projectiles.length >= 2
+    // the spirit gate. NOTE: no projectiles>=2 requirement — live
+    // projectiles last ~0.2 s, so the count is 0 in ~90% of frames and the
+    // pose was flaky (240 s timeout, victory screen captured instead).
+    // The frame's action comes from the boss, the pack, and the Gong
+    // Raksasa blast the shot tool fires before capturing.
+    if (game.boss && game.enemies.length >= 6
       && game.combo >= 14 && game.boss.y > 180 && spread) {
       game.shotReady = true;
     } else if (fallback && game.boss) {

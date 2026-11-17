@@ -193,6 +193,12 @@ export function checkShot(game) {
     const gongReady = (game.stats.maxGongHits || 0) >= 2 || game.time >= 30;
     if ((game.enemies.length >= 5 && spread && gongReady) || fallback) {
       game.shotReady = true;
+    } else if (game.phase === 'build' && game.state === 'playing' && game.wave < TOTAL_WAVES) {
+      // Wave cleared without a good frame: press on to the next wave
+      // (the win pose does the same). The towers are already chipped or
+      // destroyed, so the next wave's pack spreads into the lower half
+      // more easily — one wave alone was flaky (2/3 in the probe harness).
+      game.startWave();
     }
   } else if (game.shot === 'boss') {
     // Capture the boss on screen with a busy field, projectiles flying, the

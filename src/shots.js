@@ -38,8 +38,10 @@ export function applyShot(game) {
     // Wave 6 Bulan Purnama: twist banner + coin pops x2 + a diverse field
     // (Genderuwo, Pocong, Kuntilanak) instead of the near-empty wave 3.
     giveCoins(game, 900);
-    game.buildTower('saron', 1);
-    game.buildTower('bonang', 3);
+    const sar = game.buildTower('saron', 1);
+    if (sar) game.upgradeTower(sar);
+    const bon = game.buildTower('bonang', 3);
+    if (bon) game.upgradeTower(bon);
     game.buildTower('kendang', 6);
     game.buildTower('kenong', 2);
     game.wave = 6;

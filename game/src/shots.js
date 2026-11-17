@@ -37,13 +37,15 @@ export function applyShot(game) {
   if (shot === 'play') {
     // Wave 6 Bulan Purnama: twist banner + coin pops x2 + a diverse field
     // (Genderuwo, Pocong, Kuntilanak) instead of the near-empty wave 3.
+    // Kenong on pad 0 covers the spirit gate, so it fires from the first
+    // beat and the first kill lands while the banner is still up.
     giveCoins(game, 900);
     const sar = game.buildTower('saron', 1);
     if (sar) game.upgradeTower(sar);
     const bon = game.buildTower('bonang', 3);
     if (bon) game.upgradeTower(bon);
     game.buildTower('kendang', 6);
-    game.buildTower('kenong', 2);
+    game.buildTower('kenong', 0);
     game.wave = 6;
     game.startWave();
     stageRelics(game, ['keris', 'gong']);

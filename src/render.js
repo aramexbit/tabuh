@@ -97,11 +97,17 @@ function drawHouse(ctx, x, y, w, h, lit) {
   ctx.beginPath();
   ctx.ellipse(x + w / 2, y + h + 4, w * 0.62, 9, 0, 0, Math.PI * 2);
   ctx.fill();
+  // v2.10 (reviewer #9, O2): three house variants, derived from x so the
+  // same house always looks the same — the village read as copy-paste
+  // (identical brown silhouette + 2 yellow windows, a dozen times).
+  const v = ((x / 50) | 0) % 3;
+  const wall = v === 2 ? '#241c14' : v === 1 ? '#2e241a' : '#2a2118';
+  const roof = v === 2 ? '#241a12' : v === 1 ? '#1a140e' : '#1c1712';
   // Walls.
-  ctx.fillStyle = '#2a2118';
+  ctx.fillStyle = wall;
   ctx.fillRect(x, y, w, h);
   // Steep thatched roof.
-  ctx.fillStyle = '#1c1712';
+  ctx.fillStyle = roof;
   ctx.beginPath();
   ctx.moveTo(x - 10, y);
   ctx.lineTo(x + w / 2, y - h * 0.85);
@@ -116,11 +122,22 @@ function drawHouse(ctx, x, y, w, h, lit) {
   ctx.lineTo(x + w / 2, y - h * 0.85);
   ctx.lineTo(x + w + 10, y);
   ctx.stroke();
-  // Lit windows.
+  // Lit windows: v0 two windows, v1 one wide window + door, v2 three
+  // small windows.
   if (lit) {
     ctx.fillStyle = '#ffb85c';
-    ctx.fillRect(x + w * 0.2, y + h * 0.35, w * 0.2, h * 0.3);
-    ctx.fillRect(x + w * 0.62, y + h * 0.35, w * 0.2, h * 0.3);
+    if (v === 1) {
+      ctx.fillRect(x + w * 0.3, y + h * 0.3, w * 0.4, h * 0.32);
+      ctx.fillStyle = '#3a2a1a';
+      ctx.fillRect(x + w * 0.72, y + h * 0.55, w * 0.16, h * 0.45);
+    } else if (v === 2) {
+      ctx.fillRect(x + w * 0.12, y + h * 0.35, w * 0.16, h * 0.28);
+      ctx.fillRect(x + w * 0.42, y + h * 0.35, w * 0.16, h * 0.28);
+      ctx.fillRect(x + w * 0.72, y + h * 0.35, w * 0.16, h * 0.28);
+    } else {
+      ctx.fillRect(x + w * 0.2, y + h * 0.35, w * 0.2, h * 0.3);
+      ctx.fillRect(x + w * 0.62, y + h * 0.35, w * 0.2, h * 0.3);
+    }
     const g = ctx.createRadialGradient(x + w / 2, y + h * 0.5, 2, x + w / 2, y + h * 0.5, 64);
     g.addColorStop(0, 'rgba(255,184,92,0.38)');
     g.addColorStop(1, 'rgba(255,184,92,0)');
@@ -234,15 +251,27 @@ function drawVillageGate(ctx, time, hp, maxHp) {
 
 export function drawScene(ctx, game, time) {
   // Sky: deeper dusk gradient with a warm glow low on the horizon.
+  // v2.10 (reviewer #9, R6): the sky TINT changes as the nights deepen —
+  // all four frames were the same blue-green dusk, so night 6 vs 9 vs 10
+  // read as one repeated state. Now: blue dusk (1-3) -> purple (4-6) ->
+  // deep violet (7-9) -> boss red/orange (10). Draw-only; the game plays
+  // identically. In the menu (wave < 1) the first tint applies.
+  const SKY_TINTS = [
+    { stops: ['#081626', '#14384a', '#2c4a4a', '#6b5a3a'], glow: 'rgba(232,182,76,0.10)' },
+    { stops: ['#0d1226', '#1e2a4a', '#3a2a4a', '#5a3a5a'], glow: 'rgba(180,140,232,0.10)' },
+    { stops: ['#0a0e20', '#1a2340', '#2a2340', '#4a2a3a'], glow: 'rgba(200,120,180,0.10)' },
+    { stops: ['#160a12', '#3a1420', '#4a1a1a', '#7a3a20'], glow: 'rgba(255,120,60,0.14)' },
+  ];
+  const tint = SKY_TINTS[Math.min(3, Math.max(0, Math.floor(((game.wave || 1) - 1) / 3)))];
   const sky = ctx.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, '#081626');
-  sky.addColorStop(0.45, '#14384a');
-  sky.addColorStop(0.72, '#2c4a4a');
-  sky.addColorStop(1, '#6b5a3a');
+  sky.addColorStop(0, tint.stops[0]);
+  sky.addColorStop(0.45, tint.stops[1]);
+  sky.addColorStop(0.72, tint.stops[2]);
+  sky.addColorStop(1, tint.stops[3]);
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, H);
   const horizon = ctx.createRadialGradient(W / 2, 310, 40, W / 2, 310, 560);
-  horizon.addColorStop(0, 'rgba(232,182,76,0.10)');
+  horizon.addColorStop(0, tint.glow);
   horizon.addColorStop(1, 'rgba(232,182,76,0)');
   ctx.fillStyle = horizon;
   ctx.fillRect(0, 0, W, H);

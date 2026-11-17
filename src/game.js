@@ -493,6 +493,7 @@ export class Game {
 
   victory() {
     this.state = 'victory';
+    this.effects.clearTexts();
     this.saveBest();
     this.audio.fanfare(true);
   }

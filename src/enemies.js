@@ -317,7 +317,7 @@ function ghostAttack(game, e) {
 // sprites were drawn at their hitbox radius; the Raja was only 1.5x a Buto
 // and sat in the top-right corner. Now every spirit is 25-30% bigger and
 // the Raja is a true centrepiece at 2.2x.
-const VISUAL_SCALE = { wisik: 1.25, kunang: 1.25, bayang: 1.25, slira: 1.25, raksasa: 1.3, raja: 2.2, emas: 1.3 };
+const VISUAL_SCALE = { wisik: 1.25, kunang: 1.25, bayang: 1.25, slira: 1.25, raksasa: 1.3, raja: 2.5, emas: 1.3 };
 
 // Visual radius: the figure's real on-screen size (hitbox radius x the
 // per-type visual scale). Game code that places floating text above a
@@ -340,10 +340,16 @@ export function drawEnemy(ctx, e, time) {
   // Faint aura so the figure reads against the dark field. Stronger now
   // (0.55, was 0.4): the v2.6 frames read the spirits as pale blobs —
   // the aura + foot ring must carry the type colour.
+  // v2.10 (reviewer #9, R3): the Raja's aura is GOLD-RED, not the Buto's
+  // green — the boss read as "a bigger Buto" because his aura, ring and
+  // body were the same green. Now he is unmistakable at thumbnail size.
+  const auraColors = e.type === 'raja'
+    ? ['#ffd76a', '#ff9a3d', '#ff4a3d']
+    : [c, c + '88', 'rgba(0,0,0,0)'];
   const g = ctx.createRadialGradient(e.x, e.y, 1, e.x, e.y, vr * 2.2);
-  g.addColorStop(0, c);
-  g.addColorStop(0.4, c + '88');
-  g.addColorStop(1, 'rgba(0,0,0,0)');
+  g.addColorStop(0, auraColors[0]);
+  g.addColorStop(0.4, auraColors[1]);
+  g.addColorStop(1, auraColors[2]);
   ctx.globalAlpha = 0.55 * pulse;
   ctx.fillStyle = g;
   ctx.beginPath();
@@ -369,32 +375,58 @@ export function drawEnemy(ctx, e, time) {
   else drawButo(ctx, e, time);
   ctx.restore();
   if (e.type === 'raja') {
-    // Gold crown, sized to the 2.2x body: the Buto's horns top out around
-    // -66 px, so the crown sits just above them.
+    // Gold crown, sized to the 2.5x body: the Buto's horns top out around
+    // -75 px (30 * 2.5), so the crown sits just above them. v2.10 (R3):
+    // bigger (+/-30 wide, -92 tall), three red gems, gold glow — the old
+    // crown was too small to read at thumbnail size and the boss sank
+    // into the crowd.
+    ctx.save();
+    ctx.shadowColor = '#ffd76a';
+    ctx.shadowBlur = 14;
     ctx.fillStyle = '#ffd76a';
     ctx.beginPath();
-    ctx.moveTo(e.x - 24, e.y - 58);
-    ctx.lineTo(e.x - 24, e.y - 76);
-    ctx.lineTo(e.x - 12, e.y - 64);
-    ctx.lineTo(e.x, e.y - 80);
-    ctx.lineTo(e.x + 12, e.y - 64);
-    ctx.lineTo(e.x + 24, e.y - 76);
-    ctx.lineTo(e.x + 24, e.y - 58);
+    ctx.moveTo(e.x - 30, e.y - 66);
+    ctx.lineTo(e.x - 30, e.y - 88);
+    ctx.lineTo(e.x - 15, e.y - 74);
+    ctx.lineTo(e.x, e.y - 92);
+    ctx.lineTo(e.x + 15, e.y - 74);
+    ctx.lineTo(e.x + 30, e.y - 88);
+    ctx.lineTo(e.x + 30, e.y - 66);
     ctx.closePath();
     ctx.fill();
+    ctx.restore();
     ctx.fillStyle = '#ff4a3d';
-    ctx.beginPath();
-    ctx.arc(e.x, e.y - 66, 3.5, 0, Math.PI * 2);
-    ctx.fill();
+    for (const gx of [-15, 0, 15]) {
+      ctx.beginPath();
+      ctx.arc(e.x + gx, e.y - 76, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
   // Type-color ring at the feet (drawn over the figure's base).
-  ctx.strokeStyle = c;
-  ctx.globalAlpha = 0.75;
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.ellipse(e.x, e.y + vr * 0.8, vr * 0.95, vr * 0.32, 0, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.globalAlpha = 1;
+  // v2.10 (R3): the Raja's ring is orange + an outer gold ring, not green.
+  if (e.type === 'raja') {
+    ctx.strokeStyle = '#ff9a3d';
+    ctx.globalAlpha = 0.9;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.ellipse(e.x, e.y + vr * 0.8, vr * 0.95, vr * 0.32, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = '#ffd76a';
+    ctx.globalAlpha = 0.6;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(e.x, e.y + vr * 0.8, vr * 1.15, vr * 0.4, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  } else {
+    ctx.strokeStyle = c;
+    ctx.globalAlpha = 0.75;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(e.x, e.y + vr * 0.8, vr * 0.95, vr * 0.32, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
   if (e.flash > 0) {
     ctx.fillStyle = `rgba(255,255,255,${0.7 * e.flash})`;
     ctx.beginPath();

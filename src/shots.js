@@ -29,6 +29,14 @@ function centerFightCount(game) {
   return game.enemies.filter((e) => e.inRange && e.x >= 448 && e.x <= 832).length;
 }
 
+// v2.10 (reviewer #9, R2): how many live spirits are in the DEEP bottom
+// third (y > 480 — attacking the saron@7 pad or walking to the gate)?
+// lowerHalf (y>360) alone still left the bottom strip empty: the gong@5
+// fights happen at y 360-480 while y 480-620 was houses only.
+function deepCount(game) {
+  return game.enemies.filter((e) => e.y > 480).length;
+}
+
 function giveCoins(game, n) {
   game.coins = n;
 }
@@ -72,28 +80,34 @@ export function applyShot(game) {
   }
   game.start();
   if (shot === 'play') {
-    // Wave 6 Bulan Purnama: twist banner + coin pops x2 + a diverse field
-    // (Genderuwo, Pocong, Kuntilanak) instead of the near-empty wave 3.
+    // v2.10 (reviewer #9, R1): wave 8, not wave 6 — frame 4 was the
+    // weakest (kills 6, action piled top-right, 60-70% empty houses).
+    // Wave 8 has 37 spirits incl. 3 Buto + 8 Genderuwo (tanky enough to
+    // survive the 1 s hold), and the pose auto-advances to wave 9 if the
+    // field never spreads. Kills are cumulative, so the >=20 bar is met
+    // mid-wave-8 or early wave 9. Stage the wave-8 start score (~42.5k,
+    // between the measured wave-7 32.365 and wave-9 53.250 starts) and
+    // the relics a real wave-8 player owns (Keris M3, Gong M5, Kendi M7).
     // Kenong on pad 0 covers the spirit gate, so it fires from the first
-    // beat and the first kill lands while the banner is still up.
+    // beat and the first kill lands early.
     // Lower pads filled too (R4): saron@7 + bonang@5, so the bottom half
     // of the field has towers for the hunting ghosts to attack.
     giveCoins(game, 900);
     // All towers stay LEVEL 1 in this pose: L2 firepower (~40% more DPS)
     // shreds the far-hunting ghosts on the long walk, so none ever reached
     // the lower half (diagnostics 18 Nov: max lowerHalf 0 at L2, 1 at wave
-    // 7). L1 is also what a real wave-6 player can afford (~450 coins,
-    // not 630) — and the ghosts that survive the walk then fight the
-    // towers in the lower half, which is the frame's whole point.
+    // 7). L1 is also what a real wave-8 player can afford — and the ghosts
+    // that survive the walk then fight the towers in the lower half, which
+    // is the frame's whole point.
     game.buildTower('saron', 1);
     game.buildTower('bonang', 3);
     game.buildTower('kenong', 0);
     game.buildTower('saron', 7);
     game.buildTower('bonang', 5);
-    game.wave = 6;
+    game.wave = 8;
     game.startWave();
-    stageRelics(game, ['keris', 'gong']);
-    stageScore(game, 24095);
+    stageRelics(game, ['keris', 'gong', 'kendi']);
+    stageScore(game, 42500);
   } else if (shot === 'big') {
     // Wave 7: one Buto Ijo + 6 Genderuwo + fast Pocong/Tuyul. The gong
     // sits on pad 5 (640,482, centre of the LOWER half), not the central
@@ -209,28 +223,29 @@ function holdReady(game, ok) {
 // half (a ghost in range of a bottom tower), not just ghosts standing low.
 export function checkShot(game) {
   if (game.shotReady) return;
-  const spread = lowerHalfCount(game) >= 2;
+  const spread = lowerHalfCount(game) >= 3;
   const bottomFight = bottomAttackCount(game) >= 1;
   const fallback = game.time >= 60 && game.enemies.length >= 5 && spread;
   if (game.shot === 'play') {
-    // Wave 6 Purnama: capture AFTER the 6 s twist banner has faded
-    // (spawner.t >= 6.8), so the field + spirits are visible instead of
-    // hidden behind the banner — the twist pill under the top bar still
-    // names it. Require a busy field and at least 5 kills, so the frame
-    // shows a battle already underway — v2.8's kills>=2 caught the wave
-    // at t≈9 s (kills 2, combo x2.05 grade A) and the field read young.
-    const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 5 && game.stats.kills >= 5;
-    // v2.9: NO hold here — the hold (see holdReady) broke this pose: wave 6
-    // has only 4 tanky slira and the rest are weak, so the ghosts that
-    // satisfy spread/bottomFight die in <1 s and the condition never holds
-    // a full second — the probe run with the hold never fired until the
-    // 120 s safety, on an empty field (31/32). The frame without the hold
-    // was already verified good (kills 7, lower=2 fighting the centre
-    // bonang, S grade x2.27) and the pose passed the probe 32/32 twice
-    // pre-hold. The hold stays on big + boss, where the qualifying ghosts
-    // are tanky enough to survive it.
-    if ((afterBanner && spread && bottomFight) || fallback) {
+    // v2.10 (reviewer #9, R1): wave 8/9, kills >= 20 — frame 4 must show
+    // a battle already underway, not a young field. The hold is BACK for
+    // play: wave 8/9 ghosts are tanky (Buto + Genderuwo survive 1 s of
+    // fire), unlike wave 6's weak pack — the v2.9 hold broke wave 6
+    // (condition never held 1 s, pose never fired, 31/32) but wave 8/9
+    // hold fine (the big pose proved it: centre>=3 held 1 s at READY).
+    // Auto-advance 8 -> 9 if the wave clears without a good frame.
+    const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 5 && game.stats.kills >= 20;
+    const playOk = (afterBanner && spread && bottomFight) || fallback;
+    if (holdReady(game, playOk)) {
       game.shotReady = true;
+    } else if (game.phase === 'build' && game.state === 'playing' && game.wave < 9) {
+      // Wave 8 cleared without a good frame: press on to wave 9 (same
+      // rebuild as the big pose — once the lower towers are gone the far
+      // hunters' pool falls back to near towers and the lower half dies).
+      for (const [type, pad] of [['bonang', 5], ['saron', 7]]) {
+        if (!game.towers.some((t) => t.padIndex === pad)) game.buildTower(type, pad);
+      }
+      game.startWave();
     }
   } else if (game.shot === 'big') {
     // Capture the gong at its best: a busy field with the pack spread into
@@ -253,7 +268,12 @@ export function checkShot(game) {
     // corner. The fallback for big still relaxes the centre bar, but
     // only 3 -> 2, never to zero.
     const centreLoose = centerFightCount(game) >= 2;
-    const bigOk = (game.enemies.length >= 5 && spread && bottomFight && centre && gongReady)
+    // v2.10 (reviewer #9, R2): lower bar raised 2 -> 3 and the big pose
+    // now also needs 2 ghosts fighting lower towers (was 1) AND >=1 ghost
+    // in the deep bottom third (y>480) — the gong@5 fights at y 360-480
+    // while y 480-620 was houses only, which is what read as "dead".
+    const deep = deepCount(game) >= 1;
+    const bigOk = (game.enemies.length >= 5 && spread && bottomFight && centre && gongReady && bottomAttackCount(game) >= 2 && deep)
       || (fallback && centreLoose);
     if (holdReady(game, bigOk)) {
       game.shotReady = true;
@@ -291,6 +311,8 @@ export function checkShot(game) {
     // tool timeout captured a victory screen instead. x≈776 is 61%
     // across the field — clearly mid-field, not the v2.7 corner.
     const bossCentred = game.boss && game.boss.x >= 512 && game.boss.x <= 800;
+    // v2.10 (reviewer #9, R2): spread bar raised 2 -> 3 (the boss frame
+    // already had 5-6 low, so this only rejects thin fields).
     const bossOk = (game.boss && game.enemies.length >= 6
       && game.combo >= 14 && game.boss.y > 180 && bossCentred && spread && bottomFight)
       || (fallback && game.boss);

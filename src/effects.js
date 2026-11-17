@@ -13,6 +13,16 @@ export class Effects {
     this.bigQueue = []; // v2.8 (P1): big announcement texts wait their turn
   }
 
+  // v2.10 (reviewer #9, R5): freeze the floating text on victory — the
+  // win frame showed stale "+14 ◆" / "-216" pops from the final kills
+  // drifting over the victory panel. Only texts are cleared (particles,
+  // rings and beams belong to the final battle's aftermath); called from
+  // Game.victory().
+  clearTexts() {
+    this.texts = [];
+    this.bigQueue = [];
+  }
+
   // A shaft of light from the sky down to (x, y): a gong strike landing
   // as light, not just a ring — the Lanternkeep moment TABUH showed as
   // text instead of light. Life 1.4 s (was 0.7): at the boss capture

@@ -100,6 +100,7 @@ export class Game {
     this.selectedPad = null;
     this.selectedTower = null;
     this.combo = 0;
+    this.score = 0; // run score: kills x100 x combo + tabuh + wave/boss bonus
     this.shake = 0;
     this.emberTimer = 0; // ambient ember spawner (visual only)
     this.banner = null; // {title, sub, until, color} — big center-screen banner
@@ -261,10 +262,12 @@ export class Game {
       this.combo++;
       this.coins += 1;
       this.stats.coinsEarned += 1;
+      this.score += 10;
     } else if (d <= goodWin) {
       verdict = 'good';
       this.stats.goodHits++;
       this.combo++;
+      this.score += 5;
     } else {
       verdict = 'miss';
       this.stats.misses++;
@@ -303,6 +306,12 @@ export class Game {
       this.coins += reward;
       this.stats.coinsEarned += reward;
       this.stats.kills++;
+      // Score: 100 per kill, scaled by the combo multiplier at kill time.
+      this.score += Math.round(100 * this.comboMult());
+      if (e.type === 'raja') {
+        this.score += 5000;
+        this.effects.text(e.x, e.y - 44, 'BOSS +5000', '#ffd76a', 26);
+      }
       this.effects.burst(e.x, e.y, e.def.color, 16);
       const bonus = (this.relics.has('kendi') ? ' (+50%)' : '') + (this.twist === 'purnama' ? ' (x2)' : '');
       this.effects.text(e.x, e.y - 18, `+${reward} ◆${bonus}`, '#ffd76a', 17);
@@ -404,6 +413,7 @@ export class Game {
     let bonus = waveClearBonus(this.wave);
     if (this.twist === 'purnama') bonus *= 2; // Bulan Purnama: koin x2
     this.coins += bonus;
+    this.score += 250 * this.wave; // wave-clear score bonus
     this.stats.coinsEarned += bonus;
     this.effects.text(640, 120, `Malam ${this.wave} selesai!  +${bonus} koin`, '#7fe3a8', 22);
     for (const r of RELICS) {

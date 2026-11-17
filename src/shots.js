@@ -80,14 +80,16 @@ export function applyShot(game) {
   }
   game.start();
   if (shot === 'play') {
-    // v2.10 (reviewer #9, R1): wave 8, not wave 6 — frame 4 was the
-    // weakest (kills 6, action piled top-right, 60-70% empty houses).
-    // Wave 8 has 37 spirits incl. 3 Buto + 8 Genderuwo (tanky enough to
-    // survive the 1 s hold), and the pose auto-advances to wave 9 if the
-    // field never spreads. Kills are cumulative, so the >=20 bar is met
-    // mid-wave-8 or early wave 9. Stage the wave-8 start score (~42.5k,
-    // between the measured wave-7 32.365 and wave-9 53.250 starts) and
-    // the relics a real wave-8 player owns (Keris M3, Gong M5, Kendi M7).
+    // v2.11b (reviewer #10 follow-up): wave 9, NOT wave 8 — wave 8's
+    // spread+bF coincidence is too rare (the v2.11 run fired at kills 32
+    // with 5 ghosts left, and the enemies>=10 guard then left the pose
+    // stuck in the wave-9 build phase: 31/32). Wave 9's field is PROVEN
+    // (the big pose fires there with low=12, bF=4, deep=1-2). Kills are
+    // cumulative from the pose start, so >=20 is met mid-wave-9 with
+    // ~23 ghosts still alive — a busy field. Stage the measured wave-9
+    // start score (53.250) and the relics a real wave-9 player owns
+    // (Keris M3, Gong M5, Kendi M7 — Jimat is earned AT wave 9, owned
+    // from wave 10, so it is NOT staged here).
     // Kenong on pad 0 covers the spirit gate, so it fires from the first
     // beat and the first kill lands early.
     // Lower pads filled too (R4): saron@7 + bonang@5, so the bottom half
@@ -96,7 +98,7 @@ export function applyShot(game) {
     // All towers stay LEVEL 1 in this pose: L2 firepower (~40% more DPS)
     // shreds the far-hunting ghosts on the long walk, so none ever reached
     // the lower half (diagnostics 18 Nov: max lowerHalf 0 at L2, 1 at wave
-    // 7). L1 is also what a real wave-8 player can afford — and the ghosts
+    // 7). L1 is also what a real wave-9 player can afford — and the ghosts
     // that survive the walk then fight the towers in the lower half, which
     // is the frame's whole point.
     game.buildTower('saron', 1);
@@ -104,10 +106,10 @@ export function applyShot(game) {
     game.buildTower('kenong', 0);
     game.buildTower('saron', 7);
     game.buildTower('bonang', 5);
-    game.wave = 8;
+    game.wave = 9;
     game.startWave();
     stageRelics(game, ['keris', 'gong', 'kendi']);
-    stageScore(game, 42500);
+    stageScore(game, 53250);
   } else if (shot === 'big') {
     // Wave 7: one Buto Ijo + 6 Genderuwo + fast Pocong/Tuyul. The gong
     // sits on pad 5 (640,482, centre of the LOWER half), not the central
@@ -227,31 +229,18 @@ export function checkShot(game) {
   const bottomFight = bottomAttackCount(game) >= 1;
   const fallback = game.time >= 60 && game.enemies.length >= 5 && spread;
   if (game.shot === 'play') {
-    // v2.10 (reviewer #9, R1): wave 8/9, kills >= 20 — frame 4 must show
-    // a battle already underway, not a young field. The hold is BACK for
-    // play: wave 8/9 ghosts are tanky (Buto + Genderuwo survive 1 s of
-    // fire), unlike wave 6's weak pack — the v2.9 hold broke wave 6
-    // (condition never held 1 s, pose never fired, 31/32) but wave 8/9
-    // hold fine (the big pose proved it: centre>=3 held 1 s at READY).
-    // Auto-advance 8 -> 9 if the wave clears without a good frame.
-    // v2.11 (reviewer #10 follow-up): ALSO require >=10 live enemies —
-    // the v2.11 play frame fired at kills 32 with only 5 ghosts left
-    // (wave 8 86% cleared, field thin and empty), while the v2.10 frame
-    // fired at kills 22 with 16 left and read busy. If the field thins
-    // below 10 before the pose fires, let the wave clear and take the
-    // (proven busy) wave-9 field instead.
+    // v2.10 (reviewer #9, R1): kills >= 20 — frame 4 must show a battle
+    // already underway, not a young field. The hold is BACK for play:
+    // wave 9 ghosts are tanky (Buto + Genderuwo survive 1 s of fire).
+    // v2.11b: ALSO require >=10 live enemies — the v2.11 frame fired at
+    // kills 32 with only 5 ghosts left (wave 8 86% cleared, field thin
+    // and empty), while the v2.10 frame fired at kills 22 with 16 left
+    // and read busy. No auto-advance: the pose starts at wave 9 (proven
+    // field) and fires there; the 120 s safety is the backstop.
     const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 10 && game.stats.kills >= 20;
     const playOk = (afterBanner && spread && bottomFight) || (fallback && game.enemies.length >= 10);
     if (holdReady(game, playOk)) {
       game.shotReady = true;
-    } else if (game.phase === 'build' && game.state === 'playing' && game.wave < 9) {
-      // Wave 8 cleared without a good frame: press on to wave 9 (same
-      // rebuild as the big pose — once the lower towers are gone the far
-      // hunters' pool falls back to near towers and the lower half dies).
-      for (const [type, pad] of [['bonang', 5], ['saron', 7]]) {
-        if (!game.towers.some((t) => t.padIndex === pad)) game.buildTower(type, pad);
-      }
-      game.startWave();
     }
   } else if (game.shot === 'big') {
     // Capture the gong at its best: a busy field with the pack spread into

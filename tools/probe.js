@@ -74,8 +74,9 @@ async function tabuhOnBeat(page) {
     await page.mouse.click(920, 138);
     await sleep(200);
     check('tower selected, panel open', await page.evaluate(() => window.__game.selectedTower && window.__game.selectedTower.type === 'saron'));
-    // Upgrade via panel button (880+16..1050, 152..190 in logical coords).
-    await page.mouse.click(970, 171);
+    // Upgrade via panel button. Pad 2 is right of x=640, so the panel flips
+    // to the LEFT (px=12): upgrade btn (28..198, 152..190).
+    await page.mouse.click(113, 171);
     await sleep(200);
     check('upgrade to level 2 (coins 70)', await page.evaluate(() => window.__game.towers[0].level === 2 && window.__game.coins === 70));
 
@@ -122,7 +123,7 @@ async function tabuhOnBeat(page) {
     // ---------- sell ----------
     await page.mouse.click(920, 138); // select the saron again
     await sleep(200);
-    await page.mouse.click(1105, 171); // Sell button (1080..1170, 152..190)
+    await page.mouse.click(257, 171); // Sell button, flipped panel (212..302, 152..190)
     await sleep(200);
     check('sell removes tower, refunds', await page.evaluate(() => window.__game.towers.length === 0 && window.__game.coins > 70));
 

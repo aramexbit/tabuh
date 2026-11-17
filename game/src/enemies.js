@@ -213,12 +213,17 @@ export function updateEnemy(game, e, dt) {
     return;
   }
   e.inRange = false;
-  // March speed: 2.0x while more than 350 px from the target, combat speed
-  // close in. The walk from the spirit gate to the far pads crosses 3-4
-  // tower ranges; at 1.5x the far-hunting ghosts died around y=250-280,
-  // ~100 px short of the lower half (diagnostic 18 Nov). At 2.0x they
-  // cross fast enough to arrive alive and fight.
-  const march = d > 350 ? 2.0 : 1;
+  // March speed. Far hunters sprint at 3.0x ALL the way until they are IN
+  // attack range of their tower; near hunters keep the old 2.0x beyond
+  // 350 px / 1.0x close in. The old rule slowed everyone to 1.0x inside
+  // 350 px, so a far hunter crawled the last stretch under its target
+  // tower's fire and died at the doorstep (diagnostic 18 Nov: a Genderuwo
+  // with 10 HP took 5 s to cover the last 158 px to pad 5; a Pocong bound
+  // for pad 7 died crossing pad 5's bonang). Sprinting in is what "hunt
+  // the tower" means — the approach is a march, the fight is combat speed
+  // (the in-range branch above returns early, so march never applies
+  // while fighting). This makes the game harder, so re-verify autoplay.
+  const march = e.farHunter ? 3.0 : (d > 350 ? 2.0 : 1);
   const step = speed * march * dt;
   e.x += (dx / d) * step;
   e.y += (dy / d) * step;

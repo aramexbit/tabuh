@@ -222,7 +222,13 @@ export function checkShot(game) {
     // ~15 packed the right edge).
     const gongReady = (game.stats.maxGongHits || 0) >= 2 || game.time >= 30;
     const centre = centerFightCount(game) >= 3;
-    if ((game.enemies.length >= 5 && spread && bottomFight && centre && gongReady) || fallback) {
+    // v2.9: the shared fallback (game.time >= 60) is TOTAL time, so in
+    // later waves it is always true and the pose fired on spread alone —
+    // the v2.9 wave-9 frame still showed the pack in the top-right
+    // corner. The fallback for big still relaxes the centre bar, but
+    // only 3 -> 2, never to zero.
+    const centreLoose = centerFightCount(game) >= 2;
+    if ((game.enemies.length >= 5 && spread && bottomFight && centre && gongReady) || (fallback && centreLoose)) {
       game.shotReady = true;
     } else if (game.phase === 'build' && game.state === 'playing' && game.wave < TOTAL_WAVES) {
       // Wave cleared without a good frame: press on to the next wave
@@ -238,12 +244,16 @@ export function checkShot(game) {
     // at the spirit gate. NOTE: no projectiles>=2 requirement — live
     // projectiles last ~0.2 s, so the count is 0 in ~90% of frames and the
     // pose was flaky (240 s timeout, victory screen captured instead).
-    // v2.8 (P2): the boss must be in the CENTRE band (x 512-768) — with
-    // pads 2/3 empty he parks on the pad-4 gong at x~660. v2.8 (P0): a
-    // real fight in the lower half, not just ghosts standing low. The
-    // frame's action comes from the boss, the pack, and the gong's own
-    // beams — the capture tool no longer fires the Gong Raksasa blast
-    // right before the shot (it killed the spread-out weak ghosts).
+    // v2.8 (P2): the boss must be in the CENTRE band — with pads 2/3
+    // empty he parks on the pad-4 gong at x~660. v2.9: band widened
+    // 512-768 -> 512-800. Diagnostics (18 Nov) proved the boss parks at
+    // x≈776, NOT ~700: he stops at the edge of his 120 px attack range
+    // from the gong (660,288) along the straight line from the spawn
+    // (1243,68) — (772,246) by geometry, (776,257) observed. The old
+    // band missed him by 8 px, so the pose NEVER fired and the 240 s
+    // tool timeout captured a victory screen instead. x≈776 is 61%
+    // across the field — clearly mid-field, not the v2.7 corner.
+    const bossCentred = game.boss && game.boss.x >= 512 && game.boss.x <= 800;
     const bossCentred = game.boss && game.boss.x >= 512 && game.boss.x <= 768;
     if (game.boss && game.enemies.length >= 6
       && game.combo >= 14 && game.boss.y > 180 && bossCentred && spread && bottomFight) {
@@ -260,6 +270,10 @@ export function checkShot(game) {
     if (game.state === 'victory') game.shotReady = true;
   }
   // Safety: never wait forever — a pose that cannot complete still yields a
-  // frame (the probe logs it and the shot is retaken by hand).
-  if (game.time > 120) game.shotReady = true;
+  // frame (the probe logs it and the shot is retaken by hand). v2.9: the
+  // clock is the CURRENT WAVE's spawner time, not total game time — the
+  // big pose auto-advances waves, so total time crossed 120 s during
+  // wave 9 and the old safety fired the capture on a random frame
+  // (the v2.9 wave-9 frame: pack still at spawn, centre empty).
+  if (game.spawner.t > 120) game.shotReady = true;
 }

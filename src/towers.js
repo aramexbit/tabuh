@@ -208,6 +208,12 @@ export function updateProjectiles(game, dt) {
 // ---- Drawing: bronze instruments on a stone pad, seen from a slight top angle.
 
 function drawPad(ctx, x, y) {
+  // 3D stone plinth: stepped ellipses (dark base, mid stone, light top)
+  // so the pad reads as a raised platform, not a flat disc on the floor.
+  ctx.fillStyle = '#262b36';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 10, 34, 14, 0, 0, Math.PI * 2);
+  ctx.fill();
   ctx.fillStyle = '#3a3f4d';
   ctx.beginPath();
   ctx.ellipse(x, y + 6, 34, 14, 0, 0, Math.PI * 2);
@@ -250,13 +256,24 @@ export function drawTower(ctx, tower, time) {
   const def = TOWERS[tower.type];
   const flash = tower.flash;
   const bob = Math.sin(time * 2 + tower.padIndex) * 1.5;
+  // VISUAL SCALE 1.9x (user 02:41: "Menara itu yang mana? Saya tidak lihat
+  // ada menara."): the placed towers read as small flat gold coins, not
+  // towers. Everything below is drawn 1.9x around a point 12 px above the
+  // pad, so the instrument grows upward — a pad-7 tower's top clears the
+  // bottom bar instead of hiding behind it. Draw-only: range, damage,
+  // durability, economy and click targets are untouched.
+  const S = 1.9;
+  ctx.save();
+  ctx.translate(x, y - 12);
+  ctx.scale(S, S);
+  ctx.translate(-x, -y);
   drawPad(ctx, x, y);
   // Warm glow under every tower so the instruments read as lit bronze
   // against the dark field; the gong gets the widest, brightest halo.
   const glowR = tower.type === 'gong' ? 74 : 46;
   const gg = ctx.createRadialGradient(x, y - 6, 4, x, y - 6, glowR);
-  gg.addColorStop(0, def.color + '59');
-  gg.addColorStop(0.6, def.color + '26');
+  gg.addColorStop(0, def.color + '80');
+  gg.addColorStop(0.6, def.color + '40');
   gg.addColorStop(1, def.color + '00');
   ctx.fillStyle = gg;
   ctx.beginPath();
@@ -419,4 +436,6 @@ export function drawTower(ctx, tower, time) {
     ctx.lineTo(x + 18, y - 2);
     ctx.stroke();
   }
+  // Close the 1.9x visual-scale wrapper opened at the top of drawTower.
+  ctx.restore();
 }

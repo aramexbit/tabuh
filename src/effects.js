@@ -99,10 +99,18 @@ export class Effects {
       if (this.bigQueue.length < 2) this.bigQueue.push({ x, y, str, color, size });
       return;
     }
-    // Texts are drawn center-aligned, so a string's real width is
-    // ~0.6 * size per character — the collision test must use it, not the
-    // font size: "+225 ◆ (+50%)" at 17 px is ~120 px wide.
-    const estW = str.length * size * 0.6;
+    // v2.9 (R3): measure the REAL rendered width — the 0.6*size estimate
+    // under-measures wide glyphs ("◆" is ~1.0x size, bold digits ~0.6),
+    // so "+14 ◆" still sat ~25-35 px from the right edge in v2.8 even
+    // though the estimate said 48 px clear. The ctx is stored by draw()
+    // (called every frame); before the first draw, fall back to the
+    // estimate. Setting ctx.font here is safe: every draw site sets its
+    // own font before fillText.
+    let estW = str.length * size * 0.6;
+    if (this.ctx) {
+      this.ctx.font = `bold ${size}px sans-serif`;
+      estW = this.ctx.measureText(str).width;
+    }
     // Spread numbers from the same blast: a random offset + slow sideways
     // drift, so they fan out instead of stacking into one unreadable blob.
     // Clamp inside the frame with a real margin (center-aligned: keep half
@@ -175,8 +183,10 @@ export class Effects {
       t.y -= 40 * dt;
       // Rising pops must not climb into the top bar (P4: 64, was 60).
       t.y = Math.max(t.y, 64);
-      // Drift must never carry a pop off the side edge (P4).
-      t.x = Math.min(Math.max(t.x, t.estW / 2 + 24), W - t.estW / 2 - 24);
+      // Drift must never carry a pop off the side edge (P4) — v2.9 (R3):
+      // 48 px, not 24: the old 24 px drift clamp (with the underestimated
+      // width) is how "+14 ◆" ended ~25 px from the edge in v2.8.
+      t.x = Math.min(Math.max(t.x, t.estW / 2 + 48), W - t.estW / 2 - 48);
       t.life -= dt * (t.decay || 0.75) * (crowded ? 1.5 : 1);
     }
     this.texts = this.texts.filter((t) => t.life > 0);
@@ -203,6 +213,8 @@ export class Effects {
   }
 
   draw(ctx) {
+    // v2.9 (R3): keep the ctx so text() can measure real glyph widths.
+    this.ctx = ctx;
     // Light pools first (under the rings), then the beams.
     for (const gl of this.glows) {
       const a = Math.max(0, gl.life / (gl.maxLife || 0.9));

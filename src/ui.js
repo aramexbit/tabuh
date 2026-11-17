@@ -553,7 +553,7 @@ export class UI {
   // next wave's composition during the build phase — like the top-10 boards.
   drawIncoming(ctx) {
     const g = this.game;
-    const ORDER = ['wisik', 'kunang', 'bayang', 'slira', 'raksasa', 'raja'];
+    const ORDER = ['wisik', 'kunang', 'bayang', 'slira', 'raksasa', 'raja', 'emas'];
     const counts = new Map();
     if (g.phase === 'wave') {
       for (const e of g.enemies) counts.set(e.type, (counts.get(e.type) || 0) + 1);
@@ -571,6 +571,11 @@ export class UI {
       slira: 'Pukulan: -18 daya tahan',
       raksasa: 'Hantaman: -30 daya tahan',
       raja: 'Hantaman: -45 daya tahan',
+      // v2.9 (R2b): 'emas' was missing from ORDER, so a live Tuyul Emas
+      // counted in "Roh tersisa" (enemies.length) but never showed in
+      // DATANG — v2.8 frame 4 read 12+9+3=24 vs 25 remaining. The golden
+      // tuyul spawns at combo 10/20, so it is exactly the off-by-one.
+      emas: 'Bonus: +150 koin',
     };
     const x = 12, y = 260, w = 200;
     // PUSAKA names as plain text (earned relics only), wrapped to the panel
@@ -812,7 +817,13 @@ export class UI {
     const rows = [
       `Malam diselesaikan: ${won ? TOTAL_WAVES : g.wave - 1}${g.endless ? ' (Endless)' : ` / ${TOTAL_WAVES}`}`,
       `Roh dikalahkan: ${s.kills}`,
-      `Koin didapat: ${s.coinsEarned}`,
+      // v2.9 (R2a): show the coin BALANCE, not coins earned — the HUD
+      // shows `◆ ${g.coins}` (balance) and the panel used to show
+      // `coinsEarned`, a different definition: in the win pose the staged
+      // 3000 coins + spending left balance 3111 vs earned 1853, and in a
+      // real run they differ too (earned - spent = balance). Same frame,
+      // same number, same meaning now.
+      `Koin: ${g.coins}`,
       `Skor: ${fmtNum(g.score)}`,
       `Akurasi ketuk: ${acc}%  (Perfect ${s.perfectHits} • Good ${s.goodHits} • Meleset ${s.misses})`,
       `Kombo tertinggi: ${s.maxCombo}`,

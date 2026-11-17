@@ -200,9 +200,10 @@ export function checkShot(game) {
     // Wave 6 Purnama: capture AFTER the 6 s twist banner has faded
     // (spawner.t >= 6.8), so the field + spirits are visible instead of
     // hidden behind the banner — the twist pill under the top bar still
-    // names it. Require a busy field and at least 2 kills, so x2 coin pops
-    // have already happened.
-    const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 5 && game.stats.kills >= 2;
+    // names it. Require a busy field and at least 5 kills, so the frame
+    // shows a battle already underway — v2.8's kills>=2 caught the wave
+    // at t≈9 s (kills 2, combo x2.05 grade A) and the field read young.
+    const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 5 && game.stats.kills >= 5;
     if ((afterBanner && spread && bottomFight) || fallback) {
       game.shotReady = true;
     }
@@ -214,11 +215,13 @@ export function checkShot(game) {
     // — the gong fires constantly in a busy wave, so a shockwave ring is
     // usually visible anyway. Requiring maxGongHits>=2 alone made the pose
     // flaky (ready 1 run in 3).
-    // v2.8 (P3): the fight itself must be in the CENTRE band — 2+ ghosts
+    // v2.8 (P3): the fight itself must be in the CENTRE band — 3+ ghosts
     // in range at x 448-832 — so the frame shows the battle mid-field,
-    // not a pack piled on the right edge behind a beam.
+    // not a pack piled on the right edge behind a beam. v2.9: raised
+    // 2 -> 3 (reviewer #8: v2.8's centre still held only 2 ghosts while
+    // ~15 packed the right edge).
     const gongReady = (game.stats.maxGongHits || 0) >= 2 || game.time >= 30;
-    const centre = centerFightCount(game) >= 2;
+    const centre = centerFightCount(game) >= 3;
     if ((game.enemies.length >= 5 && spread && bottomFight && centre && gongReady) || fallback) {
       game.shotReady = true;
     } else if (game.phase === 'build' && game.state === 'playing' && game.wave < TOTAL_WAVES) {

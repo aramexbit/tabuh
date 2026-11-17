@@ -24,10 +24,11 @@ export function applyShot(game) {
   }
   game.start();
   if (shot === 'play') {
-    giveCoins(game, 600);
+    giveCoins(game, 900);
     game.buildTower('saron', 1);
     game.buildTower('bonang', 3);
     game.buildTower('kendang', 6);
+    game.buildTower('kenong', 2);
     game.wave = 3;
     game.startWave();
   } else if (shot === 'big') {
@@ -96,7 +97,8 @@ function maintainWinBoard(game) {
 export function checkShot(game) {
   if (game.shotReady) return;
   if (game.shot === 'play') {
-    if (game.enemies.length >= 5 && game.projectiles.length >= 2) game.shotReady = true;
+    // Towers get stunned now, so a live projectile is rarer — one is enough.
+    if (game.enemies.length >= 5 && game.projectiles.length >= 1) game.shotReady = true;
   } else if (game.shot === 'big') {
     // Capture the gong at its best: a shockwave that caught at least 2
     // spirits, with plenty of action still on the field.

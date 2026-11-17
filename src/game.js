@@ -198,8 +198,9 @@ export class Game {
 
   damageEnemy(e, dmg, kind) {
     if (e.hp <= 0) return;
-    // Resistance: Kuntilanak takes less damage from Saron.
-    if (kind === 'saron' && e.type === 'wisik') dmg = Math.max(1, Math.round(dmg * 0.6));
+    // Resistance: Kuntilanak takes less damage from Saron (x0.75 — an L2
+    // Saron still kills a wave-1 Kuntilanak in 2 hits, so wave 1 stays fair).
+    if (kind === 'saron' && e.type === 'wisik') dmg = Math.max(1, Math.round(dmg * 0.75));
     e.hp -= dmg;
     e.flash = 1;
     // Floating damage numbers (big hits only, so the field stays readable).

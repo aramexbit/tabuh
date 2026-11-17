@@ -40,8 +40,9 @@ export function towerSpent(tower) {
 
 export function createTower(type, padIndex) {
   const pad = PADS[padIndex];
-  // Durability: ghosts fight back. 60 + 40% of the build cost.
-  const maxDurability = 60 + Math.round(TOWERS[type].cost * 0.4);
+  // Durability: ghosts fight back. Explicit per tower — it follows price and
+  // size: Saron is the most fragile, Gong the toughest (but nothing is immune).
+  const maxDurability = TOWERS[type].durability;
   return {
     type, padIndex, level: 1,
     x: pad.x, y: pad.y,

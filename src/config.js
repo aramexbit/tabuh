@@ -40,25 +40,27 @@ export const TOWERS = {
   saron: {
     name: 'Saron', key: '1', cost: 50, dmg: 8, range: 115, beatsPerShot: 1,
     color: '#e8b64c', desc: 'Cepat, satu sasaran. Pukulan stabil tiap ketuk.',
+    durability: 80, // paling rapuh
   },
   kendang: {
     name: 'Kendang', key: '2', cost: 70, dmg: 4, range: 120, beatsPerShot: 1,
     color: '#c97b3d', desc: 'Denyut drum: melambatkan roh 40% selama 2 ketuk.',
-    slow: 0.4, slowBeats: 2,
+    slow: 0.4, slowBeats: 2, durability: 95,
   },
   bonang: {
     name: 'Bonang', key: '3', cost: 100, dmg: 14, range: 125, beatsPerShot: 1,
     color: '#f0d060', desc: 'Kettle gong: damage area kecil di sekitar sasaran.',
-    aoe: 55,
+    aoe: 55, durability: 110,
   },
   kenong: {
     name: 'Kenong', key: '4', cost: 150, dmg: 30, range: 205, beatsPerShot: 2,
     color: '#d9a441', desc: 'Jangkauan jauh, damage besar, lambat.',
+    durability: 140,
   },
   gong: {
     name: 'Gong', key: '5', cost: 250, dmg: 80, range: 165, beatsPerShot: 4,
     color: '#f5c542', desc: 'Gema besar: damage area luas + setrum 1 ketuk.',
-    aoe: 120, stunBeats: 1,
+    aoe: 120, stunBeats: 1, durability: 200, // paling tahan lama — tapi tidak kebal
   },
 };
 export const TOWER_ORDER = ['saron', 'kendang', 'bonang', 'kenong', 'gong'];

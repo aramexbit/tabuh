@@ -31,7 +31,7 @@ export function createEnemy(type, wave, rng) {
     wobble: rng.range(0, Math.PI * 2),
     wobbleAmp: rng.range(3, 7),
     flash: 0,
-    attackCd: 1 + rng.range(0, 1.5), // ghosts size up the towers before striking
+    attackCd: 2 + rng.range(0, 1.5), // ghosts size up the towers before striking
     stolenFrom: [], // padIndex list a Tuyul already stole from
   };
   e.baseSpeed = e.speed;
@@ -79,11 +79,11 @@ function towersNear(game, e, radius) {
 // One attack. Returns the cooldown (seconds) until the next attempt.
 function ghostAttack(game, e) {
   if (e.type === 'wisik') {
-    // Tawa Melengking: nearby towers stop firing for 2 beats + small damage.
-    const near = towersNear(game, e, 90);
+    // Tawa Melengking: nearby towers stop firing for 1 beat + small damage.
+    const near = towersNear(game, e, 80);
     if (near.length === 0) return 0.5;
     for (const t of near) {
-      t.stunUntil = game.time + 2 * game.beatDur;
+      t.stunUntil = game.time + 1 * game.beatDur;
       game.damageTower(t, 4, e);
     }
     game.effects.ring(e.x, e.y, 70, 'rgba(180,220,255,0.8)');

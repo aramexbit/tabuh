@@ -2,45 +2,14 @@
 // (real towers, real waves, real stats) and sets game.shotReady when the frame
 // is ready to capture. Nothing here hardcodes a screenshot's numbers.
 import { TOTAL_WAVES } from './config.js';
-import { pointAt, PATH_LENGTH } from './world.js';
 
-// How many live spirits are already out in the middle of the field
-// (past the first quarter of the path)? The v2.4 frames caught the pack
-// still bunched at the spirit gate — the judge saw an empty field.
-function midFieldCount(game) {
-  return game.enemies.filter((e) => e.dist > 0.25 * PATH_LENGTH).length;
-}
-
-// Spirits in the CENTER band of the path (0.35-0.65) — the part of the
-// field the judge actually looks at. The path's first half runs along the
-// top-right edge, so "mid-field" alone still reads as a top-right cluster;
-// the center band is what puts ghosts in the middle of the frame.
-// (A stricter lead>=0.5 rule was tried and REVERTED: the towers shred the
-// pack at the bend before any ghost reaches the true screen centre, so the
-// pose waited out the 120 s safety and captured an empty build-phase
-// frame. The centre band is the level the pack actually reaches alive.)
-function centerBandCount(game) {
-  return game.enemies.filter((e) => e.dist > 0.35 * PATH_LENGTH && e.dist < 0.65 * PATH_LENGTH).length;
-}
-
-// Teleport a spread of live spirits onto the CENTER band of the path
-// (0.35-0.65) — the part of the frame the judge actually looks at.
-// Waiting for the pack to walk there fails: the towers shred it at the
-// bend before any ghost reaches mid-field (the lead>=0.5 rule was tried
-// and reverted for exactly this reason). So the pose PLACES them there,
-// the same way the boss is teleported to 0.53 — staging, not gameplay.
-function spreadToCenter(game) {
-  const spots = [0.38, 0.45, 0.52, 0.58, 0.64];
-  let placed = 0;
-  for (const e of game.enemies) {
-    if (e.type === 'raja' || e.hp <= 0 || placed >= spots.length) continue;
-    e.dist = spots[placed] * PATH_LENGTH;
-    const p = pointAt(e.dist);
-    e.x = p.x;
-    e.y = p.y;
-    placed++;
-  }
-  return placed;
+// How many live spirits are in the LOWER half of the field (y > 360)?
+// v2.7: ghosts hunt towers all over the field, so the capture condition is
+// real spread — at least 2 ghosts down low — not a teleported center band.
+// (The old spreadToCenter placement was deleted: staging is gone, the AI
+// spreads the pack itself. The center-band helpers went with it.)
+function lowerHalfCount(game) {
+  return game.enemies.filter((e) => e.y > 360).length;
 }
 
 function giveCoins(game, n) {
@@ -90,6 +59,8 @@ export function applyShot(game) {
     // (Genderuwo, Pocong, Kuntilanak) instead of the near-empty wave 3.
     // Kenong on pad 0 covers the spirit gate, so it fires from the first
     // beat and the first kill lands while the banner is still up.
+    // Lower pads filled too (R4): saron@7 + bonang@5, so the bottom half
+    // of the field has towers for the hunting ghosts to attack.
     giveCoins(game, 900);
     const sar = game.buildTower('saron', 1);
     if (sar) game.upgradeTower(sar);
@@ -98,29 +69,39 @@ export function applyShot(game) {
     game.buildTower('kendang', 6);
     const ken = game.buildTower('kenong', 0);
     if (ken) game.upgradeTower(ken);
+    game.buildTower('saron', 7);
+    game.buildTower('bonang', 5);
     game.wave = 6;
     game.startWave();
     stageRelics(game, ['keris', 'gong']);
     stageScore(game, 24095);
   } else if (shot === 'big') {
     // Gong on the central pad so its shockwave lands mid-frame.
+    // Lower pads filled (R4): kendang@6 + saron@7.
     giveCoins(game, 900);
     game.buildTower('gong', 4);
     game.buildTower('kenong', 2);
     game.buildTower('bonang', 3);
     game.buildTower('saron', 1);
+    game.buildTower('kendang', 6);
+    game.buildTower('saron', 7);
     game.wave = 7;
     game.startWave();
     stageRelics(game, ['keris', 'gong']);
     stageScore(game, 32365);
   } else if (shot === 'boss') {
     // Wave 10 boss fight, mid-battle: the Raja on the field with adds around.
+    // No towers on pads 0/1 (near the spirit gate): the boss hunts the
+    // nearest tower, so with the gate-side pads empty he walks into the
+    // field instead of camping the top-right corner. Lower pads filled
+    // (R4): saron@7 + bonang@5.
     giveCoins(game, 1200);
     game.buildTower('gong', 4);
     game.buildTower('kenong', 2);
     game.buildTower('bonang', 3);
-    game.buildTower('saron', 1);
     game.buildTower('kendang', 6);
+    game.buildTower('saron', 7);
+    game.buildTower('bonang', 5);
     game.wave = 10;
     game.startWave();
     stageRelics(game, ['keris', 'gong', 'kendi', 'jimat']);
@@ -137,6 +118,7 @@ export function applyShot(game) {
     buildMaxed(game, 'bonang', 3);
     buildMaxed(game, 'saron', 4);
     buildMaxed(game, 'kendang', 5);
+    buildMaxed(game, 'saron', 7); // lower pad filled (R4)
     game.wave = 9;
     game.startWave();
     // A real wave-9 player owns Keris + Gong + Kendi already (Jimat comes
@@ -150,6 +132,7 @@ export function applyShot(game) {
 // it repairs chipped towers and rebuilds destroyed ones between waves.
 const WIN_BOARD = [
   ['gong', 0], ['kenong', 2], ['bonang', 3], ['saron', 4], ['kendang', 5],
+  ['saron', 7],
 ];
 function maintainWinBoard(game) {
   if (game.phase !== 'build') return;
@@ -173,51 +156,41 @@ function maintainWinBoard(game) {
 }
 
 // Called every update while a shot pose is active.
+// v2.7: captures come from REAL gameplay now — the hunting AI spreads the
+// pack itself, so no ghost is ever teleported for a frame. Each pose waits
+// for a busy field with at least 2 ghosts in the lower half (y > 360);
+// a time fallback (45 s with enemies still out) keeps a slow pose from
+// falling through to the 120 s safety with an empty build-phase frame.
 export function checkShot(game) {
   if (game.shotReady) return;
+  const spread = lowerHalfCount(game) >= 2;
+  const fallback = game.time >= 45 && game.enemies.length >= 5;
   if (game.shot === 'play') {
     // Wave 6 Purnama: capture AFTER the 6 s twist banner has faded
     // (spawner.t >= 6.8), so the field + spirits are visible instead of
     // hidden behind the banner — the twist pill under the top bar still
     // names it. Require a busy field and at least 2 kills, so x2 coin pops
-    // have already happened; the pack is then PLACED in the center band
-    // (spreadToCenter) instead of waited for — waiting fails because the
-    // towers shred the pack at the bend before it walks to mid-field.
+    // have already happened.
     const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 5 && game.stats.kills >= 2;
-    if (afterBanner) {
-      spreadToCenter(game);
+    if ((afterBanner && spread) || fallback) {
       game.shotReady = true;
     }
   } else if (game.shot === 'big') {
     // Capture the gong at its best: a shockwave that caught at least 2
-    // spirits, with plenty of action still on the field — the survivors
-    // are then PLACED in the center band (spreadToCenter) so the frame
-    // shows ghosts mid-field, not bunched at the gate.
-    if ((game.stats.lastGongHits || 0) >= 2 && game.enemies.length >= 5) {
-      spreadToCenter(game);
+    // spirits, with plenty of action still on the field.
+    if (((game.stats.lastGongHits || 0) >= 2 && game.enemies.length >= 5 && spread) || fallback) {
       game.shotReady = true;
     }
   } else if (game.shot === 'boss') {
-    // The boss walks in from the spirit gate (top right) — left alone he is
-    // still up there when the combo hits 14, a small sprite in the corner.
-    // Stage him to the middle of the path the moment he appears, so the
-    // frame's focus is the boss himself, big and central, with the pack
-    // around him.
-    if (game.boss && game.boss.dist < 0.3 * PATH_LENGTH) {
-      game.boss.dist = 0.53 * PATH_LENGTH;
-      const p = pointAt(game.boss.dist);
-      game.boss.x = p.x;
-      game.boss.y = p.y;
-    }
     // Capture the boss on screen with a busy field, projectiles flying, the
     // combo high enough that the Gong Raksasa is glowing and ready to fire
-    // (the shot tool fires it right before capturing) — and the pack spread
-    // through the middle of the field (spreadToCenter, boss excluded).
-    const mid = midFieldCount(game);
-    const center = centerBandCount(game);
+    // (the shot tool fires it right before capturing) — and the boss walked
+    // into the field (y > 180) hunting the nearest tower, not camped at
+    // the spirit gate.
     if (game.boss && game.enemies.length >= 6 && game.projectiles.length >= 2
-      && game.combo >= 14 && (mid >= 4 || center >= 2 || game.spawner.t >= 20)) {
-      spreadToCenter(game);
+      && game.combo >= 14 && game.boss.y > 180 && spread) {
+      game.shotReady = true;
+    } else if (fallback && game.boss) {
       game.shotReady = true;
     }
   } else if (game.shot === 'win') {

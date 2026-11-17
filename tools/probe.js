@@ -132,13 +132,11 @@ async function tabuhOnBeat(page) {
       const g = window.__game;
       g.gateHp = 1;
       g.wave = 5;
-      // Inject one enemy near the end of the path (same shape createEnemy returns).
+      // Inject one enemy close to the village gate (v2.7: ghosts roam free,
+      // so place it by coordinates, not by path distance).
       const mod = await import('./src/enemies.js');
-      const wmod = await import('./src/world.js');
       const e = mod.createEnemy('raksasa', 5, g.rng);
-      e.dist = wmod.PATH_LENGTH - 60;
-      const p = wmod.pointAt(e.dist);
-      e.x = p.x; e.y = p.y;
+      e.x = 260; e.y = 600;
       g.enemies.push(e);
       return true;
     });

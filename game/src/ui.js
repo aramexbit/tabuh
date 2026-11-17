@@ -490,7 +490,24 @@ export class UI {
       raja: 'Hantaman: -45 daya tahan',
     };
     const x = 12, y = 260, w = 200;
-    const h = 36 + rows.length * 30 + 68;
+    // PUSAKA names as plain text (earned relics only), wrapped to the panel
+    // width: the judge must read the relics BY NAME, not just see small
+    // icons. Greedy wrap over "Keris • Gong • Kendi • Jimat".
+    const ownedRelics = RELICS.filter((r) => g.relics.has(r.key));
+    const relicShort = { keris: 'Keris', gong: 'Gong', kendi: 'Kendi', jimat: 'Jimat' };
+    const pusakaLines = [];
+    if (ownedRelics.length > 0) {
+      ctx.font = 'bold 12px sans-serif';
+      let cur = 'PUSAKA:';
+      for (const r of ownedRelics) {
+        const nm = relicShort[r.key];
+        const next = cur === 'PUSAKA:' ? `${cur} ${nm}` : `${cur} • ${nm}`;
+        if (ctx.measureText(next).width <= w - 28 || cur === 'PUSAKA:') cur = next;
+        else { pusakaLines.push(cur); cur = nm; }
+      }
+      pusakaLines.push(cur);
+    }
+    const h = 36 + rows.length * 30 + 68 + pusakaLines.length * 15 + (pusakaLines.length ? 9 : 0);
     this.panel(ctx, x, y, w, h, 1);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -536,27 +553,34 @@ export class UI {
     ctx.fillRect(x + 14, ry + 40, w - 28, 8);
     ctx.fillStyle = '#7fe3a8';
     ctx.fillRect(x + 14, ry + 40, (w - 28) * prog, 8);
+    // PUSAKA names under the progress bar, gold and bold.
+    if (pusakaLines.length > 0) {
+      ctx.fillStyle = '#ffd76a';
+      ctx.font = 'bold 12px sans-serif';
+      pusakaLines.forEach((ln, i) => ctx.fillText(ln, x + 14, ry + 62 + i * 15));
+    }
     ctx.textBaseline = 'middle';
   }
 
   // PUSAKA: four relic medallions, top right. Earned ones glow gold.
   // (v2 size kept as-is per user feedback — the panel must not grow.)
-  // PUSAKA strip in the bottom bar: earned relics light up as small
-  // medallions with their effect label under each icon. Display only —
+  // PUSAKA strip in the bottom bar: earned relics light up as medallions
+  // with their NAME (readable) and effect under each icon. Display only —
   // no hit rect, clicks pass through to the scene.
   drawRelicsBottom(ctx) {
     const g = this.game;
     const labels = { keris: '+25%', gong: 'Lebar', kendi: '+50%', jimat: '+5 HP' };
+    const names = { keris: 'Keris', gong: 'Gong', kendi: 'Kendi', jimat: 'Jimat' };
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#f5c542';
     ctx.font = 'bold 11px sans-serif';
-    ctx.fillText('PUSAKA', 811, 636);
+    ctx.fillText('PUSAKA', 817, 636);
     RELICS.forEach((r, i) => {
-      const cx = 772 + i * 26, cy = 664;
+      const cx = 766 + i * 34, cy = 662;
       const lit = g.relics.has(r.key);
       ctx.beginPath();
-      ctx.arc(cx, cy, 13, 0, Math.PI * 2);
+      ctx.arc(cx, cy, 15, 0, Math.PI * 2);
       ctx.fillStyle = lit ? 'rgba(245,197,66,0.30)' : 'rgba(0,0,0,0.45)';
       ctx.fill();
       ctx.strokeStyle = lit ? '#f5c542' : 'rgba(138,148,168,0.5)';
@@ -566,9 +590,14 @@ export class UI {
       ctx.globalAlpha = lit ? 1 : 0.45;
       this.drawRelicGlyph(ctx, r.key, cx, cy, lit ? '#ffd76a' : '#7a7f8a');
       ctx.restore();
+      // Two lines, no longer one cramped run-on: the relic NAME (bold) and
+      // its effect underneath.
+      ctx.fillStyle = lit ? '#ffe9a8' : '#8a94a8';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.fillText(names[r.key], cx, 684);
       ctx.fillStyle = lit ? '#ffd76a' : '#8a94a8';
       ctx.font = '9px sans-serif';
-      ctx.fillText(labels[r.key], cx, 688);
+      ctx.fillText(labels[r.key], cx, 697);
     });
     ctx.textAlign = 'left';
   }

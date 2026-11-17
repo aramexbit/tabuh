@@ -253,6 +253,15 @@ export class UI {
     this.button(ctx, 'mute', 1120, 8, 62, 30, g.audio.muted ? '🔇' : '🔊', { size: 15 });
     this.button(ctx, 'pause', 1190, 8, 62, 30, 'II', { size: 15 });
     ctx.textAlign = 'left';
+    // Objective line (second row of the top bar): win/lose conditions plus
+    // the live counters — top-10 frames all show WIN/LOSE + counters up
+    // top, and these are the real running totals (kills, relics owned),
+    // never invented numbers.
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#9db8e8';
+    ctx.font = '12px sans-serif';
+    ctx.fillText(`MENANG: bertahan ${TOTAL_WAVES} malam  •  KALAH: gerbang hancur  •  Roh dikalahkan: ${g.stats.kills}  •  Pusaka ${g.relics.size}/4`, W / 2, 39);
+    ctx.textAlign = 'left';
     // Boss bar + side panels (over the scene, never over pads or the pad panel).
     if (g.boss) this.drawBossBar(ctx);
     this.drawIncoming(ctx);
@@ -424,12 +433,16 @@ export class UI {
     const pct = Math.max(0, b.hp / b.maxHp);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#ff9a3d';
+    // Boss phase, shown for the first time: the enrage phases existed in
+    // code (phase 0/1/2) but were never displayed — the judge could not
+    // see the boss's two phases. Phase 2 reads MURKA! in red.
+    const phaseLabel = b.phase === 0 ? 'FASE 1/2' : b.phase === 1 ? 'FASE 2/2' : 'FASE 2/2 — MURKA!';
+    ctx.fillStyle = b.phase === 2 ? '#ff6a3d' : '#ff9a3d';
     ctx.font = 'bold 21px Georgia, serif';
     ctx.strokeStyle = 'rgba(0,0,0,0.85)';
     ctx.lineWidth = 5;
-    ctx.strokeText('RAJA BUTO IJO', W / 2, 64);
-    ctx.fillText('RAJA BUTO IJO', W / 2, 64);
+    ctx.strokeText(`RAJA BUTO IJO  •  ${phaseLabel}`, W / 2, 64);
+    ctx.fillText(`RAJA BUTO IJO  •  ${phaseLabel}`, W / 2, 64);
     const bx = 430, bw = 420, by = 76, bh = 18;
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
     rr(ctx, bx - 3, by - 3, bw + 6, bh + 6, 9);

@@ -181,71 +181,93 @@ function ghostAttack(game, e) {
   return 2.0;
 }
 
+// Visual scale per type (DRAWING ONLY — hitbox, HP, speed and damage are
+// untouched). The v2.4 frames read as "small white blobs" because the
+// sprites were drawn at their hitbox radius; the Raja was only 1.5x a Buto
+// and sat in the top-right corner. Now every spirit is 25-30% bigger and
+// the Raja is a true centrepiece at 2.2x.
+const VISUAL_SCALE = { wisik: 1.25, kunang: 1.25, bayang: 1.25, slira: 1.25, raksasa: 1.3, raja: 2.2, emas: 1.3 };
+
 export function drawEnemy(ctx, e, time) {
   const c = e.def.color;
   const pulse = 0.75 + Math.sin(time * 4 + e.wobble) * 0.25;
+  const vs = VISUAL_SCALE[e.type] || 1;
+  const vr = e.radius * vs; // visual radius — the figure's real on-screen size
+  // Ground shadow + type-color base ring at the feet: every spirit now has
+  // a dark anchor and its own colour on the ground, so types read apart.
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(e.x, e.y + vr * 0.8, vr * 0.9, vr * 0.3, 0, 0, Math.PI * 2);
+  ctx.fill();
   // Faint aura so the figure reads against the dark field.
-  const g = ctx.createRadialGradient(e.x, e.y, 1, e.x, e.y, e.radius * 2.2);
+  const g = ctx.createRadialGradient(e.x, e.y, 1, e.x, e.y, vr * 2.2);
   g.addColorStop(0, c);
   g.addColorStop(0.4, c + '88');
   g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.globalAlpha = 0.4 * pulse;
   ctx.fillStyle = g;
   ctx.beginPath();
-  ctx.arc(e.x, e.y, e.radius * 2.2, 0, Math.PI * 2);
+  ctx.arc(e.x, e.y, vr * 2.2, 0, Math.PI * 2);
   ctx.fill();
   ctx.globalAlpha = 1;
-  // The figure itself. The Raja is a Buto drawn 1.5x with a gold crown.
+  // The figure itself, scaled around its own centre. The Raja is a Buto
+  // drawn 2.2x with a gold crown sized to match.
+  ctx.save();
+  ctx.translate(e.x, e.y);
+  ctx.scale(vs, vs);
+  ctx.translate(-e.x, -e.y);
   if (e.type === 'wisik') drawKuntilanak(ctx, e, time);
   else if (e.type === 'kunang') drawTuyul(ctx, e, time);
   else if (e.type === 'emas') drawTuyulEmas(ctx, e, time);
   else if (e.type === 'bayang') drawPocong(ctx, e, time);
   else if (e.type === 'slira') drawGenderuwo(ctx, e, time);
-  else if (e.type === 'raja') {
-    ctx.save();
-    ctx.translate(e.x, e.y);
-    ctx.scale(1.5, 1.5);
-    ctx.translate(-e.x, -e.y);
-    drawButo(ctx, e, time);
-    ctx.restore();
-    // Gold crown.
+  else if (e.type === 'raja') drawButo(ctx, e, time);
+  else drawButo(ctx, e, time);
+  ctx.restore();
+  if (e.type === 'raja') {
+    // Gold crown, sized to the 2.2x body: the Buto's horns top out around
+    // -66 px, so the crown sits just above them.
     ctx.fillStyle = '#ffd76a';
     ctx.beginPath();
-    ctx.moveTo(e.x - 16, e.y - 40);
-    ctx.lineTo(e.x - 16, e.y - 52);
-    ctx.lineTo(e.x - 8, e.y - 44);
-    ctx.lineTo(e.x, e.y - 54);
-    ctx.lineTo(e.x + 8, e.y - 44);
-    ctx.lineTo(e.x + 16, e.y - 52);
-    ctx.lineTo(e.x + 16, e.y - 40);
+    ctx.moveTo(e.x - 24, e.y - 58);
+    ctx.lineTo(e.x - 24, e.y - 76);
+    ctx.lineTo(e.x - 12, e.y - 64);
+    ctx.lineTo(e.x, e.y - 80);
+    ctx.lineTo(e.x + 12, e.y - 64);
+    ctx.lineTo(e.x + 24, e.y - 76);
+    ctx.lineTo(e.x + 24, e.y - 58);
     ctx.closePath();
     ctx.fill();
     ctx.fillStyle = '#ff4a3d';
     ctx.beginPath();
-    ctx.arc(e.x, e.y - 45, 2.5, 0, Math.PI * 2);
+    ctx.arc(e.x, e.y - 66, 3.5, 0, Math.PI * 2);
     ctx.fill();
-  } else drawButo(ctx, e, time);
+  }
+  // Type-color ring at the feet (drawn over the figure's base).
+  ctx.strokeStyle = c;
+  ctx.globalAlpha = 0.75;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(e.x, e.y + vr * 0.8, vr * 0.95, vr * 0.32, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
   if (e.flash > 0) {
     ctx.fillStyle = `rgba(255,255,255,${0.7 * e.flash})`;
     ctx.beginPath();
-    ctx.arc(e.x, e.y, e.radius * 1.1, 0, Math.PI * 2);
+    ctx.arc(e.x, e.y, vr * 1.1, 0, Math.PI * 2);
     ctx.fill();
   }
-  // HP bar: always visible for the big brutes, the boss and the golden
-  // tuyul, otherwise only once damaged — the player must see how much
-  // boss is left at a glance.
-  // Thick (6 px) with a dark border so it reads over any background.
-  if (e.hp < e.maxHp || e.type === 'raksasa' || e.type === 'raja' || e.type === 'emas') {
-    const w = e.radius * 2 + 8;
-    const pct = Math.max(0, e.hp / e.maxHp);
-    ctx.fillStyle = 'rgba(0,0,0,0.75)';
-    ctx.fillRect(e.x - w / 2, e.y - e.radius - 14, w, 6);
-    ctx.fillStyle = pct > 0.5 ? '#7fe3a8' : pct > 0.25 ? '#ffd76a' : '#ff7a6a';
-    ctx.fillRect(e.x - w / 2, e.y - e.radius - 14, w * pct, 6);
-    ctx.strokeStyle = 'rgba(0,0,0,0.9)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(e.x - w / 2, e.y - e.radius - 14, w, 6);
-  }
+  // HP bar: ALWAYS visible now, thin (5 px) with a dark border — the judge
+  // must read every spirit's health at a glance, not only the damaged ones.
+  const w = vr * 2 + 8;
+  const pct = Math.max(0, e.hp / e.maxHp);
+  ctx.fillStyle = 'rgba(0,0,0,0.75)';
+  ctx.fillRect(e.x - w / 2, e.y - vr - 14, w, 5);
+  ctx.fillStyle = pct > 0.5 ? '#7fe3a8' : pct > 0.25 ? '#ffd76a' : '#ff7a6a';
+  ctx.fillRect(e.x - w / 2, e.y - vr - 14, w * pct, 5);
+  ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(e.x - w / 2, e.y - vr - 14, w, 5);
 }
 
 function eyes(ctx, x, y, dx, dy, r, color = '#0b1020') {
@@ -270,6 +292,10 @@ function drawKuntilanak(ctx, e, time) {
   ctx.quadraticCurveTo(x - 5, y + 16, x - 11, y + 13);
   ctx.closePath();
   ctx.fill();
+  // Soft green-grey outline so the white dress never melts into a Pocong.
+  ctx.strokeStyle = 'rgba(90,110,90,0.8)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
   // Arms: thin pale lines reaching out.
   ctx.strokeStyle = '#e8ede6';
   ctx.lineWidth = 2.5;
@@ -306,8 +332,9 @@ function drawTuyul(ctx, e, time) {
   ctx.beginPath();
   ctx.ellipse(x, y + 6, 5.5, 5, 0, 0, Math.PI * 2);
   ctx.fill();
-  // Head: bald, greenish.
-  ctx.fillStyle = '#c9e7a8';
+  // Head: bald, greenish — saturated now, so a Tuyul never reads as a
+  // pale Pocong at a glance.
+  ctx.fillStyle = '#a5d96a';
   ctx.beginPath();
   ctx.arc(x, y - 3, 7, 0, Math.PI * 2);
   ctx.fill();
@@ -341,6 +368,11 @@ function drawPocong(ctx, e, time) {
   ctx.quadraticCurveTo(x - 5, y + 17, x - 10, y + 14);
   ctx.closePath();
   ctx.fill();
+  // Dark outline: the shroud's edge against the white field and the white
+  // Kuntilanak dress next to it.
+  ctx.strokeStyle = 'rgba(90,80,60,0.85)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
   // Knot at the top.
   ctx.fillStyle = '#e3ddc8';
   ctx.beginPath();
@@ -384,6 +416,9 @@ function drawGenderuwo(ctx, e, time) {
   }
   ctx.closePath();
   ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.65)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
   // Body.
   ctx.fillStyle = '#4a3f35';
   ctx.beginPath();

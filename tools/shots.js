@@ -56,14 +56,15 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       if (s.shot === 'boss') {
         // Fire the Gong Raksasa + spawn a Tuyul Emas for the frame: flash,
         // shockwave, lightning and big damage numbers — then let the flash
-        // fall for 350 ms (peak 0.28, decay 2.4/s) so the frame reads clean
-        // instead of washed pale yellow like v2.3.
+        // fall for 500 ms (peak 0.28, decay 2.4/s) so the frame reads clean
+        // instead of washed pale yellow like v2.3, and the "GONG RAKSASA!"
+        // text rises clear of the boss's crown.
         await page.evaluate(() => {
           const g = window.__game;
           g.spawnGoldenTuyul();
           g.triggerGongRaksasa();
         });
-        await sleep(350);
+        await sleep(500);
       } else if (s.shot === 'play') {
         // The play frame is captured AFTER the twist banner fades (checkShot
         // waits for spawner.t >= 6.8), so the field is visible: no settle

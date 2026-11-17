@@ -11,6 +11,14 @@ function midFieldCount(game) {
   return game.enemies.filter((e) => e.dist > 0.25 * PATH_LENGTH).length;
 }
 
+// Spirits in the CENTER band of the path (0.35-0.65) — the part of the
+// field the judge actually looks at. The path's first half runs along the
+// top-right edge, so "mid-field" alone still reads as a top-right cluster;
+// the center band is what puts ghosts in the middle of the frame.
+function centerBandCount(game) {
+  return game.enemies.filter((e) => e.dist > 0.35 * PATH_LENGTH && e.dist < 0.65 * PATH_LENGTH).length;
+}
+
 function giveCoins(game, n) {
   game.coins = n;
 }
@@ -152,15 +160,17 @@ export function checkShot(game) {
     // happened. Fallback: once every spirit has spawned, the survivors are
     // spread along the path by definition.
     const mid = midFieldCount(game);
+    const center = centerBandCount(game);
     const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 5 && game.stats.kills >= 2;
-    if ((afterBanner && mid >= 4) || (afterBanner && !game.spawner.active)) game.shotReady = true;
+    if ((afterBanner && mid >= 4 && center >= 2) || (afterBanner && !game.spawner.active && center >= 1)) game.shotReady = true;
   } else if (game.shot === 'big') {
     // Capture the gong at its best: a shockwave that caught at least 2
     // spirits, with plenty of action still on the field — and the pack
     // already out in the middle, not bunched at the gate.
     const mid = midFieldCount(game);
-    if (((game.stats.lastGongHits || 0) >= 2 && game.enemies.length >= 5 && mid >= 4)
-      || ((game.stats.lastGongHits || 0) >= 2 && game.enemies.length >= 5 && !game.spawner.active)) game.shotReady = true;
+    const center = centerBandCount(game);
+    if (((game.stats.lastGongHits || 0) >= 2 && game.enemies.length >= 5 && mid >= 4 && center >= 2)
+      || ((game.stats.lastGongHits || 0) >= 2 && game.enemies.length >= 5 && !game.spawner.active && center >= 1)) game.shotReady = true;
   } else if (game.shot === 'boss') {
     // The boss walks in from the spirit gate (top right) — left alone he is
     // still up there when the combo hits 14, a small sprite in the corner.

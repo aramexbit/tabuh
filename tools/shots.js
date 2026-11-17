@@ -52,7 +52,18 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         await sleep(250);
       }
       if (!ready) console.log(`WARN  ${s.name}: pose not ready after 240 s, capturing anyway`);
-      await sleep(400);
+      if (s.shot === 'boss') {
+        // Fire the Gong Raksasa + spawn a Tuyul Emas for the frame: flash,
+        // shockwave, lightning and big damage numbers, captured before the
+        // flash fades (no 400 ms settle sleep here).
+        await page.evaluate(() => {
+          const g = window.__game;
+          g.spawnGoldenTuyul();
+          g.triggerGongRaksasa();
+        });
+      } else {
+        await sleep(400);
+      }
       const file = path.join(OUT, s.name);
       await page.screenshot({ path: file, type: 'jpeg', quality: 82 });
       const state = await page.evaluate(() => ({

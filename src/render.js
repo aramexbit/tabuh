@@ -15,7 +15,7 @@ const stars = [];
 const fireflies = [];
 {
   const rng = makeRng(777);
-  for (let i = 0; i < 26; i++) {
+  for (let i = 0; i < 40; i++) {
     fireflies.push({ x: rng.range(60, W - 60), y: rng.range(80, H - 60), ph: rng.range(0, 6.28), sp: rng.range(0.3, 0.9) });
   }
 }
@@ -217,9 +217,12 @@ export function drawScene(ctx, game, time) {
   drawHouse(ctx, 300, 330, 100, 58, true);
   drawHouse(ctx, 480, 300, 130, 76, true);
   drawHouse(ctx, 700, 250, 110, 62, false);
+  drawHouse(ctx, 940, 255, 100, 58, true);
   // Houses (lower-middle — fills the empty field between path segments).
   drawHouse(ctx, 860, 470, 110, 64, true);
   drawHouse(ctx, 1060, 530, 100, 58, true);
+  drawHouse(ctx, 60, 430, 100, 60, true);
+  drawHouse(ctx, 1080, 420, 90, 54, false);
   // Bamboo cluster (lower-middle, right of the path).
   ctx.strokeStyle = '#3f7a4a';
   ctx.lineWidth = 3;
@@ -231,6 +234,19 @@ export function drawScene(ctx, game, time) {
     ctx.fillStyle = '#4a9a58';
     ctx.beginPath();
     ctx.ellipse(bx + 2, by - bh - 6, 16, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Second bamboo cluster (left field).
+  ctx.strokeStyle = '#3f7a4a';
+  ctx.lineWidth = 3;
+  for (const [bx, by, bh] of [[250, 505, 60], [268, 510, 48], [286, 502, 55]]) {
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.quadraticCurveTo(bx + 6, by - bh / 2, bx + 2, by - bh);
+    ctx.stroke();
+    ctx.fillStyle = '#4a9a58';
+    ctx.beginPath();
+    ctx.ellipse(bx + 2, by - bh - 6, 14, 7, 0, 0, Math.PI * 2);
     ctx.fill();
   }
   // The stone path.
@@ -270,4 +286,11 @@ export function drawScene(ctx, game, time) {
     ctx.fill();
   }
   ctx.globalAlpha = 1;
+  // Beat pulse: the whole arena breathes gold on the ketuk (0.6 s cycle).
+  const pulse = 0.5 + 0.5 * Math.sin(time * (Math.PI * 2 / 0.6));
+  const pg = ctx.createRadialGradient(W / 2, H / 2, 100, W / 2, H / 2, 760);
+  pg.addColorStop(0, `rgba(232,182,76,${0.045 * pulse})`);
+  pg.addColorStop(1, 'rgba(232,182,76,0)');
+  ctx.fillStyle = pg;
+  ctx.fillRect(0, 0, W, H);
 }

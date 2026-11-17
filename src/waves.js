@@ -4,6 +4,12 @@
 import { WAVES } from './config.js';
 import { createEnemy } from './enemies.js';
 
+// Composition of a wave (campaign or endless), for the spawner and the
+// DATANG threat list.
+export function waveDef(wave) {
+  return WAVES[wave - 1] || endlessWave(wave);
+}
+
 export class WaveSpawner {
   constructor(game) {
     this.game = game;
@@ -12,7 +18,7 @@ export class WaveSpawner {
   }
 
   start(wave) {
-    const def = WAVES[wave - 1];
+    const def = waveDef(wave);
     this.queue = [];
     for (const g of def.groups) {
       for (let i = 0; i < g.count; i++) {
@@ -41,4 +47,19 @@ export class WaveSpawner {
   get remaining() {
     return this.queue.length;
   }
+}
+
+// Endless waves (11+): same families, growing counts; a Raja returns every
+// 5th endless wave. HP/speed keep scaling via enemyHp/enemySpeed(wave).
+function endlessWave(wave) {
+  const extra = wave - 10;
+  const groups = [
+    { type: 'raksasa', count: 3 + Math.floor(extra / 2), interval: 4.0, delay: 0 },
+    { type: 'slira', count: 8 + extra, interval: 1.8, delay: 2 },
+    { type: 'bayang', count: 10 + extra, interval: 0.8, delay: 4 },
+    { type: 'kunang', count: 12, interval: 0.4, delay: 8 },
+    { type: 'wisik', count: 12, interval: 0.6, delay: 10 },
+  ];
+  if (extra % 5 === 0) groups.unshift({ type: 'raja', count: 1, interval: 1, delay: 2 });
+  return { groups };
 }

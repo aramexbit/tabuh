@@ -1,8 +1,9 @@
 // HUD, menus and overlays — everything drawn on the canvas (one rendering path,
 // so screenshots show exactly what the player sees). Buttons are hit-rects
 // rebuilt every draw; input.js asks this module whether a click landed on one.
-import { W, H, TOWERS, TOWER_ORDER, TOTAL_WAVES } from './config.js';
+import { W, H, TOWERS, TOWER_ORDER, TOTAL_WAVES, RELICS, DIFFICULTIES, DIFF_KEYS, ENEMIES } from './config.js';
 import { PADS } from './world.js';
+import { waveDef } from './waves.js';
 import { towerStats, upgradeCost, sellValue } from './towers.js';
 
 function rr(ctx, x, y, w, h, r) {
@@ -111,15 +112,35 @@ export class UI {
     ctx.fillText('dan selamatkan desa sampai malam kesepuluh.', W / 2, 308);
     this.button(ctx, 'play', W / 2 - 130, 350, 260, 56, '▶  MAIN', { size: 22 });
     this.button(ctx, 'howto', W / 2 - 130, 420, 260, 48, 'Cara Main', { size: 18 });
+    // Difficulty selector (the Play button above never moves).
+    ctx.fillStyle = '#cfe8dd';
+    ctx.font = '15px sans-serif';
+    ctx.fillText('— Kesulitan —', W / 2, 486);
+    const dw = 110, dh = 30, dy = 494;
+    DIFF_KEYS.forEach((key, i) => {
+      const dx = W / 2 - 175 + i * 120;
+      const sel = g.difficulty === key;
+      ctx.fillStyle = sel ? '#8a6a2a' : '#232c3d';
+      rr(ctx, dx, dy, dw, dh, 9);
+      ctx.fill();
+      ctx.strokeStyle = sel ? '#ffd76a' : 'rgba(232,182,76,0.4)';
+      ctx.lineWidth = sel ? 2.5 : 1.5;
+      rr(ctx, dx, dy, dw, dh, 9);
+      ctx.stroke();
+      ctx.fillStyle = sel ? '#ffe9a8' : '#cfe8dd';
+      ctx.font = 'bold 15px sans-serif';
+      ctx.fillText(DIFFICULTIES[key].name, dx + dw / 2, dy + dh / 2 + 1);
+      this.addHit('diff:' + key, dx, dy, dw, dh);
+    });
     const best = g.best;
     if (best && best.wave > 0) {
       ctx.fillStyle = '#9db8e8';
       ctx.font = '16px sans-serif';
-      ctx.fillText(`Rekor: Malam ${best.wave}/10 • ${best.kills} roh dikalahkan`, W / 2, 508);
+      ctx.fillText(`Rekor: Malam ${best.wave}/10 • ${best.kills} roh dikalahkan`, W / 2, 546);
     }
     ctx.fillStyle = 'rgba(207,232,221,0.7)';
     ctx.font = '14px sans-serif';
-    ctx.fillText('Mouse + keyboard • Offline penuh • Musik gamelan prosedural', W / 2, 560);
+    ctx.fillText('Mouse + keyboard • Offline penuh • Musik gamelan prosedural', W / 2, 574);
     ctx.textBaseline = 'alphabetic';
   }
 
@@ -172,7 +193,7 @@ export class UI {
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#ffe9a8';
     ctx.font = 'bold 19px sans-serif';
-    ctx.fillText(`Malam ${Math.min(g.wave, TOTAL_WAVES)}/${TOTAL_WAVES}`, 16, 24);
+    ctx.fillText(g.endless ? `Malam ${g.wave} ∞` : `Malam ${Math.min(g.wave, TOTAL_WAVES)}/${TOTAL_WAVES}`, 16, 24);
     ctx.fillStyle = '#cfe8dd';
     ctx.font = '16px sans-serif';
     const left = g.enemies.length + g.spawner.remaining;
@@ -197,16 +218,28 @@ export class UI {
     ctx.fillText(`${g.gateHp}/${g.gateMaxHp}`, 600, 24);
     ctx.textAlign = 'left';
     if (g.gateHp < g.gateMaxHp) {
-      this.button(ctx, 'repair', 665, 12, 88, 20, 'Perbaiki ◆100', { disabled: g.coins < 100, size: 12 });
+      const rc = g.repairCost();
+      this.button(ctx, 'repair', 665, 12, 88, 20, `Perbaiki ◆${rc}`, { disabled: g.coins < rc, size: 12 });
     }
     ctx.textAlign = 'right';
     ctx.fillStyle = '#9db8e8';
     ctx.font = '15px sans-serif';
     ctx.fillText(`Roh dikalahkan: ${g.stats.kills}`, 900, 24);
-    ctx.fillText(`Kombo x${g.comboMult().toFixed(2)}`, 1080, 24);
+    ctx.fillText(`Kombo x${g.comboMult().toFixed(2)}`, 1058, 24);
+    // Combo grade letter (S/A/B/C), colored, beside the multiplier.
+    const grade = g.comboGrade();
+    ctx.fillStyle = grade === 'S' ? '#ffd76a' : grade === 'A' ? '#7fe3a8' : grade === 'B' ? '#9db8e8' : grade === 'C' ? '#cfe8dd' : '#8a94a8';
+    ctx.font = 'bold 20px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(grade, 1064, 24);
+    ctx.textAlign = 'right';
     this.button(ctx, 'mute', 1120, 8, 62, 30, g.audio.muted ? '🔇' : '🔊', { size: 15 });
     this.button(ctx, 'pause', 1190, 8, 62, 30, 'II', { size: 15 });
     ctx.textAlign = 'left';
+    // Boss bar + side panels (over the scene, never over pads or the pad panel).
+    if (g.boss) this.drawBossBar(ctx);
+    this.drawIncoming(ctx);
+    this.drawRelics(ctx);
     // Bottom bar.
     ctx.fillStyle = 'rgba(8,14,26,0.86)';
     ctx.fillRect(0, H - 102, W, 102);
@@ -266,10 +299,18 @@ export class UI {
     ctx.font = '13px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('KETUK — tekan Spasi saat penanda di tengah', bx + bw / 2, by + 48);
-    // Combo text.
+    // Combo text + big grade letter beside it.
     ctx.fillStyle = g.combo > 0 ? '#ffd76a' : '#8a94a8';
     ctx.font = 'bold 18px sans-serif';
     ctx.fillText(g.combo > 0 ? `Kombo ${g.combo}  •  x${g.comboMult().toFixed(2)}` : 'Kombo 0', bx + bw / 2, by + 70);
+    const gb = g.comboGrade();
+    if (gb !== '—') {
+      ctx.fillStyle = gb === 'S' ? '#ffd76a' : gb === 'A' ? '#7fe3a8' : gb === 'B' ? '#9db8e8' : '#cfe8dd';
+      ctx.font = 'bold 34px Georgia, serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(gb, bx + bw / 2 + 112, by + 72);
+      ctx.textAlign = 'center';
+    }
     // TABUH drum button.
     const tx = 930, ty = H - 52;
     const hov = Math.hypot(this.hover.x - tx, this.hover.y - ty) <= 44;
@@ -304,6 +345,198 @@ export class UI {
     this.button(ctx, 'restart', 1170, H - 88, 96, 42, 'Ulang', { size: 15 });
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
+  }
+
+  // Boss bar: big gold-framed red bar under the top bar, with the boss name
+  // and skulls. Only while a Raja is alive.
+  drawBossBar(ctx) {
+    const g = this.game;
+    const b = g.boss;
+    if (!b) return;
+    const pct = Math.max(0, b.hp / b.maxHp);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ff9a3d';
+    ctx.font = 'bold 21px Georgia, serif';
+    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    ctx.lineWidth = 5;
+    ctx.strokeText('RAJA BUTO IJO', W / 2, 64);
+    ctx.fillText('RAJA BUTO IJO', W / 2, 64);
+    const bx = 430, bw = 420, by = 76, bh = 18;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    rr(ctx, bx - 3, by - 3, bw + 6, bh + 6, 9);
+    ctx.fill();
+    ctx.strokeStyle = '#e8b64c';
+    ctx.lineWidth = 2;
+    rr(ctx, bx - 3, by - 3, bw + 6, bh + 6, 9);
+    ctx.stroke();
+    ctx.fillStyle = '#5a0f0f';
+    ctx.fillRect(bx, by, bw, bh);
+    const grad = ctx.createLinearGradient(bx, by, bx, by + bh);
+    grad.addColorStop(0, '#ff7a5c');
+    grad.addColorStop(0.5, '#e5322d');
+    grad.addColorStop(1, '#8f130f');
+    ctx.fillStyle = grad;
+    ctx.fillRect(bx, by, bw * pct, bh);
+    // Skulls flanking the bar (drawn shapes, no font glyphs).
+    for (const sx of [bx - 16, bx + bw + 16]) {
+      ctx.fillStyle = '#f5f2e8';
+      ctx.beginPath();
+      ctx.arc(sx, by + bh / 2, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#0b1020';
+      ctx.beginPath();
+      ctx.arc(sx - 2.5, by + bh / 2 - 1, 1.4, 0, Math.PI * 2);
+      ctx.arc(sx + 2.5, by + bh / 2 - 1, 1.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillText(`HP ${Math.max(0, Math.ceil(b.hp))} / ${b.maxHp}`, W / 2, by + bh / 2 + 1);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+  }
+
+  // DATANG: threat queue for the running wave (alive + still queued), or the
+  // next wave's composition during the build phase — like the top-10 boards.
+  drawIncoming(ctx) {
+    const g = this.game;
+    const ORDER = ['wisik', 'kunang', 'bayang', 'slira', 'raksasa', 'raja'];
+    const counts = new Map();
+    if (g.phase === 'wave') {
+      for (const e of g.enemies) counts.set(e.type, (counts.get(e.type) || 0) + 1);
+      for (const q of g.spawner.queue) counts.set(q.type, (counts.get(q.type) || 0) + 1);
+    } else {
+      for (const grp of waveDef(g.wave).groups) {
+        counts.set(grp.type, (counts.get(grp.type) || 0) + grp.count);
+      }
+    }
+    const rows = ORDER.filter((t) => counts.get(t) > 0);
+    const x = 12, y = 212, w = 200;
+    const h = 36 + rows.length * 22 + 50;
+    this.panel(ctx, x, y, w, h, 0.9);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#f5c542';
+    ctx.font = 'bold 17px sans-serif';
+    ctx.fillText('DATANG', x + w / 2, y + 18);
+    ctx.textAlign = 'left';
+    let ry = y + 40;
+    for (const t of rows) {
+      const def = ENEMIES[t];
+      ctx.fillStyle = def.color;
+      ctx.beginPath();
+      ctx.arc(x + 22, ry, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#0b1020';
+      ctx.beginPath();
+      ctx.arc(x + 19, ry - 1, 1.6, 0, Math.PI * 2);
+      ctx.arc(x + 25, ry - 1, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#e8e2d0';
+      ctx.font = '15px sans-serif';
+      ctx.fillText(def.name, x + 36, ry);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#ffe9a8';
+      ctx.font = 'bold 15px sans-serif';
+      ctx.fillText(String(counts.get(t)), x + w - 14, ry);
+      ctx.textAlign = 'left';
+      ry += 22;
+    }
+    // Wave progress bar.
+    const prog = g.waveTotal > 0 && g.phase === 'wave'
+      ? Math.min(1, (g.stats.kills - g.waveStartKills) / g.waveTotal) : 0;
+    ctx.fillStyle = '#cfe8dd';
+    ctx.font = '13px sans-serif';
+    ctx.fillText(g.endless ? `Malam ${g.wave} ∞` : `Malam ${g.wave}/${TOTAL_WAVES}`, x + 14, ry + 12);
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(x + 14, ry + 22, w - 28, 8);
+    ctx.fillStyle = '#7fe3a8';
+    ctx.fillRect(x + 14, ry + 22, (w - 28) * prog, 8);
+    ctx.textBaseline = 'middle';
+  }
+
+  // PUSAKA: four relic medallions, top right. Earned ones glow gold.
+  drawRelics(ctx) {
+    const g = this.game;
+    const x = 1064, y = 56, w = 204, h = 92;
+    this.panel(ctx, x, y, w, h, 0.9);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#f5c542';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.fillText('PUSAKA', x + w / 2, y + 17);
+    const cy = y + 56;
+    RELICS.forEach((r, i) => {
+      const cx = x + 32 + i * 48;
+      const lit = g.relics.has(r.key);
+      ctx.beginPath();
+      ctx.arc(cx, cy, 19, 0, Math.PI * 2);
+      ctx.fillStyle = lit ? '#6b5222' : 'rgba(30,36,48,0.9)';
+      ctx.fill();
+      ctx.strokeStyle = lit ? '#ffd76a' : 'rgba(150,150,150,0.4)';
+      ctx.lineWidth = lit ? 2.5 : 1.5;
+      ctx.stroke();
+      if (lit) {
+        ctx.shadowColor = '#ffd76a';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 19, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+      this.drawRelicGlyph(ctx, r.key, cx, cy, lit ? '#ffd76a' : '#7a7f8a');
+    });
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+  }
+
+  drawRelicGlyph(ctx, key, x, y, color) {
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    if (key === 'keris') {
+      ctx.beginPath();
+      ctx.moveTo(x - 9, y + 9);
+      ctx.quadraticCurveTo(x - 2, y + 2, x + 2, y - 2);
+      ctx.quadraticCurveTo(x + 6, y - 6, x + 10, y - 10);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x - 11, y + 5);
+      ctx.lineTo(x - 5, y + 11);
+      ctx.stroke();
+    } else if (key === 'gong') {
+      ctx.beginPath();
+      ctx.arc(x, y, 8, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (key === 'kendi') {
+      ctx.beginPath();
+      ctx.ellipse(x, y + 2, 7, 8, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x - 3, y - 5);
+      ctx.lineTo(x + 3, y - 5);
+      ctx.lineTo(x + 2, y - 10);
+      ctx.lineTo(x - 2, y - 10);
+      ctx.closePath();
+      ctx.stroke();
+    } else {
+      // Jimat: diamond amulet.
+      ctx.beginPath();
+      ctx.moveTo(x, y - 10);
+      ctx.lineTo(x + 7, y);
+      ctx.lineTo(x, y + 10);
+      ctx.lineTo(x - 7, y);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x, y, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   drawPadPanel(ctx) {
@@ -384,7 +617,7 @@ export class UI {
     ctx.fillStyle = '#ffe9a8';
     ctx.font = 'bold 18px sans-serif';
     const rows = [
-      `Malam diselesaikan: ${won ? TOTAL_WAVES : g.wave - 1} / ${TOTAL_WAVES}`,
+      `Malam diselesaikan: ${won ? TOTAL_WAVES : g.wave - 1}${g.endless ? ' (Endless)' : ` / ${TOTAL_WAVES}`}`,
       `Roh dikalahkan: ${s.kills}`,
       `Koin didapat: ${s.coinsEarned}`,
       `Akurasi ketuk: ${acc}%  (Perfect ${s.perfectHits} • Good ${s.goodHits} • Meleset ${s.misses})`,
@@ -398,6 +631,9 @@ export class UI {
     }
     this.button(ctx, 'restart', W / 2 - 230, 480, 220, 50, 'Main Lagi', { size: 18 });
     this.button(ctx, 'quit-menu', W / 2 + 10, 480, 220, 50, 'Menu Utama', { size: 18 });
+    if (won && !g.endless) {
+      this.button(ctx, 'endless', W / 2 - 230, 538, 460, 28, 'Lanjut Endless  →', { size: 15 });
+    }
     ctx.textBaseline = 'alphabetic';
   }
 }

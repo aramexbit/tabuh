@@ -118,10 +118,12 @@ function maintainWinBoard(game) {
 export function checkShot(game) {
   if (game.shotReady) return;
   if (game.shot === 'play') {
-    // Wave 6 Purnama: capture early while the twist banner is still up and
-    // the first x2 coin pops are flying — few enemies, one kill is enough.
-    // Fallback: a full field still yields a busy frame.
-    if ((game.enemies.length >= 3 && game.projectiles.length >= 1 && game.stats.kills >= 1)
+    // Wave 6 Purnama: capture while the twist banner is still up — ideally
+    // right after the first x2 coin pop, otherwise at 4.2 s into the wave
+    // (banner runs 5 s). Fallback: a full field still yields a busy frame.
+    const early = game.enemies.length >= 3 && game.projectiles.length >= 1;
+    if ((early && game.stats.kills >= 1)
+      || (early && game.spawner.t >= 4.2)
       || game.enemies.length >= 8) game.shotReady = true;
   } else if (game.shot === 'big') {
     // Capture the gong at its best: a shockwave that caught at least 2

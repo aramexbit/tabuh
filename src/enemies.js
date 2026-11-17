@@ -371,13 +371,14 @@ export function drawEnemy(ctx, e, time) {
   else if (e.type === 'emas') drawTuyulEmas(ctx, e, time);
   else if (e.type === 'bayang') drawPocong(ctx, e, time);
   else if (e.type === 'slira') drawGenderuwo(ctx, e, time);
-  else if (e.type === 'raja') drawButo(ctx, e, time);
+  else if (e.type === 'raja') drawRaja(ctx, e, time);
   else drawButo(ctx, e, time);
   ctx.restore();
   if (e.type === 'raja') {
-    // Gold crown, sized to the 2.5x body: the Buto's horns top out around
-    // -75 px (30 * 2.5), so the crown sits just above them. v2.10 (R3):
-    // bigger (+/-30 wide, -92 tall), three red gems, gold glow — the old
+    // Gold crown, sized to the 2.5x body. v2.11 (R3-ulang): the horns are
+    // now bigger (local -38 -> absolute -95), so the crown sits higher
+    // (base -80, top -108) — above the horn tips, not inside them.
+    // v2.10 (R3): bigger (+/-30 wide), three red gems, gold glow — the old
     // crown was too small to read at thumbnail size and the boss sank
     // into the crowd.
     ctx.save();
@@ -385,20 +386,20 @@ export function drawEnemy(ctx, e, time) {
     ctx.shadowBlur = 14;
     ctx.fillStyle = '#ffd76a';
     ctx.beginPath();
-    ctx.moveTo(e.x - 30, e.y - 66);
-    ctx.lineTo(e.x - 30, e.y - 88);
-    ctx.lineTo(e.x - 15, e.y - 74);
-    ctx.lineTo(e.x, e.y - 92);
-    ctx.lineTo(e.x + 15, e.y - 74);
-    ctx.lineTo(e.x + 30, e.y - 88);
-    ctx.lineTo(e.x + 30, e.y - 66);
+    ctx.moveTo(e.x - 30, e.y - 80);
+    ctx.lineTo(e.x - 30, e.y - 102);
+    ctx.lineTo(e.x - 15, e.y - 88);
+    ctx.lineTo(e.x, e.y - 108);
+    ctx.lineTo(e.x + 15, e.y - 88);
+    ctx.lineTo(e.x + 30, e.y - 102);
+    ctx.lineTo(e.x + 30, e.y - 80);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
     ctx.fillStyle = '#ff4a3d';
     for (const gx of [-15, 0, 15]) {
       ctx.beginPath();
-      ctx.arc(e.x + gx, e.y - 76, 4, 0, Math.PI * 2);
+      ctx.arc(e.x + gx, e.y - 92, 4, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -626,6 +627,86 @@ function drawGenderuwo(ctx, e, time) {
   ctx.lineTo(x + 3, y + 10);
   ctx.lineTo(x + 5, y + 6);
   ctx.fill();
+}
+
+// Raja Buto Ijo: the SAME ogre silhouette as a Buto, but recoloured so it
+// can never be mistaken for one — v2.11 (reviewer #10, R3-ulang): the v2.10
+// boss kept the Buto's green body and only changed the aura, so at a
+// glance it still read as "a bigger Buto". Now: dark-red body, bigger
+// horns, glowing amber eyes, gold shoulder pads. Draw-only; hitbox, HP,
+// speed and damage are untouched (VISUAL_SCALE raja is 2.5x, as before).
+function drawRaja(ctx, e, time) {
+  const { x } = e;
+  const breathe = 1 + Math.sin(time * 2 + e.wobble) * 0.03;
+  const y = e.y + 2;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(breathe, breathe);
+  // Horns — bigger and darker than the Buto's (tips reach -38 local).
+  ctx.fillStyle = '#2a0e14';
+  ctx.beginPath();
+  ctx.moveTo(-16, -18);
+  ctx.lineTo(-22, -38);
+  ctx.lineTo(-10, -22);
+  ctx.closePath();
+  ctx.moveTo(16, -18);
+  ctx.lineTo(22, -38);
+  ctx.lineTo(10, -22);
+  ctx.closePath();
+  ctx.fill();
+  // Body: dark-red bulk, not green.
+  ctx.fillStyle = '#7a2436';
+  ctx.beginPath();
+  ctx.ellipse(0, 2, 21, 23, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Belly, lighter red.
+  ctx.fillStyle = '#a03a4a';
+  ctx.beginPath();
+  ctx.ellipse(0, 10, 13, 12, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Thick arms.
+  ctx.strokeStyle = '#5e1a28';
+  ctx.lineWidth = 8;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-19, -6);
+  ctx.lineTo(-25, 10);
+  ctx.moveTo(19, -6);
+  ctx.lineTo(25, 10);
+  ctx.stroke();
+  // Gold shoulder pads — royal trim no Buto has.
+  ctx.fillStyle = '#ffd76a';
+  ctx.beginPath();
+  ctx.arc(-18, -8, 5, 0, Math.PI * 2);
+  ctx.arc(18, -8, 5, 0, Math.PI * 2);
+  ctx.fill();
+  // Angry eyes under a heavy brow — GLOWING amber, not white.
+  ctx.strokeStyle = '#3a0a12';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(-11, -14);
+  ctx.lineTo(-3, -11);
+  ctx.moveTo(11, -14);
+  ctx.lineTo(3, -11);
+  ctx.stroke();
+  ctx.save();
+  ctx.shadowColor = '#ff4a3d';
+  ctx.shadowBlur = 8;
+  eyes(ctx, 0, -8, 6, 0, 2.2, '#ffb03d');
+  ctx.restore();
+  eyes(ctx, 0, -8, 6, 0, 1.1, '#1a0505');
+  // Fangs pointing up from the mouth.
+  ctx.fillStyle = '#f5f2e8';
+  ctx.beginPath();
+  ctx.moveTo(-6, 2);
+  ctx.lineTo(-4, -3);
+  ctx.lineTo(-2, 2);
+  ctx.moveTo(2, 2);
+  ctx.lineTo(4, -3);
+  ctx.lineTo(6, 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
 }
 
 // Buto Ijo: giant green ogre — wide body, horns, fangs, angry eyes.

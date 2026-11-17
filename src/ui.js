@@ -323,9 +323,9 @@ export class UI {
     const ph = g.beatPhase();
     const mx = bx + ((ph + 0.5) % 1) * bw;
     ctx.fillStyle = '#ffd76a';
-    ctx.fillRect(mx - 3, by - 4, 6, 56);
+    ctx.fillRect(mx - 5, by - 4, 10, 56);
     ctx.beginPath();
-    ctx.arc(mx, by - 4, 7, 0, Math.PI * 2);
+    ctx.arc(mx, by - 4, 9, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#cfe8dd';
     ctx.font = 'bold 14px sans-serif';
@@ -386,14 +386,21 @@ export class UI {
       const va = Math.max(0, 1 - (g.time - g.lastVerdictTime));
       const vtext = g.lastVerdict === 'perfect' ? 'PERFECT!' : g.lastVerdict === 'good' ? 'Good' : 'Meleset';
       const vcol = g.lastVerdict === 'perfect' ? '#7fe3a8' : g.lastVerdict === 'good' ? '#ffd76a' : '#ff7a6a';
+      // v2.11 (reviewer #10, R4-ulang): the verdict pill is BIGGER now
+      // (150x40, 24 px bold, gold border) — the rhythm signal must read
+      // from a thumbnail, not just when the frame is studied.
       ctx.globalAlpha = va;
-      ctx.fillStyle = 'rgba(8,14,26,0.85)';
-      rr(ctx, 590 - 54, H - 130 - 15, 108, 30, 8);
+      ctx.fillStyle = 'rgba(8,14,26,0.88)';
+      rr(ctx, 590 - 75, H - 130 - 20, 150, 40, 10);
       ctx.fill();
+      ctx.strokeStyle = '#ffd76a';
+      ctx.lineWidth = 2;
+      rr(ctx, 590 - 75, H - 130 - 20, 150, 40, 10);
+      ctx.stroke();
       ctx.fillStyle = vcol;
-      ctx.font = 'bold 18px sans-serif';
+      ctx.font = 'bold 24px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(vtext, 590, H - 130 + 7);
+      ctx.fillText(vtext, 590, H - 130 + 8);
       ctx.globalAlpha = 1;
     }
     // Wave button.
@@ -415,6 +422,11 @@ export class UI {
   // rect: clicks pass through to the pads underneath (none are here).
   drawGradeBadge(ctx) {
     const g = this.game;
+    // v2.11 (reviewer #10, O7): hide the badge on the victory/defeat
+    // screens — the win modal already carries its own big S seal, so the
+    // badge behind it was a duplicate S (the R5 "one S badge" claim was
+    // not fully true in the win frame).
+    if (g.state === 'victory' || g.state === 'defeat') return;
     const x = 1064, y = 496, w = 204, h = 112;
     this.panel(ctx, x, y, w, h, 0.94, 3);
     const grade = g.comboGrade();

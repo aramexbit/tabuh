@@ -254,15 +254,21 @@ export function drawScene(ctx, game, time) {
   // v2.10 (reviewer #9, R6): the sky TINT changes as the nights deepen —
   // all four frames were the same blue-green dusk, so night 6 vs 9 vs 10
   // read as one repeated state. Now: blue dusk (1-3) -> purple (4-6) ->
-  // deep violet (7-9) -> boss red/orange (10). Draw-only; the game plays
-  // identically. In the menu (wave < 1) the first tint applies.
+  // deep violet (7-8) -> storm (9) -> boss red/orange (10+). Draw-only.
+  // v2.11 (reviewer #10, R6-ulang): wave 9 gets its OWN storm tint AND
+  // visible rain (below) — v2.10's waves 8 and 9 shared the violet band
+  // and were indistinguishable without reading the HUD. In the menu
+  // (wave < 1) the first tint applies.
   const SKY_TINTS = [
     { stops: ['#081626', '#14384a', '#2c4a4a', '#6b5a3a'], glow: 'rgba(232,182,76,0.10)' },
     { stops: ['#0d1226', '#1e2a4a', '#3a2a4a', '#5a3a5a'], glow: 'rgba(180,140,232,0.10)' },
     { stops: ['#0a0e20', '#1a2340', '#2a2340', '#4a2a3a'], glow: 'rgba(200,120,180,0.10)' },
+    { stops: ['#070d18', '#12203a', '#1a2438', '#3a2a3a'], glow: 'rgba(140,180,255,0.08)' },
     { stops: ['#160a12', '#3a1420', '#4a1a1a', '#7a3a20'], glow: 'rgba(255,120,60,0.14)' },
   ];
-  const tint = SKY_TINTS[Math.min(3, Math.max(0, Math.floor(((game.wave || 1) - 1) / 3)))];
+  const w = game.wave || 1;
+  const tintIdx = w >= 10 ? 4 : w === 9 ? 3 : Math.min(2, Math.floor((w - 1) / 3));
+  const tint = SKY_TINTS[tintIdx];
   const sky = ctx.createLinearGradient(0, 0, 0, H);
   sky.addColorStop(0, tint.stops[0]);
   sky.addColorStop(0.45, tint.stops[1]);
@@ -442,6 +448,22 @@ export function drawScene(ctx, game, time) {
     ctx.fill();
   }
   ctx.globalAlpha = 1;
+  // v2.11 (reviewer #10, R6-ulang): visible RAIN during the Hujan twist —
+  // the twist only changed numbers before (damage x1.25, narrower
+  // windows), so wave 9 looked identical to wave 8. Diagonal streaks,
+  // deterministic from (i, time) so the same moment always looks the same.
+  if (game.twist === 'hujan') {
+    ctx.strokeStyle = 'rgba(157,184,232,0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < 70; i++) {
+      const rx = ((i * 137 + time * 140) % 1400) - 60;
+      const ry = ((i * 89 + time * 320) % 780) - 40;
+      ctx.moveTo(rx, ry);
+      ctx.lineTo(rx - 5, ry + 16);
+    }
+    ctx.stroke();
+  }
   // Beat pulse: the whole arena breathes gold on the ketuk (0.6 s cycle).
   const pulse = 0.5 + 0.5 * Math.sin(time * (Math.PI * 2 / 0.6));
   const pg = ctx.createRadialGradient(W / 2, H / 2, 100, W / 2, H / 2, 760);

@@ -272,10 +272,19 @@ export function checkShot(game) {
     // now also needs 2 ghosts fighting lower towers (was 1) AND >=1 ghost
     // in the deep bottom third (y>480) — the gong@5 fights at y 360-480
     // while y 480-620 was houses only, which is what read as "dead".
+    // v2.11 (reviewer #10, R2-ulang): the deep requirement was BYPASSED
+    // by the fallback (it fired with deep=0 at the trigger sample, and
+    // the frame still read "pack on the upper-right diagonal, bottom
+    // empty"). Now the capture WAITS for a deep ghost: once the field
+    // has held 1 s (holdReady), it fires only when deep>=1 — or after a
+    // 3 s grace (holdSince + 4 s total), so a wave without deep ghosts
+    // still yields a frame instead of waiting forever.
     const deep = deepCount(game) >= 1;
+    const deepOk = deep;
+    const graceExpired = game.shotHoldSince != null && game.time - game.shotHoldSince >= 4.0;
     const bigOk = (game.enemies.length >= 5 && spread && bottomFight && centre && gongReady && bottomAttackCount(game) >= 2 && deep)
       || (fallback && centreLoose);
-    if (holdReady(game, bigOk)) {
+    if (holdReady(game, bigOk) && (deepOk || graceExpired)) {
       game.shotReady = true;
     } else if (game.phase === 'build' && game.state === 'playing' && game.wave < TOTAL_WAVES) {
       // Wave cleared without a good frame: press on to the next wave

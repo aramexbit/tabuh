@@ -35,6 +35,16 @@ export class Effects {
     this.texts = this.texts.filter((t) => t.size >= 22 && !/^-\d+$/.test(t.str));
   }
 
+  // v2.24 (R1): clear the big-text slot + queue so the "GONG RAKSASA!"
+  // banner shows immediately at the blast — otherwise it queues behind
+  // a live big text ("TUYUL EMAS!") and the freeze (capture at +0.5 s)
+  // stops time before its turn ever comes. Big-pose only: real play
+  // keeps its announcements in turn.
+  clearBigTexts() {
+    this.texts = this.texts.filter((t) => t.size < 22);
+    this.bigQueue.length = 0;
+  }
+
   // A shaft of light from the sky down to (x, y): a gong strike landing
   // as light, not just a ring — the Lanternkeep moment TABUH showed as
   // text instead of light. Life 1.4 s (was 0.7): at the boss capture

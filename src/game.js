@@ -246,6 +246,9 @@ export class Game {
     // The blast text sits high (y=150) now: at y=300 it landed on the
     // boss's crown, and at y=208 it still grazed it. The banner skips
     // de-collision (effects.js) so it stays put, clear of the boss.
+    // v2.24 (R1): clear the big-text slot first (big pose only) — the
+    // banner must show NOW, not queue behind a live "TUYUL EMAS!".
+    if (this.shot === 'big') this.effects.clearBigTexts();
     this.effects.text(640, 150, 'GONG RAKSASA!', '#ffd76a', 40);
     // Damage scales with the wave (110-200) + 2-beat stun to every spirit
     // on screen. Strong late, but no longer a free wave-clear early.

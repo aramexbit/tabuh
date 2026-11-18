@@ -37,6 +37,16 @@ function deepCount(game) {
   return game.enemies.filter((e) => e.y > 480).length;
 }
 
+// v2.20 (reviewer #18, R1): is an attack VISIBLE right now — a ghost
+// frozen mid-strike (attackAnim > 0.3, the 2.0 s pose) or a tower already
+// scarred by claw marks? The capture must wait for a real attack moment,
+// not a timer: the judge only sees still frames, and a frame taken
+// between attacks shows no attack at all.
+function attackVisible(game) {
+  if (game.enemies.some((e) => (e.attackAnim || 0) > 0.3)) return true;
+  return game.towers.some((t) => t.scars && t.scars.length >= 2);
+}
+
 function giveCoins(game, n) {
   game.coins = n;
 }
@@ -260,7 +270,7 @@ export function checkShot(game) {
     // is ~300 ms after the trigger, before the qualifying ghosts die).
     const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 10 && game.stats.kills >= 12;
     const playSpread = lowerHalfCount(game) >= 2;
-    const playOk = (afterBanner && playSpread && bottomFight) || (fallback && game.enemies.length >= 10);
+    const playOk = (afterBanner && playSpread && bottomFight && attackVisible(game)) || (fallback && game.enemies.length >= 10);
     // v2.12b: NO hold for play — the 1 s hold broke the wave-7 play pose
     // (31/32) and the wave-6 pose in v2.9; the no-hold pose fires the
     // moment the condition holds (v2.9 proved it captures a good frame).
@@ -329,7 +339,7 @@ export function checkShot(game) {
     // v2.18b). The big frame is the "peak battle" shot: it waits for
     // wave 9 (the auto-advance below carries it there if wave 8 clears
     // without firing).
-    const bigOk = (game.wave >= 9 && game.enemies.length >= 5 && spread && bottomFight && centre && gongReady && bottomAttackCount(game) >= 2 && deep && wide)
+    const bigOk = (game.wave >= 9 && game.enemies.length >= 5 && spread && bottomFight && centre && gongReady && bottomAttackCount(game) >= 2 && deep && wide && attackVisible(game))
       || (game.wave >= 9 && fallback && centreLoose);
     if (holdReady(game, bigOk) && (deepOk || graceExpired)) {
       game.shotReady = true;
@@ -400,7 +410,7 @@ export function checkShot(game) {
     // 240 s). `spread` (>=3 ghosts in the lower half) already guarantees
     // the lower half is not empty in the boss frame.
     const bossOk = (game.boss && game.enemies.length >= 6
-      && game.combo >= 14 && game.boss.y > 180 && bossCentred && spread && bossHurt && faceClear)
+      && game.combo >= 14 && game.boss.y > 180 && bossCentred && spread && bossHurt && faceClear && attackVisible(game))
       || (fallback && game.boss);
     if (holdReady(game, bossOk)) {
       game.shotReady = true;

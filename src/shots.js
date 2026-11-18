@@ -351,19 +351,22 @@ export function checkShot(game) {
     // cannot stall if the boss dies fast or never drops to 80%.
     // v2.17 (reviewer #16): the v2.16b frame had a Buto Ijo parked
     // exactly on the boss's chin/mouth, its HP bar piled on his lower
-    // cheek. Require the face clear.
-    // v2.18 (reviewer #17): measure from the CHIN (boss.y+40), radius
-    // 75 px — not from the face centre (boss.y-30, 45 px). The v2.17
-    // 45 px centre-to-centre gate let a minion pass whose centre was
-    // ~90 px from the face point but whose sprite still touched the
-    // chin (boss ~150 px + minion ~60 px, edges overlap). The chin is
-    // where the touch happens, so measure there. The 100 px face gate
-    // proved blocking; the chin gate is lower (minions on the path are
-    // 100+ px from the chin), so it should fire. The fallback still
-    // fires regardless, so the pose cannot stall.
+    // cheek. Require the face clear: no other enemy within 45 px of
+    // the boss's face (his centre, ~30 px above his position). 45 px,
+    // not 100: the first v2.17 run proved 100 px is almost always
+    // blocked (adds pass near the boss constantly), so the pose never
+    // fired in 240 s and captured a victory screen instead. A minion
+    // ON the chin sits ~20-30 px from the face centre, so 45 px still
+    // catches it while letting merely-adjacent minions pass. The
+    // fallback still fires regardless, so the pose cannot stall.
+    // v2.18b: the v2.18 chin gate (boss.y+40, 75 px) ALSO blocked —
+    // the pose never fired in 240 s (minions on the ground are always
+    // within 75 px of the chin). Reviewer #17 said: if it blocks
+    // again, accept the v2.17 frame as-is (face readable, chin touch
+    // minor). Reverted to the v2.17 45 px face gate, which fires.
     const bossHurt = game.boss && game.boss.hp <= game.boss.maxHp * 0.8;
     const faceClear = game.boss && !game.enemies.some((e) =>
-      e !== game.boss && Math.hypot(e.x - game.boss.x, e.y - (game.boss.y + 40)) < 75);
+      e !== game.boss && Math.hypot(e.x - game.boss.x, e.y - (game.boss.y - 30)) < 45);
     const bossOk = (game.boss && game.enemies.length >= 6
       && game.combo >= 14 && game.boss.y > 180 && bossCentred && spread && bottomFight && bossHurt && faceClear)
       || (fallback && game.boss);

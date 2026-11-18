@@ -274,8 +274,28 @@ function drawPath(ctx) {
 // coloured smoke swirling in the gap between them. One per spawn gate
 // (GATES). Ghosts emerge from the gap, so the portal swirl stays inside
 // it. Adapted from the approved mockup's torii gates into Javanese form.
+// v2.20 (reviewer #18, R3): the gates MUST be unmissable — 1.35x bigger,
+// skulls with GLOWING RED eyes, a tall smoke COLUMN, and a pulsing red
+// ring on the ground, so at least 2 gates read clearly in every frame.
 function drawGapura(ctx, x, y, time, smoke) {
   const pulse = 0.6 + Math.sin(time * 2.2) * 0.25;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(1.35, 1.35);
+  ctx.translate(-x, -y);
+  // Pulsing red ring on the ground — the gate breathes danger.
+  ctx.globalAlpha = 0.22 + 0.18 * pulse;
+  ctx.strokeStyle = '#ff4a3d';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.ellipse(x, y + 42, 62, 14, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.globalAlpha = 0.10 + 0.08 * pulse;
+  ctx.fillStyle = '#ff4a3d';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 42, 62, 14, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
   // Ground shadow.
   ctx.fillStyle = 'rgba(0,0,0,0.4)';
   ctx.beginPath();
@@ -323,28 +343,34 @@ function drawGapura(ctx, x, y, time, smoke) {
     ctx.fillRect(px - 8, y - 44, 16, 6);
     ctx.fillStyle = '#3d3d4a';
     ctx.fillRect(px - 5, y - 50, 10, 6);
-    // Skull on the pillar face.
+    // Skull on the pillar face, eyes GLOWING RED (v2.20, R3).
+    ctx.save();
+    ctx.shadowColor = '#ff2a1a';
+    ctx.shadowBlur = 8 * pulse;
     ctx.fillStyle = '#e8e4d8';
     ctx.beginPath();
     ctx.arc(px, y + 2, 6, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#1a1a22';
+    ctx.restore();
+    ctx.fillStyle = '#ff2a1a';
     ctx.beginPath();
-    ctx.arc(px - 2, y + 1, 1.4, 0, Math.PI * 2);
-    ctx.arc(px + 2, y + 1, 1.4, 0, Math.PI * 2);
+    ctx.arc(px - 2, y + 1, 1.6, 0, Math.PI * 2);
+    ctx.arc(px + 2, y + 1, 1.6, 0, Math.PI * 2);
     ctx.fill();
   }
-  // Drifting smoke wisps above the gap.
+  // Tall smoke COLUMN above the gap (v2.20, R3): rising puffs so the
+  // gate reads as a smoking portal from across the field, not a quiet arch.
   ctx.globalAlpha = 0.35 * pulse;
   ctx.fillStyle = smoke;
-  for (let i = 0; i < 3; i++) {
-    const wx = x - 10 + i * 10 + Math.sin(time * 1.3 + i * 2.1) * 5;
-    const wy = y - 42 - i * 6 - Math.sin(time * 0.9 + i) * 3;
+  for (let i = 0; i < 6; i++) {
+    const wx = x - 12 + i * 5 + Math.sin(time * 1.3 + i * 2.1) * 6;
+    const wy = y - 52 - i * 13 - Math.sin(time * 0.9 + i) * 3;
     ctx.beginPath();
-    ctx.arc(wx, wy, 5 + i, 0, Math.PI * 2);
+    ctx.arc(wx, wy, 5 + i * 0.8, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 function drawVillageGate(ctx, time, hp, maxHp) {
@@ -660,35 +686,47 @@ export function drawScene(ctx, game, time) {
   // v2.15 (reviewer #14, P0-4): strengthened 0.45 -> 0.55 — the play
   // frame's empty corners (top-left sky, bottom-left houses) read as
   // dead space; a stronger vignette focuses the eye on the battle.
+  // v2.20 (reviewer #18, R2): 0.55 -> 0.68 — dramatic contrast pass.
   const vg = ctx.createRadialGradient(W / 2, H / 2, 300, W / 2, H / 2, 780);
   vg.addColorStop(0, 'rgba(4,8,16,0)');
-  vg.addColorStop(1, 'rgba(4,8,16,0.55)');
+  vg.addColorStop(1, 'rgba(4,8,16,0.68)');
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, W, H);
-  // v2.15 (reviewer #14, P0-4) / v2.16b: moonbeam during the Purnama
-  // twist — a diagonal shaft of moonlight from the moon toward the
-  // village, filling the play frame's empty top-left sky. It is drawn
-  // AFTER the vignette on purpose: the v2.16 beam (alpha 0.30, 120 px)
-  // was drawn in the sky section and the 0.55 vignette darkened it back
-  // to invisibility. As a light overlay it sits above the darkening.
-  // v2.17 (reviewer #16): a mid-stop (0.20 at 0.5) keeps it visible
-  // all the way down, and 650 px reaches the gate.
-  // v2.18 (reviewer #17): the v2.17 beam went the WRONG WAY — rotate
-  // (0.6) tilts a downward rect to the LEFT (canvas y is down), so the
-  // beam exited the left edge at ~265 px and the 520->650 px extension
-  // was entirely off-screen. rotate(-0.6) tilts it down-RIGHT, so the
-  // 650 px end lands at ~(667,616) — crossing the sky to the
-  // centre-bottom path. Origin moved to the new moon (300,80).
-  if (game.twist === 'purnama') {
+  // v2.20 (reviewer #18, R2): the moonbeam is now a THICK cone in EVERY
+  // frame, not only during Purnama — the light shaft is part of the
+  // game's identity. Purnama: bright (0.30); other nights: a faint but
+  // visible shaft (0.14), wide enough (160 px) to read at thumbnail
+  // size. It never touches the boss: the shaft crosses x~436 at y~278
+  // and ends at ~(667,616), while the boss parks at x~660-776.
+  {
+    const beamA = game.twist === 'purnama' ? 0.30 : 0.14;
     ctx.save();
     ctx.translate(300, 80);
     ctx.rotate(-0.6);
     const mb = ctx.createLinearGradient(0, 0, 0, 650);
-    mb.addColorStop(0, 'rgba(220,230,255,0.30)');
-    mb.addColorStop(0.5, 'rgba(220,230,255,0.20)');
+    mb.addColorStop(0, `rgba(220,230,255,${beamA})`);
+    mb.addColorStop(0.5, `rgba(220,230,255,${beamA * 0.67})`);
     mb.addColorStop(1, 'rgba(220,230,255,0)');
     ctx.fillStyle = mb;
-    ctx.fillRect(-60, 0, 120, 650);
+    ctx.fillRect(-80, 0, 160, 650);
     ctx.restore();
+  }
+  // v2.20 (R2): RED MOONLIGHT WASH — on blood-moon nights (Purnama,
+  // wave 10+) a red glow washes the whole field from the moon, so the
+  // night reads bloody, not just dark. Other nights get a faint cool
+  // wash instead. Drawn after the vignette, like the beam.
+  {
+    const wash = ctx.createRadialGradient(300, 80, 60, 300, 80, 900);
+    if (bloodMoon) {
+      wash.addColorStop(0, 'rgba(200,50,42,0.14)');
+      wash.addColorStop(0.5, 'rgba(200,50,42,0.06)');
+      wash.addColorStop(1, 'rgba(200,50,42,0)');
+    } else {
+      wash.addColorStop(0, 'rgba(180,200,255,0.06)');
+      wash.addColorStop(0.5, 'rgba(180,200,255,0.02)');
+      wash.addColorStop(1, 'rgba(180,200,255,0)');
+    }
+    ctx.fillStyle = wash;
+    ctx.fillRect(0, 0, W, H);
   }
 }

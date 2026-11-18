@@ -57,6 +57,23 @@ function attackVisible(game) {
   return game.towers.some((t) => t.scars && t.scars.length >= 2);
 }
 
+// v2.23 (reviewer #20, R2): is a ghost in a FULL windup (the telegraph
+// at its most readable — arms raised, hair swollen, p >= 0.5) in the
+// LOWER half? The play frame must show one clear jurus pose down low,
+// not a windup just starting up top.
+function fullWindupLow(game) {
+  return game.enemies.some((e) => e.y > 360 && e.atkPhase === 'windup'
+    && e.atkT / Math.max(0.01, e.atkDur) >= 0.5);
+}
+
+// v2.23 (R2): is a strike smear alive right now — a claw slash (2.5 s
+// life) still on screen from a recent strike? The capture fires ~300 ms
+// after the trigger, so a smear alive at trigger time is still visible
+// in the frame.
+function smearVisible(game) {
+  return game.effects.slashes.length > 0;
+}
+
 function giveCoins(game, n) {
   game.coins = n;
 }
@@ -286,9 +303,14 @@ export function checkShot(game) {
     // arrived. The fallback keeps a bottom-fight requirement too, so
     // even the backstop frame shows a fight down low.
     const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 12 && game.stats.kills >= 12;
-    const playSpread = lowerHalfCount(game) >= 2;
-    const playOk = (afterBanner && playSpread && bottomAttackCount(game) >= 2 && deepCount(game) >= 1 && bottomScars(game) && attackVisible(game))
-      || (fallback && game.enemies.length >= 10 && bottomAttackCount(game) >= 1);
+    // v2.23 (reviewer #20, R2): DENSER below + ONE clear jurus pose —
+    // lowerHalf 2 -> 3, and the frame now waits for a FULL windup in the
+    // lower half with a strike smear alive. The fallback keeps the
+    // windup requirement too (a backstop frame without a jurus pose
+    // defeats the point), but drops the smear bar.
+    const playSpread = lowerHalfCount(game) >= 3;
+    const playOk = (afterBanner && playSpread && bottomAttackCount(game) >= 2 && deepCount(game) >= 1 && bottomScars(game) && attackVisible(game) && fullWindupLow(game) && smearVisible(game))
+      || (fallback && game.enemies.length >= 10 && bottomAttackCount(game) >= 1 && fullWindupLow(game));
     // v2.12b: NO hold for play — the 1 s hold broke the wave-7 play pose
     // (31/32) and the wave-6 pose in v2.9; the no-hold pose fires the
     // moment the condition holds (v2.9 proved it captures a good frame).

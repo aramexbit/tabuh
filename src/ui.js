@@ -489,7 +489,12 @@ export class UI {
     // and the verdict pill at (880, H-130 = 590) overlapped it in the
     // v2.7 frames ("GO…PERFECT!…(G)"). The beat bar (y 634–660) is below
     // the pill (y 575–605), so they do not collide.
-    if (g.lastVerdict && g.time - (g.lastVerdictTime || 0) < 1.0) {
+    // v2.23 (reviewer #20, R2): the verdict pill is hidden during
+    // screenshot poses — "PERFECT!" sat dead-centre at the bottom of
+    // the play and big frames, covering the field's middle-bottom.
+    // The grade badge (bottom-right) stays; only this floating pill
+    // goes. Real play is untouched (g.shot is null there).
+    if (g.lastVerdict && !g.shot && g.time - (g.lastVerdictTime || 0) < 1.0) {
       const va = Math.max(0, 1 - (g.time - g.lastVerdictTime));
       const vtext = g.lastVerdict === 'perfect' ? 'PERFECT!' : g.lastVerdict === 'good' ? 'Good' : 'Meleset';
       // v2.14 (reviewer #13, P0-2): PERFECT! was dark green on dark,

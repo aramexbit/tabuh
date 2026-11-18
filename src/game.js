@@ -248,6 +248,11 @@ export class Game {
       this.damageEnemy(e, dmg, 'gong');
       e.stunUntil = this.time + 2 * this.beatDur;
     }
+    // v2.23 (R3): in the BIG POSE the blast is a screenshot, not a
+    // battle — clear the small texts the blast itself just made (kill
+    // pops) and any stale ones, so the frame shows only the banner.
+    // Real-play blasts keep their pops (shot is null there).
+    if (this.shot === 'big') this.effects.clearSmallTexts();
     return true;
   }
 

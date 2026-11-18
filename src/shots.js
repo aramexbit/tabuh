@@ -474,7 +474,13 @@ export function checkShot(game) {
     // within 75 px of the chin). Reviewer #17 said: if it blocks
     // again, accept the v2.17 frame as-is (face readable, chin touch
     // minor). Reverted to the v2.17 45 px face gate, which fires.
-    const bossHurt = game.boss && game.boss.hp <= game.boss.maxHp * 0.8;
+    // v2.23 (reviewer #20, R1): the bar is 50%, not 80% — the plain
+    // branch fired at 76% HP in the first v2.23 run and beat the roar
+    // to it (the roar only starts at 50%). Now the pose waits for the
+    // enrage: the roar branch above gets the first chance, and the
+    // plain branch fires at the enrage itself (or just after). The
+    // fallback still fires regardless, so the pose cannot stall.
+    const bossHurt = game.boss && game.boss.hp <= game.boss.maxHp * 0.5;
     const faceClear = game.boss && !game.enemies.some((e) =>
       e !== game.boss && Math.hypot(e.x - game.boss.x, e.y - (game.boss.y - 30)) < 45);
     // v2.23 (reviewer #20, R1): the ROAR capture — the boss at an enrage

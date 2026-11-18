@@ -25,6 +25,16 @@ export class Effects {
     this.bigQueue = [];
   }
 
+  // v2.23 (reviewer #20, R3): clear the SMALL texts (damage numbers of
+  // any size + coin pops) but keep the big announcements — called when
+  // the big frame's Gong Raksasa fires, so the blast frame shows only
+  // the "GONG RAKSASA!" banner. The banner itself is size 40 and not a
+  // damage number, so it survives; the stale "-31" that used to occupy
+  // the big-text slot (and delay the banner into the queue) dies here.
+  clearSmallTexts() {
+    this.texts = this.texts.filter((t) => t.size >= 22 && !/^-\d+$/.test(t.str));
+  }
+
   // A shaft of light from the sky down to (x, y): a gong strike landing
   // as light, not just a ring — the Lanternkeep moment TABUH showed as
   // text instead of light. Life 1.4 s (was 0.7): at the boss capture
@@ -121,13 +131,17 @@ export class Effects {
 
   text(x, y, str, color = '#ffd76a', size = 16) {
     // v2.23 (reviewer #20, R1): no damage numbers / coin pops in the
-    // boss frame — the capture is one clean boss, not a ledger. Big
-    // announcements (size >= 22) still pass.
-    if (this.game && this.game.shot === 'boss' && size < 22) return;
-    // v2.23 (R3): during the big frame's blast, no small numbers either
-    // — the explosion is the only thing in the frame. The "GONG
-    // RAKSASA!" banner (size 40) still passes.
-    if (this.game && this.game.shotSpectacleQuiet && size < 22) return;
+    // boss frame — the capture is one clean boss, not a ledger. The
+    // size<22 drop kills the small pops; the damage-number regex kills
+    // the BIG ones too (size 26/34: the "-25" in the first v2.23 boss
+    // frame was a size-26 damage number that passed the old filter).
+    // Big announcements (size >= 22, not a damage number) still pass.
+    if (this.game && this.game.shot === 'boss' && (size < 22 || /^-\d+$/.test(str))) return;
+    // v2.23 (R3): during the big frame's blast, NOTHING but the
+    // "GONG RAKSASA!" banner — not even a big damage number (a stale
+    // "-31" used to occupy the big-text slot and delay the banner into
+    // the queue, so the blast frame had no label at all).
+    if (this.game && this.game.shotSpectacleQuiet && str !== 'GONG RAKSASA!') return;
     // v2.15 (reviewer #14, P0-5): AGGREGATE coin pops — "+14 ◆" "+8 ◆"
     // "+5 ◆" "+3 ◆" in one blast read as clutter. A new coin pop that
     // lands near a live one merges into it (numbers summed, life reset),

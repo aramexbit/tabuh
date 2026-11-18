@@ -324,8 +324,13 @@ export function checkShot(game) {
     // a 2 s grace the fallback fires if bigOk holds 2 s (strict still
     // fires at 1 s when deep>=2).
     const graceExpired = game.shotHoldSince != null && game.time - game.shotHoldSince >= 2.0;
-    const bigOk = (game.enemies.length >= 5 && spread && bottomFight && centre && gongReady && bottomAttackCount(game) >= 2 && deep && wide)
-      || (fallback && centreLoose);
+    // v2.19: wave gate — the multi-gate spreads the pack so early that
+    // the pose fired in wave 8 (score 46,746, vs 59,491 at wave 9 in
+    // v2.18b). The big frame is the "peak battle" shot: it waits for
+    // wave 9 (the auto-advance below carries it there if wave 8 clears
+    // without firing).
+    const bigOk = (game.wave >= 9 && game.enemies.length >= 5 && spread && bottomFight && centre && gongReady && bottomAttackCount(game) >= 2 && deep && wide)
+      || (game.wave >= 9 && fallback && centreLoose);
     if (holdReady(game, bigOk) && (deepOk || graceExpired)) {
       game.shotReady = true;
     } else if (game.phase === 'build' && game.state === 'playing' && game.wave < TOTAL_WAVES) {

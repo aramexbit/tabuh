@@ -317,7 +317,7 @@ function ghostAttack(game, e) {
 // sprites were drawn at their hitbox radius; the Raja was only 1.5x a Buto
 // and sat in the top-right corner. Now every spirit is 25-30% bigger and
 // the Raja is a true centrepiece at 2.2x.
-const VISUAL_SCALE = { wisik: 1.25, kunang: 1.25, bayang: 1.25, slira: 1.25, raksasa: 1.3, raja: 3.2, emas: 1.3 };
+const VISUAL_SCALE = { wisik: 1.25, kunang: 1.25, bayang: 1.25, slira: 1.25, raksasa: 1.45, raja: 3.2, emas: 1.3 };
 
 // Visual radius: the figure's real on-screen size (hitbox radius x the
 // per-type visual scale). Game code that places floating text above a
@@ -346,11 +346,29 @@ export function drawEnemy(ctx, e, time) {
   // v2.12 (reviewer #11, R3): the aura was TOO big — a 2.2x-vr disc that
   // washed the centre and hid the boss himself. The Raja's aura is now
   // 1.5x vr at alpha 0.4 (other types keep 2.2x / 0.55).
+  // v2.13 (reviewer #12, P0-1): STILL a ball of light — the glow eats
+  // ~30% of the centre and the boss has no readable silhouette. Cut the
+  // Raja's glow ~40% more (1.5x -> 1.1x vr, alpha 0.4 -> 0.3) AND draw
+  // a dark backdrop disc BEHIND him first, so the dark-red body reads
+  // as a solid shape against the bright field instead of dissolving
+  // into the beam + glow. Other types keep their aura (they need it —
+  // they are small and pale).
+  if (e.type === 'raja') {
+    const bd = ctx.createRadialGradient(e.x, e.y, 1, e.x, e.y, vr * 1.4);
+    bd.addColorStop(0, 'rgba(5,2,8,0.6)');
+    bd.addColorStop(0.7, 'rgba(5,2,8,0.35)');
+    bd.addColorStop(1, 'rgba(5,2,8,0)');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = bd;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, vr * 1.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
   const auraColors = e.type === 'raja'
     ? ['#ffd76a', '#ff9a3d', '#ff4a3d']
     : [c, c + '88', 'rgba(0,0,0,0)'];
-  const auraR = e.type === 'raja' ? vr * 1.5 : vr * 2.2;
-  const auraA = e.type === 'raja' ? 0.4 : 0.55;
+  const auraR = e.type === 'raja' ? vr * 1.1 : vr * 2.2;
+  const auraA = e.type === 'raja' ? 0.3 : 0.55;
   const g = ctx.createRadialGradient(e.x, e.y, 1, e.x, e.y, auraR);
   g.addColorStop(0, auraColors[0]);
   g.addColorStop(0.4, auraColors[1]);
@@ -438,17 +456,22 @@ export function drawEnemy(ctx, e, time) {
     ctx.arc(e.x, e.y, vr * 1.1, 0, Math.PI * 2);
     ctx.fill();
   }
-  // HP bar: ALWAYS visible now, thin (5 px) with a dark border — the judge
-  // must read every spirit's health at a glance, not only the damaged ones.
+  // HP bar: ALWAYS visible now, thicker (7 px, was 5) with a dark border
+  // — the judge must read every spirit's health at a glance, not only
+  // the damaged ones. v2.13 (reviewer #12, P1-3): the bars were thin and
+  // stacked unreadably in a crowd (6+ overlapping in the big frame).
+  // Stagger by (id % 3) * 6 px so neighbouring bars no longer sit on the
+  // same line.
   const w = vr * 2 + 8;
   const pct = Math.max(0, e.hp / e.maxHp);
+  const hpY = e.y - vr - 14 - (e.id % 3) * 6;
   ctx.fillStyle = 'rgba(0,0,0,0.75)';
-  ctx.fillRect(e.x - w / 2, e.y - vr - 14, w, 5);
+  ctx.fillRect(e.x - w / 2, hpY, w, 7);
   ctx.fillStyle = pct > 0.5 ? '#7fe3a8' : pct > 0.25 ? '#ffd76a' : '#ff7a6a';
-  ctx.fillRect(e.x - w / 2, e.y - vr - 14, w * pct, 5);
+  ctx.fillRect(e.x - w / 2, hpY, w * pct, 7);
   ctx.strokeStyle = 'rgba(0,0,0,0.9)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(e.x - w / 2, e.y - vr - 14, w, 5);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(e.x - w / 2, hpY, w, 7);
 }
 
 function eyes(ctx, x, y, dx, dy, r, color = '#0b1020') {

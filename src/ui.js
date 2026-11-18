@@ -242,11 +242,11 @@ export class UI {
     ctx.textAlign = 'right';
     ctx.fillStyle = '#9db8e8';
     ctx.font = '15px sans-serif';
-    // v2.10 (reviewer #9, R5): the combo grade letter lived here AND in
-    // the big badge bottom-right — one S badge, not two. The grade now
-    // lives only in the badge; the multiplier ends at x=1112.
-    ctx.fillText(`Kombo x${g.comboMult().toFixed(2)}`, 1112, 24);
-    ctx.textAlign = 'right';
+    // v2.13 (reviewer #12, P1-4): the top-bar "Kombo x2.50" is GONE —
+    // it appeared 3x on screen (top bar, S badge, under the beat bar)
+    // and the top bar was the most crowded of any top-10 entry (9
+    // elements). The multiplier still lives in the S badge bottom-right
+    // and under the beat bar. The mute/pause buttons stay top-right.
     this.button(ctx, 'mute', 1120, 8, 62, 30, g.audio.muted ? '🔇' : '🔊', { size: 15 });
     this.button(ctx, 'pause', 1190, 8, 62, 30, 'II', { size: 15 });
     ctx.textAlign = 'left';
@@ -254,6 +254,13 @@ export class UI {
     // 12 px it was unreadable in the thumbnail and it duplicated info
     // the DATANG panel already shows (kills, relics, wave). The top bar
     // is one row now; win/lose conditions live in How to Play.
+    // v2.13 (reviewer #12, P0-2): the WIN/LOSE strip — EVERY top-10
+    // entry has one ("WIN keep the flame alive / LOSE flame goes out"),
+    // TABUH had none (the v2.10 2nd HUD line was deleted for being
+    // unreadable at 12 px). One line under the top bar, green WIN / red
+    // LOSE, so a new player knows the stakes in 1 second. In Endless
+    // there is no win — the strip says so instead of lying.
+    this.drawWinLoseStrip(ctx);
     // Boss bar + side panels (over the scene, never over pads or the pad panel).
     if (g.boss) this.drawBossBar(ctx);
     this.drawMinimap(ctx);
@@ -505,6 +512,33 @@ export class UI {
     ctx.textAlign = 'left';
   }
 
+  // v2.13 (reviewer #12, P0-2): the WIN/LOSE strip — one line under the
+  // top bar, green WIN / red LOSE. Every top-10 entry has one; TABUH
+  // had none. The strip is a centred dark pill (y 50-66) so it reads
+  // over the sky; the boss bar moved down to clear it.
+  drawWinLoseStrip(ctx) {
+    const g = this.game;
+    const win = g.endless ? 'ENDLESS — bertahan selama mungkin' : 'MENANG: bertahan 10 malam';
+    const lose = 'KALAH: gerbang hancur';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 13px sans-serif';
+    const w1 = ctx.measureText(win).width;
+    const sep = ctx.measureText('  •  ').width;
+    const w2 = ctx.measureText(lose).width;
+    const total = w1 + sep + w2;
+    const x0 = W / 2 - total / 2;
+    ctx.fillStyle = 'rgba(8,14,26,0.65)';
+    rr(ctx, W / 2 - total / 2 - 12, 50, total + 24, 16, 8);
+    ctx.fill();
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#7fe3a8';
+    ctx.fillText(win, x0, 58);
+    ctx.fillStyle = '#8a94a6';
+    ctx.fillText('  •  ', x0 + w1, 58);
+    ctx.fillStyle = '#ff7a6a';
+    ctx.fillText(lose, x0 + w1 + sep, 58);
+  }
+
   // Boss bar: big gold-framed red bar under the top bar, with the boss name
   // and skulls. Only while a Raja is alive.
   drawBossBar(ctx) {
@@ -519,12 +553,17 @@ export class UI {
     // see the boss's two phases. Phase 2 reads MURKA! in red.
     const phaseLabel = b.phase === 0 ? 'FASE 1/2' : b.phase === 1 ? 'FASE 2/2' : 'FASE 2/2 — MURKA!';
     ctx.fillStyle = b.phase === 2 ? '#ff6a3d' : '#ff9a3d';
-    ctx.font = 'bold 21px Georgia, serif';
+    // v2.13 (reviewer #12, P0-1): title 21 -> 24 px — the phase label
+    // ("FASE 1/2") is what tells the judge this is a boss with phases,
+    // and it was too small to read at thumbnail size. The bar moved
+    // down (title y 64 -> 80, bar by 76 -> 94) to clear the new
+    // WIN/LOSE strip (P0-2) under the top bar.
+    ctx.font = 'bold 24px Georgia, serif';
     ctx.strokeStyle = 'rgba(0,0,0,0.85)';
     ctx.lineWidth = 5;
-    ctx.strokeText(`RAJA BUTO IJO  •  ${phaseLabel}`, W / 2, 64);
-    ctx.fillText(`RAJA BUTO IJO  •  ${phaseLabel}`, W / 2, 64);
-    const bx = 430, bw = 420, by = 76, bh = 18;
+    ctx.strokeText(`RAJA BUTO IJO  •  ${phaseLabel}`, W / 2, 80);
+    ctx.fillText(`RAJA BUTO IJO  •  ${phaseLabel}`, W / 2, 80);
+    const bx = 430, bw = 420, by = 94, bh = 18;
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
     rr(ctx, bx - 3, by - 3, bw + 6, bh + 6, 9);
     ctx.fill();

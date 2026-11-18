@@ -296,8 +296,10 @@ export class Effects {
       ctx.globalAlpha = Math.max(0, Math.min(1, t.life * 1.5));
       ctx.font = `bold ${t.size}px sans-serif`;
       ctx.fillStyle = t.color;
-      ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-      ctx.lineWidth = 3;
+      // v2.13 (reviewer #12, P1-3): thicker, darker outline (3 -> 4,
+      // alpha 0.7 -> 0.85) so floating numbers read over the glow.
+      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+      ctx.lineWidth = 4;
       ctx.strokeText(t.str, t.x, t.y);
       ctx.fillText(t.str, t.x, t.y);
     }

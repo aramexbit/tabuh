@@ -335,9 +335,12 @@ export class Game {
     if (dmg >= 5 && kind !== 'gong') {
       const big = dmg >= 50;
       const mid = dmg >= 20;
+      // v2.13 (reviewer #12, P1-3): damage numbers were small and sank
+      // into the glow — sizes up (30/22/17 -> 34/26/20) and the outline
+      // thickened in effects.js (3 -> 4, alpha 0.7 -> 0.85).
       this.effects.text(
         e.x + (Math.random() * 16 - 8), e.y - visualRadius(e) - 8, `-${dmg}`,
-        big ? '#ff9a3d' : '#ffd76a', big ? 30 : mid ? 22 : 17,
+        big ? '#ff9a3d' : '#ffd76a', big ? 34 : mid ? 26 : 20,
       );
     }
     if (dmg >= 30) this.effects.burst(e.x, e.y, e.def.color, 8);

@@ -148,22 +148,25 @@ function drawHouse(ctx, x, y, w, h, lit) {
 
 function drawPath(ctx) {
   // Wide dirt underlay, then cobbles along the waypoints.
+  // v2.13 (reviewer #12, P1-5): the path was too dark to read in 1 s —
+  // brightened ~20% (underlay #4d4436 -> #5e5342, cobbles #6e6250 ->
+  // #857a62, dots 0.5 -> 0.6) so the route reads like #10's lava.
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  ctx.strokeStyle = '#4d4436';
+  ctx.strokeStyle = '#5e5342';
   ctx.lineWidth = 46;
   ctx.beginPath();
   ctx.moveTo(PATH_POINTS[0][0], PATH_POINTS[0][1]);
   for (let i = 1; i < PATH_POINTS.length; i++) ctx.lineTo(PATH_POINTS[i][0], PATH_POINTS[i][1]);
   ctx.stroke();
-  ctx.strokeStyle = '#6e6250';
+  ctx.strokeStyle = '#857a62';
   ctx.lineWidth = 38;
   ctx.beginPath();
   ctx.moveTo(PATH_POINTS[0][0], PATH_POINTS[0][1]);
   for (let i = 1; i < PATH_POINTS.length; i++) ctx.lineTo(PATH_POINTS[i][0], PATH_POINTS[i][1]);
   ctx.stroke();
   // Cobble dots.
-  ctx.fillStyle = 'rgba(210,190,150,0.5)';
+  ctx.fillStyle = 'rgba(210,190,150,0.6)';
   for (let i = 0; i < PATH_POINTS.length - 1; i++) {
     const a = PATH_POINTS[i];
     const b = PATH_POINTS[i + 1];

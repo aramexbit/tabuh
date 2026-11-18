@@ -536,12 +536,45 @@ export function drawEnemy(ctx, e, time, game) {
   g.addColorStop(0, auraColors[0]);
   g.addColorStop(0.4, auraColors[1]);
   g.addColorStop(1, auraColors[2]);
-  ctx.globalAlpha = auraA * pulse;
+  // v2.24 (reviewer #21, R4): the aura brightens as a windup charges —
+  // the ghost glows harder the closer it is to striking.
+  const chargeP = (e.atkPhase === 'windup')
+    ? Math.min(1, e.atkT / Math.max(0.01, e.atkDur)) : 0;
+  ctx.globalAlpha = Math.min(1, auraA * pulse * (1 + 0.6 * chargeP));
   ctx.fillStyle = g;
   ctx.beginPath();
   ctx.arc(e.x, e.y, auraR, 0, Math.PI * 2);
   ctx.fill();
   ctx.globalAlpha = 1;
+  // v2.24 (reviewer #21, R4): the CHARGE ring — a windup must read as an
+  // attack coming, not an idle pose. While a ghost winds up, a bright
+  // ring in its type color grows around it (1.25x -> 2.0x visual
+  // radius); at strike it is at full size and brightest, then it fades
+  // through recovery. A still frame catches the ring at whatever size —
+  // the jurus reads even without motion.
+  if (e.atkPhase === 'windup' || e.atkPhase === 'strike' || e.atkPhase === 'recovery') {
+    const p = Math.min(1, e.atkT / Math.max(0.01, e.atkDur));
+    const ringR = vr * (e.atkPhase === 'windup' ? 1.25 + 0.75 * p
+      : e.atkPhase === 'strike' ? 2.0 : 2.0 * (1 - 0.5 * p));
+    const ringA = e.atkPhase === 'windup' ? 0.45 + 0.4 * p
+      : e.atkPhase === 'strike' ? 0.9 : 0.5 * (1 - p);
+    const cg = ctx.createRadialGradient(e.x, e.y, 1, e.x, e.y, ringR);
+    cg.addColorStop(0, c + '00');
+    cg.addColorStop(0.75, c + '22');
+    cg.addColorStop(1, c + '55');
+    ctx.globalAlpha = ringA * 0.8;
+    ctx.fillStyle = cg;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, ringR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = ringA;
+    ctx.strokeStyle = c;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, ringR, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
   // The figure itself, scaled around its own centre. The Raja is a Buto
   // drawn 2.2x with a gold crown sized to match. A soft type-colour glow
   // (shadowBlur) lifts the figure off the dark field so it never reads

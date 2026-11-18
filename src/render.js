@@ -306,25 +306,6 @@ export function drawScene(ctx, game, time) {
   ctx.beginPath();
   ctx.arc(150, 90, 26, 0, Math.PI * 2);
   ctx.fill();
-  // v2.15 (reviewer #14, P0-4): moonbeam during the Purnama twist — a
-  // soft diagonal shaft of moonlight from the moon toward the village,
-  // filling the play frame's empty top-left sky with a focal light.
-  // (The rain already does this job for the Hujan twist; Purnama had
-  // only the pill + the moon disc.)
-  // v2.16 (reviewer #15): the v2.15 beam (alpha 0.14, 52 px) was
-  // INVISIBLE in the play frame — raised to 0.30 / 120 px so the shaft
-  // actually reads at thumbnail size.
-  if (game.twist === 'purnama') {
-    ctx.save();
-    ctx.translate(150, 90);
-    ctx.rotate(0.6);
-    const mb = ctx.createLinearGradient(0, 0, 0, 520);
-    mb.addColorStop(0, 'rgba(220,230,255,0.30)');
-    mb.addColorStop(1, 'rgba(220,230,255,0)');
-    ctx.fillStyle = mb;
-    ctx.fillRect(-60, 0, 120, 520);
-    ctx.restore();
-  }
   // Golden dusk clouds drifting over the village (like the mockup's sky).
   drawCloud(ctx, 620, 105, 1.15);
   drawCloud(ctx, 980, 78, 0.9);
@@ -506,4 +487,21 @@ export function drawScene(ctx, game, time) {
   vg.addColorStop(1, 'rgba(4,8,16,0.55)');
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, W, H);
+  // v2.15 (reviewer #14, P0-4) / v2.16b: moonbeam during the Purnama
+  // twist — a diagonal shaft of moonlight from the moon toward the
+  // village, filling the play frame's empty top-left sky. It is drawn
+  // AFTER the vignette on purpose: the v2.16 beam (alpha 0.30, 120 px)
+  // was drawn in the sky section and the 0.55 vignette darkened it back
+  // to invisibility. As a light overlay it sits above the darkening.
+  if (game.twist === 'purnama') {
+    ctx.save();
+    ctx.translate(150, 90);
+    ctx.rotate(0.6);
+    const mb = ctx.createLinearGradient(0, 0, 0, 520);
+    mb.addColorStop(0, 'rgba(220,230,255,0.30)');
+    mb.addColorStop(1, 'rgba(220,230,255,0)');
+    ctx.fillStyle = mb;
+    ctx.fillRect(-60, 0, 120, 520);
+    ctx.restore();
+  }
 }

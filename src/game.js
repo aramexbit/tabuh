@@ -661,16 +661,22 @@ export class Game {
       // 94-97% (not a bot's 100% Perfect). The late tap fires 120 ms
       // after the beat: d = 0.12 s, outside the Perfect window (0.07 s,
       // 0.10 s with Gong Pusaka) but inside Good (0.14 s / 0.20 s) in
-      // both wave 9 (Hujan narrows x0.7) and wave 10. The other poses
-      // keep the perfect auto-tabuh (their frames show a live fight, not
-      // a final accuracy stat).
+      // both wave 9 (Hujan narrows x0.7) and wave 10. A "miss" is a tap
+      // 250 ms late (d = 0.25 s, outside Good) — NOT a skipped press:
+      // the v2.16 skip never called tabuh(), so beatPresses never grew
+      // and accuracy stayed 100% (Perfect 70 • Good 1 • Meleset 0). A
+      // late tap DOES press, so it counts as a real Meleset and pulls
+      // accuracy to ~96%. The other poses keep the perfect auto-tabuh
+      // (their frames show a live fight, not a final accuracy stat).
       if ((this.shot === 'win' || this.shot === 'play' || this.shot === 'big' || this.shot === 'boss')
         && this.state === 'playing') {
         if (this.shot === 'win') {
           const r = Math.random();
           if (r < 0.04) {
-            // Miss: skip this beat entirely (a human lapse).
+            // Miss: tap 250 ms late, outside the Good window.
+            setTimeout(() => { if (this.state === 'playing') this.tabuh(); }, 250);
           } else if (r < 0.07) {
+            // Good: tap 120 ms late, inside Good but outside Perfect.
             setTimeout(() => { if (this.state === 'playing') this.tabuh(); }, 120);
           } else {
             this.tabuh();

@@ -139,7 +139,9 @@ export function applyShot(game) {
     // with pads 2/3 empty too, his target is the gong on pad 4 (660,288),
     // dead centre, instead of the kenong/bonang at x~900-1020. Lower pads
     // filled (R4): kendang@6 + saron@7 + bonang@5 — the far hunters' ground.
-    giveCoins(game, 1200);
+    // v2.19: 2500 coins (was 1200) — the board is rebuilt mid-wave (below),
+    // so the pose needs a rebuild fund.
+    giveCoins(game, 2500);
     game.buildTower('gong', 4);
     game.buildTower('kendang', 6);
     game.buildTower('saron', 7);
@@ -193,6 +195,23 @@ function maintainWinBoard(game) {
         game.upgradeTower(t);
         return;
       }
+    }
+  }
+}
+
+// v2.19 — the boss pose's 4 towers are destroyed by the 3-gate wave-10
+// pack faster than the boss can be hurt (diag: 0 towers by t=32, then the
+// boss stops taking damage and walks to the gate — the pose never fires
+// and the game ends in DEFEAT). Rebuild a missing board tower while the
+// pose runs, so the boss keeps taking damage and the pose can fire.
+// Same idea as maintainWinBoard, but mid-wave (the boss pose has no
+// build phase to rebuild in). One rebuild per update.
+const BOSS_BOARD = [['gong', 4], ['kendang', 6], ['saron', 7], ['bonang', 5]];
+function maintainBossBoard(game) {
+  for (const [type, pad] of BOSS_BOARD) {
+    if (!game.towers.some((t) => t.padIndex === pad)) {
+      const t = game.buildTower(type, pad);
+      if (t) return;
     }
   }
 }
@@ -327,6 +346,8 @@ export function checkShot(game) {
       game.startWave();
     }
   } else if (game.shot === 'boss') {
+    // v2.19 — keep the board alive mid-wave (see maintainBossBoard).
+    maintainBossBoard(game);
     // Capture the boss on screen with a busy field, the combo high enough
     // that the Gong Raksasa is glowing and ready to fire — and the boss
     // walked into the field (y > 180) hunting the nearest tower, not camped

@@ -293,18 +293,21 @@ export function drawScene(ctx, game, time) {
     ctx.fill();
   }
   ctx.globalAlpha = 1;
-  // Moon.
-  const mg = ctx.createRadialGradient(150, 90, 8, 150, 90, 60);
+  // Moon. v2.18 (reviewer #17): moved from (150,90) to (300,80) — the
+  // old moon sat behind the PETA minimap panel (top-left), so the
+  // moonbeam appeared to come from nowhere. At (300,80) the moon is
+  // in open sky, right of the panel.
+  const mg = ctx.createRadialGradient(300, 80, 8, 300, 80, 60);
   mg.addColorStop(0, 'rgba(240,230,190,0.9)');
   mg.addColorStop(0.35, 'rgba(240,230,190,0.25)');
   mg.addColorStop(1, 'rgba(240,230,190,0)');
   ctx.fillStyle = mg;
   ctx.beginPath();
-  ctx.arc(150, 90, 60, 0, Math.PI * 2);
+  ctx.arc(300, 80, 60, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = '#efe6c0';
   ctx.beginPath();
-  ctx.arc(150, 90, 26, 0, Math.PI * 2);
+  ctx.arc(300, 80, 26, 0, Math.PI * 2);
   ctx.fill();
   // Golden dusk clouds drifting over the village (like the mockup's sky).
   drawCloud(ctx, 620, 105, 1.15);
@@ -493,13 +496,18 @@ export function drawScene(ctx, game, time) {
   // AFTER the vignette on purpose: the v2.16 beam (alpha 0.30, 120 px)
   // was drawn in the sky section and the 0.55 vignette darkened it back
   // to invisibility. As a light overlay it sits above the darkening.
-  // v2.17 (reviewer #16): the v2.16b beam faded out mid-sky, before
-  // reaching the path/gate — a mid-stop (0.20 at 0.5) keeps it visible
+  // v2.17 (reviewer #16): a mid-stop (0.20 at 0.5) keeps it visible
   // all the way down, and 650 px reaches the gate.
+  // v2.18 (reviewer #17): the v2.17 beam went the WRONG WAY — rotate
+  // (0.6) tilts a downward rect to the LEFT (canvas y is down), so the
+  // beam exited the left edge at ~265 px and the 520->650 px extension
+  // was entirely off-screen. rotate(-0.6) tilts it down-RIGHT, so the
+  // 650 px end lands at ~(667,616) — crossing the sky to the
+  // centre-bottom path. Origin moved to the new moon (300,80).
   if (game.twist === 'purnama') {
     ctx.save();
-    ctx.translate(150, 90);
-    ctx.rotate(0.6);
+    ctx.translate(300, 80);
+    ctx.rotate(-0.6);
     const mb = ctx.createLinearGradient(0, 0, 0, 650);
     mb.addColorStop(0, 'rgba(220,230,255,0.30)');
     mb.addColorStop(0.5, 'rgba(220,230,255,0.20)');

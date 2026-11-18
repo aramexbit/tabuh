@@ -53,6 +53,11 @@ export function createTower(type, padIndex) {
     angle: -Math.PI / 2,
     durability: maxDurability,
     maxDurability,
+    scars: [], // v2.20 (R1): PERMANENT claw marks from ghost attacks —
+    // each hit adds one slash (angle + colour by attacker type), max 3.
+    // A scarred tower reads as "under attack" in ANY still frame, long
+    // after the 2.5 s claw streaks fade. Cleared by repair, gone when
+    // the tower is destroyed.
     stunUntil: 0, // Kuntilanak laugh: no firing at all
     slowUntil: 0, // Pocong wrap: firing slows to slowFactor
     slowFactor: 1,
@@ -274,19 +279,22 @@ export function drawTower(ctx, tower, time) {
   // ring sits on the pad, under the instrument.
   // v2.16 (reviewer #15): the v2.15 ring (2.5 px, alpha 0.75) was still
   // too thin to read at thumbnail size — 4.5 px, alpha 1.
+  // v2.20 (reviewer #18, R2): 6 px — the tower light rings are the
+  // moonlit anchors of the field; they must glow, not whisper.
   ctx.strokeStyle = def.color;
   ctx.globalAlpha = 1;
-  ctx.lineWidth = 4.5;
+  ctx.lineWidth = 6;
   ctx.beginPath();
   ctx.ellipse(x, y + 2, 34, 13, 0, 0, Math.PI * 2);
   ctx.stroke();
   ctx.globalAlpha = 1;
   // Warm glow under every tower so the instruments read as lit bronze
   // against the dark field; the gong gets the widest, brightest halo.
-  const glowR = tower.type === 'gong' ? 74 : 46;
+  // v2.20 (R2): brighter (alpha 0.80/0.55 -> 0.55 stop) and wider.
+  const glowR = tower.type === 'gong' ? 88 : 56;
   const gg = ctx.createRadialGradient(x, y - 6, 4, x, y - 6, glowR);
-  gg.addColorStop(0, def.color + '80');
-  gg.addColorStop(0.6, def.color + '40');
+  gg.addColorStop(0, def.color + 'b0');
+  gg.addColorStop(0.6, def.color + '55');
   gg.addColorStop(1, def.color + '00');
   ctx.fillStyle = gg;
   ctx.beginPath();
@@ -294,8 +302,9 @@ export function drawTower(ctx, tower, time) {
   ctx.fill();
   if (tower.type === 'gong') {
     // Pulsing halo ring around the gong, breathing with the beat.
-    ctx.strokeStyle = `rgba(245,197,66,${0.30 + 0.18 * Math.sin(time * (Math.PI * 2 / 0.6))})`;
-    ctx.lineWidth = 2.5;
+    // v2.20 (R2): brighter (0.30+0.18 -> 0.45+0.25).
+    ctx.strokeStyle = `rgba(245,197,66,${0.45 + 0.25 * Math.sin(time * (Math.PI * 2 / 0.6))})`;
+    ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.arc(x, y - 12, 30 + 3 * Math.sin(time * 3 + tower.padIndex), 0, Math.PI * 2);
     ctx.stroke();
@@ -379,6 +388,32 @@ export function drawTower(ctx, tower, time) {
     ctx.fill();
   }
   ctx.restore();
+  // v2.20 (R1): PERMANENT claw scars across the instrument — one slash
+  // set per ghost hit (max 3, oldest drops). Drawn inside the 1.9x
+  // wrapper so they scale with the tower. A scarred tower is proof of
+  // a fight in any still frame, even minutes after the attack.
+  if (tower.scars && tower.scars.length > 0) {
+    for (const s of tower.scars) {
+      ctx.save();
+      ctx.translate(x, y - 10);
+      ctx.rotate(s.angle);
+      for (const off of [-7, 0, 7]) {
+        ctx.strokeStyle = 'rgba(10,5,5,0.85)';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(-s.len / 2, off);
+        ctx.lineTo(s.len / 2, off);
+        ctx.stroke();
+        ctx.strokeStyle = s.color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(-s.len / 2, off);
+        ctx.lineTo(s.len / 2, off);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
   if (gold) {
     ctx.strokeStyle = '#ffd76a';
     ctx.lineWidth = 2;

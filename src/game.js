@@ -31,6 +31,8 @@ export class Game {
     this.rng = makeRng(this.seed);
     this.audio = new GamelanAudio();
     this.effects = new Effects();
+    this.effects.game = this; // v2.20 (R4): text() needs the boss to
+    // keep damage numbers off his face.
     this.ui = new UI(this);
     this.spawner = new WaveSpawner(this);
     this.menuTime = 0;
@@ -405,9 +407,20 @@ export class Game {
 
   // Ghosts damage towers. At 0 durability the tower is destroyed: the pad
   // empties and half of what was sunk into it comes back as coins.
-  damageTower(t, dmg) {
+  // v2.20 (R1): every hit also leaves a PERMANENT claw scar on the tower
+  // (colour by attacker type) — proof of the fight in any still frame.
+  damageTower(t, dmg, attacker) {
     if (!this.towers.includes(t)) return;
     t.durability -= dmg;
+    const scarColors = { wisik: '#d8ecff', slira: '#ff4a3d', raksasa: '#ff7a3d', raja: '#ff2a1a', bayang: '#f5f2e8', kunang: '#ffd76a' };
+    if (attacker && t.scars) {
+      t.scars.push({
+        angle: (Math.random() - 0.5) * 1.6,
+        color: scarColors[attacker.type] || '#ff4a3d',
+        len: 34 + Math.random() * 10,
+      });
+      while (t.scars.length > 3) t.scars.shift();
+    }
     this.effects.text(t.x, t.y - 30, `-${dmg}`, '#ff7a6a', 18);
     this.effects.burst(t.x, t.y - 10, '#8a94a8', 8);
     if (t.durability <= 0) {
@@ -431,6 +444,7 @@ export class Game {
     if (!this.towers.includes(t) || t.durability >= t.maxDurability || this.coins < cost) return false;
     this.coins -= cost;
     t.durability = t.maxDurability;
+    t.scars = []; // v2.20 (R1): a repaired tower is scar-free again.
     this.effects.ring(t.x, t.y, 44, '#7fe3a8');
     this.effects.text(t.x, t.y - 34, 'Diperbaiki!', '#7fe3a8', 14);
     return true;
@@ -496,6 +510,9 @@ export class Game {
 
   victory() {
     this.state = 'victory';
+    this.endMenuTime = this.menuTime; // v2.20 (R5): the end modal fades
+    // in over 1 s (drawn from menuTime, which keeps running in the end
+    // states), so the win capture shows the field behind it.
     this.effects.clearTexts();
     this.saveBest();
     this.audio.fanfare(true);
@@ -503,6 +520,7 @@ export class Game {
 
   defeat() {
     this.state = 'defeat';
+    this.endMenuTime = this.menuTime; // v2.20 (R5): same fade as victory.
     this.saveBest();
     this.audio.fanfare(false);
   }

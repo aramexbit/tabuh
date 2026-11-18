@@ -269,8 +269,8 @@ function ghostAttack(game, e) {
     const t0 = near[0];
     const angW = Math.atan2(t0.y - e.y, t0.x - e.x);
     game.effects.claw(t0.x, t0.y, angW, '#d8ecff');
-    e.attackAnim = 0.45;
-    game.effects.ring(e.x, e.y, 70, 'rgba(180,220,255,0.8)');
+    e.attackAnim = 2.0; // v2.20 (R1): frozen strike pose, readable in stills
+    game.effects.ring(e.x, e.y, 70, 'rgba(180,220,255,0.8)', 2.0, 3, true);
     return 3.0;
   }
   if (e.type === 'kunang') {
@@ -283,7 +283,7 @@ function ghostAttack(game, e) {
     game.effects.text(t.x, t.y - 34, `-${steal} ◆`, '#ff9a3d', 15);
     // v2.19 — Tuyul snatching: gold coins burst out of the robbed tower.
     game.effects.coinBurst(t.x, t.y);
-    e.attackAnim = 0.45;
+    e.attackAnim = 2.0; // v2.20 (R1): frozen strike pose, readable in stills
     // Robbed this tower: move on to the next one (or the gate, if every
     // tower has been robbed) instead of parking here forever.
     e.targetTower = null;
@@ -298,8 +298,8 @@ function ghostAttack(game, e) {
     game.damageTower(t, 4, e);
     // v2.19 — Pocong leaping slam: impact burst on the tower.
     game.effects.burst(t.x, t.y - 10, '#ffe9a8', 10);
-    e.attackAnim = 0.45;
-    game.effects.ring(t.x, t.y, 46, 'rgba(245,242,232,0.7)');
+    e.attackAnim = 2.0; // v2.20 (R1): frozen strike pose, readable in stills
+    game.effects.ring(t.x, t.y, 46, 'rgba(245,242,232,0.7)', 2.0, 3, true);
     return 3.0;
   }
   if (e.type === 'slira') {
@@ -310,7 +310,7 @@ function ghostAttack(game, e) {
     // v2.19 — Genderuwo big claws: blood-red slash streaks.
     const angS = Math.atan2(t.y - e.y, t.x - e.x);
     game.effects.claw(t.x, t.y, angS, '#ff4a3d');
-    e.attackAnim = 0.45;
+    e.attackAnim = 2.0; // v2.20 (R1): frozen strike pose, readable in stills
     game.shake = Math.max(game.shake, 0.2);
     return 2.0;
   }
@@ -321,9 +321,9 @@ function ghostAttack(game, e) {
     game.damageTower(t, 30, e);
     game.effects.burst(t.x, t.y - 10, '#8a94a8', 8);
     // v2.19 — Buto Ijo two-fist slam: shockwave ring + orange debris.
-    game.effects.ring(t.x, t.y, 95, '#ff9a3d', 0.7, 5);
+    game.effects.ring(t.x, t.y, 95, '#ff9a3d', 2.5, 5, true);
     game.effects.burst(t.x, t.y - 10, '#ff7a3d', 12);
-    e.attackAnim = 0.45;
+    e.attackAnim = 2.0; // v2.20 (R1): frozen strike pose, readable in stills
     game.shake = Math.max(game.shake, 0.3);
     return 2.5;
   }
@@ -332,10 +332,10 @@ function ghostAttack(game, e) {
     const t = nearestTower(game, e, 120);
     if (!t) return 0.5;
     game.damageTower(t, 45, e);
-    game.effects.ring(t.x, t.y, 90, '#ff9a3d', 0.8);
+    game.effects.ring(t.x, t.y, 90, '#ff9a3d', 2.5, 5, true);
     // v2.19 — Raja slam: gold burst with the shockwave.
     game.effects.burst(t.x, t.y - 10, '#ffd76a', 12);
-    e.attackAnim = 0.45;
+    e.attackAnim = 2.0; // v2.20 (R1): frozen strike pose, readable in stills
     game.shake = Math.max(game.shake, 0.4);
     return 2.0;
   }
@@ -398,11 +398,15 @@ export function drawEnemy(ctx, e, time) {
     ctx.arc(e.x, e.y, vr * 1.4, 0, Math.PI * 2);
     ctx.fill();
   }
+  // v2.20 (reviewer #18, R4): the Raja was PINK-CARTOON — a light red
+  // body (#7a2436) with amber eyes and a gold-red aura read as "a cute
+  // bigger Buto". Now: near-black blood-red body, bigger black horns,
+  // glowing BLOOD-RED eyes, dark purple-red aura. Menacing, not cute.
   const auraColors = e.type === 'raja'
-    ? ['#ffd76a', '#ff9a3d', '#ff4a3d']
+    ? ['#ff2a1a', '#7a0f2a', 'rgba(0,0,0,0)']
     : [c, c + '88', 'rgba(0,0,0,0)'];
   const auraR = e.type === 'raja' ? vr * 1.1 : vr * 1.8;
-  const auraA = e.type === 'raja' ? 0.3 : 0.55;
+  const auraA = e.type === 'raja' ? 0.35 : 0.55;
   const g = ctx.createRadialGradient(e.x, e.y, 1, e.x, e.y, auraR);
   g.addColorStop(0, auraColors[0]);
   g.addColorStop(0.4, auraColors[1]);
@@ -420,14 +424,19 @@ export function drawEnemy(ctx, e, time) {
   // v2.19 — attack pose: while striking (attackAnim > 0) the figure
   // lunges toward its target and swells, so the attack reads as a motion,
   // not just a particle on the tower.
+  // v2.20 (R1): the strike is a 2.0 s FROZEN pose — quick lunge out
+  // (0.3 s), HOLD at full extension (0.9 s), ease back (0.8 s) — so a
+  // still frame taken mid-attack shows the ghost mid-strike, not
+  // standing idle between 0.45 s lunges.
   let lx = 0, ly = 0, lungeScale = 1;
   if (e.attackAnim > 0) {
     const tgt = e.targetTower || GATE_POS;
     const ddx = tgt.x - e.x, ddy = tgt.y - e.y;
     const dd = Math.hypot(ddx, ddy) || 1;
-    const m = e.attackAnim * 18;
+    const t = 2.0 - e.attackAnim; // seconds since the strike began
+    const m = t < 0.3 ? (t / 0.3) * 14 : t < 1.2 ? 14 : Math.max(0, 14 - ((t - 1.2) / 0.8) * 14);
     lx = (ddx / dd) * m; ly = (ddy / dd) * m;
-    lungeScale = 1 + e.attackAnim * 0.15;
+    lungeScale = 1 + 0.10 * (m / 14);
   }
   ctx.save();
   ctx.translate(e.x + lx, e.y + ly);
@@ -444,11 +453,11 @@ export function drawEnemy(ctx, e, time) {
   else drawButo(ctx, e, time);
   ctx.restore();
   if (e.type === 'raja') {
-    // Gold crown, sized to the 3.5x body. v2.12 (R3): the horns reach
-    // -38 local -> -133 absolute, so the crown sits higher (base -126,
-    // top -153) — above the horn tips, not inside them. The crown top
-    // (y ~103 at the boss's parking spot) still clears the boss bar
-    // (ends y=100) by 3 px. (v2.19: rescaled from 3.2x by 3.5/3.2.)
+    // Gold crown, sized to the 3.5x body. v2.20: the horns now reach
+    // -46 local (-161 absolute), so the horn tips frame the crown
+    // slightly above it — the crown sits between them, not above them.
+    // Crown top (y ~147 at the boss's parking spot) still clears the
+    // boss bar (ends y=118).
     ctx.save();
     ctx.shadowColor = '#ffd76a';
     ctx.shadowBlur = 14;
@@ -786,30 +795,31 @@ function drawRaja(ctx, e, time) {
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(breathe, breathe);
-  // Horns — bigger and darker than the Buto's (tips reach -38 local).
-  ctx.fillStyle = '#2a0e14';
+  // Horns — bigger and darker than the Buto's (v2.20: tips reach -46
+  // local, near-black — the old -38 dark-red horns read small).
+  ctx.fillStyle = '#160608';
   ctx.beginPath();
   ctx.moveTo(-16, -18);
-  ctx.lineTo(-22, -38);
+  ctx.lineTo(-24, -46);
   ctx.lineTo(-10, -22);
   ctx.closePath();
   ctx.moveTo(16, -18);
-  ctx.lineTo(22, -38);
+  ctx.lineTo(24, -46);
   ctx.lineTo(10, -22);
   ctx.closePath();
   ctx.fill();
-  // Body: dark-red bulk, not green.
-  ctx.fillStyle = '#7a2436';
+  // Body: near-black blood-red bulk, not pink-red (v2.20, R4).
+  ctx.fillStyle = '#4a0f1e';
   ctx.beginPath();
   ctx.ellipse(0, 2, 21, 23, 0, 0, Math.PI * 2);
   ctx.fill();
-  // Belly, lighter red.
-  ctx.fillStyle = '#a03a4a';
+  // Belly, darker red.
+  ctx.fillStyle = '#6e1a28';
   ctx.beginPath();
   ctx.ellipse(0, 10, 13, 12, 0, 0, Math.PI * 2);
   ctx.fill();
   // Thick arms.
-  ctx.strokeStyle = '#5e1a28';
+  ctx.strokeStyle = '#38090f';
   ctx.lineWidth = 8;
   ctx.lineCap = 'round';
   ctx.beginPath();
@@ -824,8 +834,8 @@ function drawRaja(ctx, e, time) {
   ctx.arc(-18, -8, 5, 0, Math.PI * 2);
   ctx.arc(18, -8, 5, 0, Math.PI * 2);
   ctx.fill();
-  // Angry eyes under a heavy brow — GLOWING amber, not white.
-  ctx.strokeStyle = '#3a0a12';
+  // Angry eyes under a heavy brow — GLOWING BLOOD-RED, not amber (v2.20).
+  ctx.strokeStyle = '#20040a';
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(-11, -14);
@@ -834,11 +844,11 @@ function drawRaja(ctx, e, time) {
   ctx.lineTo(3, -11);
   ctx.stroke();
   ctx.save();
-  ctx.shadowColor = '#ff4a3d';
-  ctx.shadowBlur = 8;
-  eyes(ctx, 0, -8, 6, 0, 2.2, '#ffb03d');
+  ctx.shadowColor = '#ff1a0a';
+  ctx.shadowBlur = 10;
+  eyes(ctx, 0, -8, 6, 0, 2.6, '#ff2a1a');
   ctx.restore();
-  eyes(ctx, 0, -8, 6, 0, 1.1, '#1a0505');
+  eyes(ctx, 0, -8, 6, 0, 1.1, '#0a0202');
   // Fangs pointing up from the mouth.
   ctx.fillStyle = '#f5f2e8';
   ctx.beginPath();

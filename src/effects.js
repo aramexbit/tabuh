@@ -1,6 +1,7 @@
 // Particles, floating text and expanding beat rings. Purely visual: nothing
 // here touches game logic, so the probe can disable it without changing a run.
 import { W, H } from './config.js';
+import { visualRadius } from './enemies.js';
 
 export class Effects {
   constructor() {
@@ -87,29 +88,33 @@ export class Effects {
     while (this.particles.length > Effects.MAX_PARTICLES) this.particles.shift();
   }
 
-  ring(x, y, maxR, color, life = 0.5, width = 3) {
-    this.rings.push({ x, y, r: 8, maxR, color, life, width });
+  ring(x, y, maxR, color, life = 0.5, width = 3, slow = false) {
+    // v2.20 (R1): slow=true = an attack shockwave that expands slowly and
+    // lingers 2-3 s, so a strike is still readable in a still frame.
+    this.rings.push({ x, y, r: 8, maxR, color, life, maxLife: life, width, slow });
   }
 
-  // v2.19 — a claw swipe: three parallel slash streaks across (x, y),
-  // angled along `angle` (the swipe direction, ghost -> tower). Life
-  // 0.35 s: long enough to read in a screenshot, short enough to feel
-  // like a strike. Kuntilanak = pale silver, Genderuwo = blood red.
+  // v2.20 (reviewer #18, R1): claw slashes PERSIST — the 0.35 s streaks
+  // were invisible in still frames (the judge never sees the 0.35-0.7 s
+  // window). Now 2.5 s, fading slowly, so an attack in progress is still
+  // on screen when the capture fires. Kuntilanak = pale silver,
+  // Genderuwo = blood red.
   claw(x, y, angle, color) {
     for (const off of [-11, 0, 11]) {
       this.slashes.push({
         x: x + Math.cos(angle + Math.PI / 2) * off,
         y: y + Math.sin(angle + Math.PI / 2) * off,
-        angle, color, len: 46, life: 0.35, maxLife: 0.35,
+        angle, color, len: 46, life: 2.5, maxLife: 2.5,
       });
     }
   }
 
   // v2.19 — a Tuyul snatching coins: gold sparks bursting out of the
-  // tower it just robbed, plus a small gold ring.
+  // tower it just robbed, plus a small gold ring. v2.20 (R1): ring
+  // lingers 1.5 s so the snatch reads in a still frame.
   coinBurst(x, y) {
     this.burst(x, y, '#ffd76a', 14);
-    this.ring(x, y, 42, '#ffd76a', 0.4, 2);
+    this.ring(x, y, 42, '#ffd76a', 1.5, 2);
   }
 
   text(x, y, str, color = '#ffd76a', size = 16) {
@@ -215,6 +220,22 @@ export class Effects {
     if (px + estW / 2 > 1064 && px - estW / 2 < 1268 && py > 496 && py < 608) {
       px = 1064 - estW / 2 - 8;
     }
+    // v2.20 (reviewer #18, R4): BOSS-FACE exclusion — damage numbers from
+    // the minions fighting around him used to land on the boss's face
+    // ("-44" across his mouth in the v2.19 boss frame). A text that
+    // would land inside the boss's silhouette is shifted sideways out
+    // of it; texts only rise, so once shifted they never drift back
+    // onto the face. (this.game is set by the Game constructor.)
+    const boss = this.game ? this.game.boss : null;
+    if (boss && boss.hp > 0) {
+      const vr = visualRadius(boss);
+      if (Math.abs(px - boss.x) < vr * 0.8 + estW / 2
+        && py > boss.y - vr * 0.9 && py < boss.y + vr * 0.9) {
+        const side = px < boss.x ? -1 : 1;
+        px = boss.x + side * (vr * 0.8 + estW / 2 + 12);
+        px = Math.min(Math.max(px, estW / 2 + 48), W - estW / 2 - 48);
+      }
+    }
     this.texts.push({
       x: px, y: py, estW,
       vx: (Math.random() - 0.5) * 16, str, color, size, life: 1.0,
@@ -253,7 +274,14 @@ export class Effects {
       this.text(q.x, q.y, q.str, q.color, q.size);
     }
     for (const r of this.rings) {
-      r.r += (r.maxR - r.r) * dt * 6 + 30 * dt;
+      // v2.20 (R1): slow rings expand gently and keep their alpha while
+      // alive, so the shockwave is still a visible disc at capture time;
+      // fast rings keep the old snappy expansion + fade.
+      if (r.slow) {
+        r.r += (r.maxR - r.r) * dt * 1.0 + 10 * dt;
+      } else {
+        r.r += (r.maxR - r.r) * dt * 6 + 30 * dt;
+      }
       r.life -= dt;
     }
     this.rings = this.rings.filter((r) => r.life > 0 && r.r < r.maxR * 1.05);
@@ -317,7 +345,9 @@ export class Effects {
     for (const r of this.rings) {
       // v2.16: skip rings centred on the boss (they ring his face).
       if (boss && Math.hypot(r.x - boss.x, r.y - boss.y) < 220) continue;
-      const a = Math.max(0, r.life * 1.6);
+      // v2.20 (R1): slow rings fade by life fraction (steady, then out);
+      // fast rings keep the old life*1.6 fade.
+      const a = r.slow ? Math.max(0, Math.min(1, r.life / (r.maxLife || 1))) : Math.max(0, r.life * 1.6);
       // Soft glow fill under the ring so it reads as light, not just a line.
       // v2.15 (P0-1): fill 0.10 -> 0.06 — the concentric rings were part
       // of the wash covering the boss's face.

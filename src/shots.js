@@ -349,9 +349,16 @@ export function checkShot(game) {
     // v2.15 frame caught him at 4224/4224 (just spawned, no drama).
     // The fallback (below) still fires regardless of HP, so the pose
     // cannot stall if the boss dies fast or never drops to 80%.
+    // v2.17 (reviewer #16): the v2.16b frame had a Buto Ijo parked
+    // exactly on the boss's chin/mouth, its HP bar piled on his lower
+    // cheek. Require the face clear: no other enemy within 100 px of
+    // the boss's face (his centre, ~30 px above his position). The
+    // fallback still fires regardless, so the pose cannot stall.
     const bossHurt = game.boss && game.boss.hp <= game.boss.maxHp * 0.8;
+    const faceClear = game.boss && !game.enemies.some((e) =>
+      e !== game.boss && Math.hypot(e.x - game.boss.x, e.y - (game.boss.y - 30)) < 100);
     const bossOk = (game.boss && game.enemies.length >= 6
-      && game.combo >= 14 && game.boss.y > 180 && bossCentred && spread && bottomFight && bossHurt)
+      && game.combo >= 14 && game.boss.y > 180 && bossCentred && spread && bottomFight && bossHurt && faceClear)
       || (fallback && game.boss);
     if (holdReady(game, bossOk)) {
       game.shotReady = true;

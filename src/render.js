@@ -493,15 +493,19 @@ export function drawScene(ctx, game, time) {
   // AFTER the vignette on purpose: the v2.16 beam (alpha 0.30, 120 px)
   // was drawn in the sky section and the 0.55 vignette darkened it back
   // to invisibility. As a light overlay it sits above the darkening.
+  // v2.17 (reviewer #16): the v2.16b beam faded out mid-sky, before
+  // reaching the path/gate — a mid-stop (0.20 at 0.5) keeps it visible
+  // all the way down, and 650 px reaches the gate.
   if (game.twist === 'purnama') {
     ctx.save();
     ctx.translate(150, 90);
     ctx.rotate(0.6);
-    const mb = ctx.createLinearGradient(0, 0, 0, 520);
+    const mb = ctx.createLinearGradient(0, 0, 0, 650);
     mb.addColorStop(0, 'rgba(220,230,255,0.30)');
+    mb.addColorStop(0.5, 'rgba(220,230,255,0.20)');
     mb.addColorStop(1, 'rgba(220,230,255,0)');
     ctx.fillStyle = mb;
-    ctx.fillRect(-60, 0, 120, 520);
+    ctx.fillRect(-60, 0, 120, 650);
     ctx.restore();
   }
 }

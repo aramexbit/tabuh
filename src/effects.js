@@ -99,12 +99,14 @@ export class Effects {
   // window). Now 2.5 s, fading slowly, so an attack in progress is still
   // on screen when the capture fires. Kuntilanak = pale silver,
   // Genderuwo = blood red.
+  // v2.23 (reviewer #20, R4): BIGGER arcs (46 -> 72) so the smear reads
+  // at thumbnail size; life stays 2.5 s (already >= 0.5 s).
   claw(x, y, angle, color) {
     for (const off of [-11, 0, 11]) {
       this.slashes.push({
         x: x + Math.cos(angle + Math.PI / 2) * off,
         y: y + Math.sin(angle + Math.PI / 2) * off,
-        angle, color, len: 46, life: 2.5, maxLife: 2.5,
+        angle, color, len: 72, life: 2.5, maxLife: 2.5,
       });
     }
   }
@@ -419,11 +421,13 @@ export class Effects {
     }
     ctx.globalAlpha = 1;
     // v2.19 — claw slashes: three bright streaks, fading as they land.
+    // v2.23 (R4): thicker (4 -> 6 px) — the smear must read at thumbnail
+    // size, not whisper.
     for (const s of this.slashes) {
       const a = Math.max(0, s.life / s.maxLife);
       ctx.globalAlpha = a;
       ctx.strokeStyle = s.color;
-      ctx.lineWidth = 4;
+      ctx.lineWidth = 6;
       ctx.lineCap = 'round';
       const dx = Math.cos(s.angle) * s.len / 2;
       const dy = Math.sin(s.angle) * s.len / 2;

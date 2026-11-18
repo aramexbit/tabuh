@@ -27,8 +27,12 @@ const ATTACK_RANGE = { wisik: 80, kunang: 80, bayang: 90, slira: 100, raksasa: 1
 // HP, speed or economy value changes — this is animation only.
 const ATK_CD = { wisik: 3.0, kunang: 2.0, bayang: 3.0, slira: 2.0, raksasa: 2.5, raja: 2.0 };
 const WINDUP_DUR = 0.45; // slow anticipation (the telegraph)
-const STRIKE_DUR = 0.12; // near-instant hit (1-2 frames of smear)
-const RECOVERY_DUR = 0.55; // medium settle, pose held throughout
+// v2.23 (R4): the strike lasts 0.20 s (was 0.12) so the smear is
+// catchable in a still frame, and the recovery shortens to 0.47 s —
+// the cadence stays exactly 0.45 + 0.20 + 0.47 = 1.12 s, so no damage,
+// HP, speed or economy value changes.
+const STRIKE_DUR = 0.20; // the hit, with its smear
+const RECOVERY_DUR = 0.47; // medium settle, pose held throughout
 const FIRST_WINDUP_DUR = 2.0; // first strike: the long sizing-up windup
 const HITSTOP_SMALL = 0.03; // freeze on a normal strike landing
 const HITSTOP_BIG = 0.08; // freeze on a Buto/Raja smash landing
@@ -709,9 +713,12 @@ function drawKuntilanak(ctx, e, time) {
   // wide (the telegraph); strike — the claws sweep across the front
   // with a smear; recovery — the hair settles (it trails 1 frame
   // behind the body, so it lags the lunge and settles after it).
+  // v2.23 (R4): the windup is a BIG silhouette change, not a subtle
+  // one — arms spread wide AND raised high, hair lifted and swollen.
+  // A still frame must read "about to strike" from across the room.
   const windupP = ph === 'windup' ? p : 0;
-  const spread = ph === 'windup' ? 13 + 5 * p : ph === 'strike' ? 18 - 12 * p : ph === 'recovery' ? 6 + 7 * p : 13;
-  const armY = ph === 'windup' ? 2 - 4 * p : ph === 'strike' ? -2 + 8 * p : ph === 'recovery' ? 6 - 4 * p : 2;
+  const spread = ph === 'windup' ? 13 + 15 * p : ph === 'strike' ? 18 - 12 * p : ph === 'recovery' ? 6 + 7 * p : 13;
+  const armY = ph === 'windup' ? 2 - 12 * p : ph === 'strike' ? -2 + 8 * p : ph === 'recovery' ? 6 - 4 * p : 2;
   // Dress: flared white trapezoid with a wavy hem.
   ctx.fillStyle = '#f2f5f0';
   ctx.beginPath();
@@ -733,7 +740,7 @@ function drawKuntilanak(ctx, e, time) {
   // the recovery.
   if (ph === 'strike') {
     ctx.save();
-    ctx.globalAlpha = 0.30;
+    ctx.globalAlpha = 0.45;
     ctx.strokeStyle = '#e8ede6';
     ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
@@ -744,7 +751,7 @@ function drawKuntilanak(ctx, e, time) {
     ctx.lineTo(x + 18, y - 2);
     ctx.stroke();
     for (const s of [-1, 1]) clawSmear(ctx, x + s * 18, y - 2, s, '#f5f2e8');
-    ctx.globalAlpha = 0.15;
+    ctx.globalAlpha = 0.25;
     ctx.beginPath();
     ctx.moveTo(x - 6, y - 4);
     ctx.lineTo(x - 12, y + 2);
@@ -773,11 +780,13 @@ function drawKuntilanak(ctx, e, time) {
   // v2.22: the hair trails 1 frame behind the body (lag) and LIFTS in
   // the windup (the anticipation reads in the hair first), then
   // settles through the recovery.
+  // v2.23 (R4): the lift is BIG now (8 px, was 3) and the hair SWELLS
+  // (rx +3) — the windup reads in the hair before anything else.
   const hairX = x + lag.x * 0.7;
-  const hairY = y - 7 - 3 * windupP + lag.y * 0.7;
+  const hairY = y - 7 - 8 * windupP + lag.y * 0.7;
   ctx.fillStyle = '#14100c';
   ctx.beginPath();
-  ctx.ellipse(hairX, hairY, 8.5, 10, 0, 0, Math.PI * 2);
+  ctx.ellipse(hairX, hairY, 8.5 + 3 * windupP, 10 + 2 * windupP, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
   ctx.ellipse(hairX - 7, y + 1 + lag.y * 0.7, 3, 9, 0.15, 0, Math.PI * 2);
@@ -789,7 +798,7 @@ function drawKuntilanak(ctx, e, time) {
   for (const s of [-1, 1]) {
     ctx.save();
     ctx.translate(hairX + s * 8, hairY + 3);
-    ctx.rotate(s * (0.55 + whip + 0.35 * windupP));
+    ctx.rotate(s * (0.55 + whip + 0.8 * windupP));
     ctx.fillStyle = '#14100c';
     ctx.beginPath();
     ctx.ellipse(0, 8, 2.2, 13, 0, 0, Math.PI * 2);
@@ -842,7 +851,9 @@ function drawTuyul(ctx, e, time) {
     }
   }
   let sqX = 1, sqY = 1;
-  if (ph === 'windup') { sqY = 1 - 0.15 * p; sqX = 1 + 0.10 * p; }
+  // v2.23 (R4): the windup crouch is DEEP now (-0.28, was -0.15) — a
+  // coiled spring, not a slight dip.
+  if (ph === 'windup') { sqY = 1 - 0.28 * p; sqX = 1 + 0.18 * p; }
   else if (ph === 'recovery') { sqY = 0.85 + 0.15 * p; sqX = 1.10 - 0.10 * p; }
   const y = e.y + Math.sin(time * 6 + e.wobble) * 1.5 + uy * dash;
   const dx = x + ux * dash;
@@ -891,7 +902,10 @@ function drawPocong(ctx, e, time) {
   // with a squash on landing); recovery — it rises back upright. The
   // torn hem trails 1 frame behind the body.
   let sqX = 1, sqY = 1, slamY = 0;
-  if (ph === 'windup') { sqY = 1 - 0.20 * p; sqX = 1 + 0.12 * p; }
+  // v2.23 (R4): the windup crouch is DEEP now (-0.32, was -0.20) — the
+  // shroud coils down before the hop-slam, a silhouette change that
+  // reads at thumbnail size.
+  if (ph === 'windup') { sqY = 1 - 0.32 * p; sqX = 1 + 0.20 * p; }
   else if (ph === 'strike') {
     slamY = -14 * Math.sin(p * Math.PI);
     sqY = 1 - 0.28 * p;
@@ -965,11 +979,14 @@ function drawGenderuwo(ctx, e, time) {
   // and the eyes BURN brighter (the telegraph); strike — a DOUBLE
   // CLAW swipe with a smear; recovery — it settles back upright. The
   // shaggy fur trails 1 frame behind the body.
+  // v2.23 (R4): the lean-back DOUBLES (-0.22, was -0.12), the arms rise
+  // HIGHER (16 px, was 6) and the eyes burn HOTTER — the windup is a
+  // different silhouette, not a tilt.
   const tgt = e.atkTower || e.targetTower;
   const dirSign = (tgt ? Math.sign(tgt.x - e.x) : 1) || 1;
-  const leanBack = ph === 'windup' ? -0.12 * p * dirSign : ph === 'strike' ? -0.12 * dirSign + 0.12 * p * dirSign : 0;
-  const eyeGlow = ph === 'windup' ? 8 + 12 * p : ph === 'strike' ? 20 : ph === 'recovery' ? 20 - 12 * p : 8;
-  const eyeR = ph === 'windup' ? 4 + 1 * p : ph === 'strike' ? 5 : 4;
+  const leanBack = ph === 'windup' ? -0.22 * p * dirSign : ph === 'strike' ? -0.22 * dirSign + 0.22 * p * dirSign : 0;
+  const eyeGlow = ph === 'windup' ? 8 + 20 * p : ph === 'strike' ? 20 : ph === 'recovery' ? 20 - 12 * p : 8;
+  const eyeR = ph === 'windup' ? 4 + 2 * p : ph === 'strike' ? 5 : 4;
   ctx.save();
   ctx.translate(x, y + 16);
   ctx.rotate(leanBack);
@@ -1000,11 +1017,11 @@ function drawGenderuwo(ctx, e, time) {
   // strike they sweep UP and forward in a double claw (with a smear:
   // the arms ghosted at the hanging and mid-sweep positions); in the
   // windup they rise slightly as the body leans back.
-  const handY = ph === 'windup' ? 14 - 6 * p : ph === 'strike' ? 14 - 20 * p : ph === 'recovery' ? -6 + 20 * p : 14;
+  const handY = ph === 'windup' ? 14 - 16 * p : ph === 'strike' ? 14 - 20 * p : ph === 'recovery' ? -6 + 20 * p : 14;
   const handX = ph === 'strike' ? 16 - 6 * p : ph === 'recovery' ? 10 + 6 * p : 16;
   if (ph === 'strike') {
     ctx.save();
-    ctx.globalAlpha = 0.30;
+    ctx.globalAlpha = 0.45;
     ctx.strokeStyle = '#3a3129';
     ctx.lineWidth = 5;
     ctx.lineCap = 'round';
@@ -1014,7 +1031,7 @@ function drawGenderuwo(ctx, e, time) {
     ctx.moveTo(x + 13, y - 4);
     ctx.lineTo(x + 16, y + 14);
     ctx.stroke();
-    ctx.globalAlpha = 0.15;
+    ctx.globalAlpha = 0.25;
     ctx.beginPath();
     ctx.moveTo(x - 13, y - 4);
     ctx.lineTo(x - 13, y + 4);
@@ -1105,8 +1122,10 @@ function drawRaja(ctx, e, time, game) {
     fistX = 18; fistY = -32;
     sqY = 1.06; sqX = 0.96; roarTilt = -0.12;
   } else if (ph === 'windup') {
-    fistX = 25 - 5 * p; fistY = 10 - 40 * p;
-    sqY = 1 + 0.05 * p; sqX = 1 - 0.03 * p;
+    // v2.23 (R4): the fists rise HIGHER (56 px, was 40) — the telegraph
+    // is unmistakable even at thumbnail size.
+    fistX = 25 - 5 * p; fistY = 10 - 56 * p;
+    sqY = 1 + 0.08 * p; sqX = 1 - 0.03 * p;
   } else if (ph === 'strike') {
     fistX = 20 + 8 * p; fistY = -30 + 50 * p;
     sqY = 1.05 - 0.20 * p; sqX = 0.97 + 0.13 * p;
@@ -1145,7 +1164,7 @@ function drawRaja(ctx, e, time, game) {
   // hanging), and in the roar they are thrown high above the head.
   if (ph === 'strike') {
     ctx.save();
-    ctx.globalAlpha = 0.30;
+    ctx.globalAlpha = 0.45;
     ctx.fillStyle = '#38090f';
     ctx.beginPath();
     ctx.arc(-20, -30, 8, 0, Math.PI * 2);
@@ -1248,8 +1267,10 @@ function drawButo(ctx, e, time) {
   // hanging are three different shapes.
   let fistX = 25, fistY = 12, sqX = 1, sqY = 1;
   if (ph === 'windup') {
-    fistX = 25 - 5 * p; fistY = 12 - 42 * p;
-    sqY = 1 + 0.05 * p; sqX = 1 - 0.03 * p;
+    // v2.23 (R4): the fists rise HIGHER (56 px, was 42) — the telegraph
+    // is unmistakable even at thumbnail size.
+    fistX = 25 - 5 * p; fistY = 12 - 56 * p;
+    sqY = 1 + 0.08 * p; sqX = 1 - 0.03 * p;
   } else if (ph === 'strike') {
     fistX = 20 + 8 * p; fistY = -30 + 50 * p;
     sqY = 1.05 - 0.20 * p; sqX = 0.97 + 0.13 * p;
@@ -1288,7 +1309,7 @@ function drawButo(ctx, e, time) {
   // position), easing back down in the recovery.
   if (ph === 'strike') {
     ctx.save();
-    ctx.globalAlpha = 0.30;
+    ctx.globalAlpha = 0.45;
     ctx.fillStyle = '#5da244';
     ctx.beginPath();
     ctx.arc(-20, -30, 7, 0, Math.PI * 2);

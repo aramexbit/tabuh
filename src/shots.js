@@ -518,9 +518,20 @@ export function checkShot(game) {
     // his lower body, not his face — the 45 px face gate still guards
     // the chin), and the combo>=14 requirement drops (the Gong glow
     // is a bonus, not the hero — the roar is).
+    // v2.23 fix-up #2 (18 Nov, boss tracer): the pose STILL timed out
+    // after that fix — the tracer proved the real blocker is `spread`
+    // (>=3 ghosts in the lower half). The adds die before the boss
+    // reaches 50%: at the phase-1 roar (t=40.4) only 2 were low, at
+    // the phase-2 roar (t=52) ZERO were low, and the one moment spread
+    // held (the phase-2 summon, t=53.8) lasted <2 s — the hold reached
+    // 0.85 s and reset 0.15 s short. So the roar branch drops `spread`
+    // entirely: the roar IS the hero moment, and a roaring boss in a
+    // dark spotlighted field reads at thumbnail size with or without
+    // adds. The plain branch below keeps spread (the busy-field
+    // variant); the roar does not need it.
     const faceClearWide = game.boss && !game.enemies.some((e) =>
       e !== game.boss && Math.hypot(e.x - game.boss.x, e.y - game.boss.y) < 60);
-    const roarOk = roaring && game.boss.phase >= 1 && bossCentred && spread
+    const roarOk = roaring && game.boss.phase >= 1 && bossCentred
       && faceClearWide;
     if (roarOk) {
       if (game.shotRoarPhase !== game.boss.phase) {
@@ -539,14 +550,18 @@ export function checkShot(game) {
       || (game.boss && game.enemies.length >= 6
         && game.combo >= 14 && game.boss.y > 180 && bossCentred && spread && bossHurt && faceClear && attackVisible(game))
       // v2.23 fix-up (18 Nov): the BACKSTOP — a hurt boss, centred,
-      // with spread, fires with NO face/combo/attack gates. The ideal
+      // fires with NO face/combo/attack/SPREAD gates. The ideal
       // branches above win when the field allows them; this one only
       // matters when minions crowd the boss's face for his whole
       // 50%-to-death window (the run that timed out). A real boss
       // frame with a minion near his face beats a victory screen
       // filed as the boss frame — the judge compares 4 screenshots,
       // and a duplicate victory frame is the worst outcome.
-      || (game.boss && bossHurt && bossCentred && spread)
+      // Fix-up #2: `spread` is dropped here too (same tracer proof as
+      // the roar branch — the field is empty by the time the boss is
+      // hurt; requiring spread made the backstop as dead as the
+      // branches it was meant to rescue).
+      || (game.boss && bossHurt && bossCentred)
       || (fallback && game.boss);
     // v2.21 (reviewer #19, R5): the boss EVENT — while the capture
     // condition holds, the spotlight falls on the boss (refreshed every

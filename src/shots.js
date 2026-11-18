@@ -367,8 +367,14 @@ export function checkShot(game) {
     const bossHurt = game.boss && game.boss.hp <= game.boss.maxHp * 0.8;
     const faceClear = game.boss && !game.enemies.some((e) =>
       e !== game.boss && Math.hypot(e.x - game.boss.x, e.y - (game.boss.y - 30)) < 45);
+    // v2.19: bottomFight DROPPED from the boss pose — the multi-gate
+    // destroys the bottom towers before the boss is hurt enough, so
+    // bottomFight and bossHurt are never true together (diag 18 Nov:
+    // bF=0 from t=24, bossHurt only from t=32; the pose never fired in
+    // 240 s). `spread` (>=3 ghosts in the lower half) already guarantees
+    // the lower half is not empty in the boss frame.
     const bossOk = (game.boss && game.enemies.length >= 6
-      && game.combo >= 14 && game.boss.y > 180 && bossCentred && spread && bottomFight && bossHurt && faceClear)
+      && game.combo >= 14 && game.boss.y > 180 && bossCentred && spread && bossHurt && faceClear)
       || (fallback && game.boss);
     if (holdReady(game, bossOk)) {
       game.shotReady = true;

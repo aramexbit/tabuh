@@ -298,7 +298,13 @@ export function checkShot(game) {
     const deep = deepCount(game) >= 2;
     const wide = game.enemies.filter((e) => e.x < 640).length >= 2;
     const deepOk = deep;
-    const graceExpired = game.shotHoldSince != null && game.time - game.shotHoldSince >= 4.0;
+    // v2.15: grace 4 s -> 2 s. The 4 s grace made the pose FLAKY: the
+    // field decays fast (en 22 -> 13 in 0.5 s after READY), so bigOk
+    // rarely holds 4 s continuously — the v2.15 shots run never fired
+    // the big pose in 240 s and captured a wave-10 frame instead. With
+    // a 2 s grace the fallback fires if bigOk holds 2 s (strict still
+    // fires at 1 s when deep>=2).
+    const graceExpired = game.shotHoldSince != null && game.time - game.shotHoldSince >= 2.0;
     const bigOk = (game.enemies.length >= 5 && spread && bottomFight && centre && gongReady && bottomAttackCount(game) >= 2 && deep && wide)
       || (fallback && centreLoose);
     if (holdReady(game, bigOk) && (deepOk || graceExpired)) {

@@ -370,14 +370,21 @@ export function checkShot(game) {
     // v2.21 (reviewer #19, R3): the SPECTACLE — capture the big frame at
     // the Gong Raksasa blast. The pose auto-tabuhs perfectly, so the
     // combo reaches 14 and the blast is ready by mid-wave-9; when the
-    // field is busy, fire it and capture 0.3 s into the shockwave (the
-    // 700 px ring still expanding, beams bright, survivors stunned).
+    // field is busy, fire it and capture 0.5 s into the shockwave (the
+    // 900 px ring at ~855 px, near max, beams still bright, survivors
+    // stunned).
     // Wave-9 blast damage is 190: wisik/bayang die, but the 5 Buto +
     // the tankier Genderuwo survive and freeze mid-field — the frame
     // shows the blast's aftermath, not an empty field. The normal bigOk
     // path below stays as the fallback if the blast never becomes ready.
+    // v2.24 (reviewer #21, R1): the trigger was a LOTTERY — it needed
+    // centre>=3 while the normal path's fallback only needed centre>=2,
+    // so bigOk's 1 s hold regularly won the race and the frame was a
+    // plain busy field (the v2.23 big frame: no blast at all). The
+    // blast IS the hero — centre>=2 is a busy enough field, and the
+    // bigOk gate below now guarantees the blast gets its chance first.
     if (!game.shotSpectacleDone && game.wave >= 9 && game.gongRaksasaReady()
-      && game.enemies.length >= 6 && spread && centerFightCount(game) >= 3) {
+      && game.enemies.length >= 6 && spread && centerFightCount(game) >= 2) {
       game.triggerGongRaksasa();
       game.shotSpectacleAt = game.time;
       game.shotSpectacleDone = true;
@@ -385,8 +392,14 @@ export function checkShot(game) {
       // while the blast is on screen (cleared 1.5 s later in update()).
       game.shotSpectacleQuiet = true;
     }
+    // v2.24 (R1): DETERMINISTIC peak capture — at +0.5 s the world
+    // FREEZES (shotFreeze: update() stops, draw() keeps rendering), so
+    // the screenshot ~300 ms later shows exactly the peak frame: the
+    // ring at ~855 px, beams bright, banner up, quiet on, field dark
+    // outside the blast. No more decay between shotReady and capture.
     if (game.shotSpectacleAt != null && game.phase === 'wave'
-      && game.time - game.shotSpectacleAt >= 0.3) {
+      && game.time - game.shotSpectacleAt >= 0.5) {
+      game.shotFreeze = true;
       game.shotReady = true;
       return;
     }
@@ -420,8 +433,16 @@ export function checkShot(game) {
     // v2.18b). The big frame is the "peak battle" shot: it waits for
     // wave 9 (the auto-advance below carries it there if wave 8 clears
     // without firing).
-    const bigOk = (game.wave >= 9 && game.enemies.length >= 5 && spread && bottomFight && centre && gongReady && bottomAttackCount(game) >= 2 && deep && wide && attackVisible(game) && noRecentDestroy)
-      || (game.wave >= 9 && fallback && centreLoose);
+    // v2.24 (reviewer #21, R1): the SPECTACLE GATE — the normal path
+    // must not win the race before the blast has had its chance. bigOk
+    // stays locked until the blast has fired once, or until 45 s into
+    // the current wave (the backstop, so a wave where the blast never
+    // becomes ready still yields a frame instead of stalling). The
+    // trigger above fires the moment the field is busy (centre>=2),
+    // so in practice the gate opens via the blast, not the deadline.
+    const spectacleGate = game.shotSpectacleDone || game.spawner.t >= 45;
+    const bigOk = spectacleGate && ((game.wave >= 9 && game.enemies.length >= 5 && spread && bottomFight && centre && gongReady && bottomAttackCount(game) >= 2 && deep && wide && attackVisible(game) && noRecentDestroy)
+      || (game.wave >= 9 && fallback && centreLoose));
     if (holdReady(game, bigOk) && (deepOk || graceExpired)) {
       game.shotReady = true;
     } else if (game.phase === 'build' && game.state === 'playing' && game.wave < TOTAL_WAVES) {

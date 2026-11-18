@@ -121,6 +121,12 @@ export class Game {
     this.shotSpectacleAt = null; // v2.21 (R3): when the big frame's
     // Gong Raksasa blast fired (capture 0.3 s into the shockwave).
     this.shotSpectacleDone = false;
+    // v2.24 (reviewer #21, R1): FREEZE the world at the blast's peak.
+    // When the big frame's capture fires, update() stops but draw()
+    // keeps rendering — the screenshot (taken ~300 ms later by the
+    // tool) shows exactly the peak frame, not a decayed one. Only set
+    // by the big pose's spectacle capture; never in real play.
+    this.shotFreeze = false;
     this.shotRoarPhase = null; // v2.23 (R1): which enrage phase the
     // roar extension is spending its 3 s budget on (null = no roar yet).
     this.shotRoarExtendUntil = 0;
@@ -708,7 +714,9 @@ export class Game {
     // Guard: a non-finite timeScale (bad input, never the UI) must not
     // poison the clock to NaN and freeze the game silently.
     const ts = Number.isFinite(this.timeScale) ? this.timeScale : 1;
-    if (this.state === 'playing') this.update(dt * ts);
+    // v2.24 (R1): the frozen peak — update() stops, draw() keeps
+    // rendering the same frame until the screenshot is taken.
+    if (this.state === 'playing' && !this.shotFreeze) this.update(dt * ts);
     this.draw();
   }
 
@@ -872,11 +880,13 @@ export class Game {
       // everything beyond it sinks into the dark. Drawn AFTER the
       // enemies (they dim too, outside the blast) but BEFORE the
       // effects, so the rings, beams and glows stay bright on top.
+      // v2.24 (reviewer #21, R1): edge 0.68 -> 0.72 — the field outside
+      // the blast sinks further, so the explosion owns the frame.
       if (this.shot === 'big' && this.shotSpectacleAt != null && this.time - this.shotSpectacleAt < 1.0) {
         const dg = ctx.createRadialGradient(640, 360, 240, 640, 360, 560);
         dg.addColorStop(0, 'rgba(4,2,8,0)');
         dg.addColorStop(0.6, 'rgba(4,2,8,0.35)');
-        dg.addColorStop(1, 'rgba(4,2,8,0.68)');
+        dg.addColorStop(1, 'rgba(4,2,8,0.72)');
         ctx.fillStyle = dg;
         ctx.fillRect(0, 0, W, H);
       }

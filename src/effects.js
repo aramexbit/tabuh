@@ -118,6 +118,10 @@ export class Effects {
   }
 
   text(x, y, str, color = '#ffd76a', size = 16) {
+    // v2.23 (reviewer #20, R1): no damage numbers / coin pops in the
+    // boss frame — the capture is one clean boss, not a ledger. Big
+    // announcements (size >= 22) still pass.
+    if (this.game && this.game.shot === 'boss' && size < 22) return;
     // v2.15 (reviewer #14, P0-5): AGGREGATE coin pops — "+14 ◆" "+8 ◆"
     // "+5 ◆" "+3 ◆" in one blast read as clutter. A new coin pop that
     // lands near a live one merges into it (numbers summed, life reset),
@@ -302,6 +306,14 @@ export class Effects {
   draw(ctx, game) {
     // v2.9 (R3): keep the ctx so text() can measure real glyph widths.
     this.ctx = ctx;
+    // v2.23 (reviewer #20, R1): during the BOSS POSE capture, ALL rings
+    // are off. The geometric face-disc skip failed twice (v2.16, v2.21):
+    // the crown sticks 153 px above the body centre, so a ring whose
+    // circumference misses the face disc still crosses the crown — the
+    // golden arc across his forehead in the v2.22 frame. Rings are
+    // visual only and the pose is a screenshot, so killing them all
+    // costs nothing and the boss finally stands clean.
+    const bossClean = game && game.shot === 'boss';
     // v2.16 (reviewer #15): the boss's face — the shockwave rings
     // centred on him (Gong Raksasa blasts) still ringed his face in the
     // v2.15 boss frame. Rings whose centre is within 220 px of the boss
@@ -374,6 +386,9 @@ export class Effects {
       ctx.fillRect(b.x - 14, 0, 28, b.y);
     }
     for (const r of this.rings) {
+      // v2.23 (R1): no rings at all in the boss frame (see bossClean
+      // above) — not even the beat rings: one clean boss, no arcs.
+      if (bossClean) continue;
       // v2.16: skip rings centred on the boss (they ring his face).
       if (boss && Math.hypot(r.x - boss.x, r.y - boss.y) < 220) continue;
       // v2.21 (R1): skip rings whose circumference crosses the boss's

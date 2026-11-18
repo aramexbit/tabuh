@@ -121,6 +121,9 @@ export class Game {
     this.shotSpectacleAt = null; // v2.21 (R3): when the big frame's
     // Gong Raksasa blast fired (capture 0.3 s into the shockwave).
     this.shotSpectacleDone = false;
+    this.shotRoarPhase = null; // v2.23 (R1): which enrage phase the
+    // roar extension is spending its 3 s budget on (null = no roar yet).
+    this.shotRoarExtendUntil = 0;
     this.shotReady = false;
     this.endless = false;
     this.boss = null;
@@ -842,7 +845,7 @@ export class Game {
         ctx.fill();
       }
       const sortedEnemies = [...this.enemies].sort((a, b) => a.y - b.y);
-      for (const e of sortedEnemies) drawEnemy(ctx, e, this.time);
+      for (const e of sortedEnemies) drawEnemy(ctx, e, this.time, this);
       this.effects.draw(ctx, this);
       // v2.21 (reviewer #19, R5): BOSS SPOTLIGHT — during the boss event
       // (enrage, or the boss-pose capture) the surroundings darken and a
@@ -850,12 +853,16 @@ export class Game {
       // centre of an event, not one more face in the crowd. Minions near
       // him stay inside the light; far ones dim. The UI (boss HP bar)
       // draws after this, so the bar stays clean and bright.
+      // v2.23 (reviewer #20, R1 + thumbnail test): in the BOSS POSE the
+      // spotlight is stronger and tighter (0.80 edge, 380 px) — one big
+      // clean boss, the crowd pushed into the dark.
       if (this.bossSpotlightUntil > this.time && this.boss && this.boss.hp > 0) {
         const b = this.boss;
-        const sg = ctx.createRadialGradient(b.x, b.y - 20, 60, b.x, b.y - 20, 430);
+        const bossPose = this.shot === 'boss';
+        const sg = ctx.createRadialGradient(b.x, b.y - 20, 60, b.x, b.y - 20, bossPose ? 380 : 430);
         sg.addColorStop(0, 'rgba(255,60,30,0.12)');
-        sg.addColorStop(0.35, 'rgba(10,2,8,0.30)');
-        sg.addColorStop(1, 'rgba(4,2,8,0.72)');
+        sg.addColorStop(0.35, `rgba(10,2,8,${bossPose ? 0.38 : 0.30})`);
+        sg.addColorStop(1, `rgba(4,2,8,${bossPose ? 0.80 : 0.72})`);
         ctx.fillStyle = sg;
         ctx.fillRect(0, 0, W, H);
       }

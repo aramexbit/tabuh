@@ -467,9 +467,12 @@ export function visualRadius(e) {
   return e.radius * (VISUAL_SCALE[e.type] || 1);
 }
 
-export function drawEnemy(ctx, e, time) {
+export function drawEnemy(ctx, e, time, game) {
   const c = e.def.color;
   const pulse = 0.75 + Math.sin(time * 4 + e.wobble) * 0.25;
+  // v2.23 (reviewer #20, R1): during the BOSS POSE capture the frame is
+  // one clean boss — no sprite HP bars (his HP lives in the top bar),
+  // no rim-light on his crown. game is threaded from Game.draw().
   const vs = VISUAL_SCALE[e.type] || 1;
   const vr = visualRadius(e); // visual radius — the figure's real on-screen size
   // Ground shadow + type-color base ring at the feet: every spirit now has
@@ -571,7 +574,7 @@ export function drawEnemy(ctx, e, time) {
   else if (e.type === 'emas') drawTuyulEmas(ctx, e, time);
   else if (e.type === 'bayang') drawPocong(ctx, e, time);
   else if (e.type === 'slira') drawGenderuwo(ctx, e, time);
-  else if (e.type === 'raja') drawRaja(ctx, e, time);
+  else if (e.type === 'raja') drawRaja(ctx, e, time, game);
   else drawButo(ctx, e, time);
   ctx.restore();
   if (e.type === 'raja') {
@@ -637,7 +640,10 @@ export function drawEnemy(ctx, e, time) {
   // P1): always-on bars were clutter in a crowd (8+ overlapping in the
   // big frame). A full-HP ghost needs no bar; a damaged one shows its
   // 7 px bar with dark border, staggered so neighbours don't align.
-  if (e.hp < e.maxHp || e.type === 'raja') {
+  // v2.23 (R1): none at all in the boss frame — not even the boss's own
+  // sprite bar (it sat right under his crown, over the horns).
+  const bossClean = game && game.shot === 'boss';
+  if (!bossClean && (e.hp < e.maxHp || e.type === 'raja')) {
     const w = vr * 2 + 8;
     const pct = Math.max(0, e.hp / e.maxHp);
     const hpY = e.y - vr - 14 - (e.id % 3) * 6;
@@ -1079,7 +1085,7 @@ function drawGenderuwo(ctx, e, time) {
 // glance it still read as "a bigger Buto". Now: dark-red body, bigger
 // horns, glowing amber eyes, gold shoulder pads. Draw-only; hitbox, HP,
 // speed and damage are untouched (VISUAL_SCALE raja is 2.5x, as before).
-function drawRaja(ctx, e, time) {
+function drawRaja(ctx, e, time, game) {
   const { x } = e;
   const breathe = 1 + Math.sin(time * 2 + e.wobble) * 0.03;
   const y = e.y + 2;
@@ -1207,15 +1213,19 @@ function drawRaja(ctx, e, time) {
   // top of the head, 28 px below the crown and clear of the horns'
   // inner edges, so the crown reads clean and the gold reads as rim
   // light, not a ring.
-  ctx.save();
-  ctx.strokeStyle = 'rgba(255,215,106,0.85)';
-  ctx.lineWidth = 1.5;
-  ctx.shadowColor = '#ffd76a';
-  ctx.shadowBlur = 6;
-  ctx.beginPath();
-  ctx.arc(0, 0, 28, Math.PI * 1.38, Math.PI * 1.62);
-  ctx.stroke();
-  ctx.restore();
+  // v2.23 (reviewer #20, R1): OFF in the boss frame — the crown must
+  // be gold-free, and the backdrop disc already gives the silhouette.
+  if (!game || game.shot !== 'boss') {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,215,106,0.85)';
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = '#ffd76a';
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.arc(0, 0, 28, Math.PI * 1.38, Math.PI * 1.62);
+    ctx.stroke();
+    ctx.restore();
+  }
   ctx.restore();
 }
 

@@ -452,14 +452,39 @@ export function checkShot(game) {
     const bossHurt = game.boss && game.boss.hp <= game.boss.maxHp * 0.8;
     const faceClear = game.boss && !game.enemies.some((e) =>
       e !== game.boss && Math.hypot(e.x - game.boss.x, e.y - (game.boss.y - 30)) < 45);
+    // v2.23 (reviewer #20, R1): the ROAR capture — the boss at an enrage
+    // roar (phase 1 at 50% HP, phase 2 at 25%): arms thrown high, head
+    // back, mouth open — a silhouette no other ghost has, and the one
+    // frame the v2.22 boss pose never caught (it fired at 65% HP,
+    // FASE 1/2, mouth closed). The roar lasts 1 s, so the pose EXTENDS
+    // it while the capture condition holds — max 3 s per roar (the boss
+    // stands still taking tower fire, so an endless roar would kill
+    // him; phase 2 gives a second chance). The clear zone is wider
+    // than the face gate (80 px from his centre: a minion ON his body
+    // reads as a crowd drowning him). No attackVisible needed — the
+    // roar IS the moment. If both roars are missed, the plain bossOk
+    // branch below still fires a good frame.
+    const roaring = game.boss && game.boss.roarUntil > game.time;
+    const faceClearWide = game.boss && !game.enemies.some((e) =>
+      e !== game.boss && Math.hypot(e.x - game.boss.x, e.y - game.boss.y) < 80);
+    const roarOk = roaring && game.boss.phase >= 1 && bossCentred && spread
+      && faceClearWide && game.combo >= 14;
+    if (roarOk) {
+      if (game.shotRoarPhase !== game.boss.phase) {
+        game.shotRoarPhase = game.boss.phase;
+        game.shotRoarExtendUntil = game.time + 3.0;
+      }
+      if (game.time < game.shotRoarExtendUntil) game.boss.roarUntil = game.time + 1.5;
+    }
     // v2.19: bottomFight DROPPED from the boss pose — the multi-gate
     // destroys the bottom towers before the boss is hurt enough, so
     // bottomFight and bossHurt are never true together (diag 18 Nov:
     // bF=0 from t=24, bossHurt only from t=32; the pose never fired in
     // 240 s). `spread` (>=3 ghosts in the lower half) already guarantees
     // the lower half is not empty in the boss frame.
-    const bossOk = (game.boss && game.enemies.length >= 6
-      && game.combo >= 14 && game.boss.y > 180 && bossCentred && spread && bossHurt && faceClear && attackVisible(game))
+    const bossOk = roarOk
+      || (game.boss && game.enemies.length >= 6
+        && game.combo >= 14 && game.boss.y > 180 && bossCentred && spread && bossHurt && faceClear && attackVisible(game))
       || (fallback && game.boss);
     // v2.21 (reviewer #19, R5): the boss EVENT — while the capture
     // condition holds, the spotlight falls on the boss (refreshed every

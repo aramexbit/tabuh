@@ -246,9 +246,15 @@ export class Effects {
     this.glows = this.glows.filter((gl) => gl.life > 0 && gl.r < gl.maxR * 1.05);
   }
 
-  draw(ctx) {
+  draw(ctx, game) {
     // v2.9 (R3): keep the ctx so text() can measure real glyph widths.
     this.ctx = ctx;
+    // v2.16 (reviewer #15): the boss's face — the shockwave rings
+    // centred on him (Gong Raksasa blasts) still ringed his face in the
+    // v2.15 boss frame. Rings whose centre is within 220 px of the boss
+    // are not drawn while he is alive; the beam + glow pool still show
+    // the blast, and rings elsewhere (gates, far towers) are untouched.
+    const boss = game ? game.boss : null;
     // Light pools first (under the rings), then the beams.
     // v2.15 (reviewer #14, P0-1): the centre glow was too strong — the
     // gold pool + rings washed out the boss's face in frame 1. Pool
@@ -284,6 +290,8 @@ export class Effects {
       ctx.fillRect(b.x - 14, 0, 28, b.y);
     }
     for (const r of this.rings) {
+      // v2.16: skip rings centred on the boss (they ring his face).
+      if (boss && Math.hypot(r.x - boss.x, r.y - boss.y) < 220) continue;
       const a = Math.max(0, r.life * 1.6);
       // Soft glow fill under the ring so it reads as light, not just a line.
       // v2.15 (P0-1): fill 0.10 -> 0.06 — the concentric rings were part

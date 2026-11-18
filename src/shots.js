@@ -345,8 +345,13 @@ export function checkShot(game) {
     const bossCentred = game.boss && game.boss.x >= 512 && game.boss.x <= 800;
     // v2.10 (reviewer #9, R2): spread bar raised 2 -> 3 (the boss frame
     // already had 5-6 low, so this only rejects thin fields).
+    // v2.16 (reviewer #15): capture the boss at ~70% HP, not full — the
+    // v2.15 frame caught him at 4224/4224 (just spawned, no drama).
+    // The fallback (below) still fires regardless of HP, so the pose
+    // cannot stall if the boss dies fast or never drops to 80%.
+    const bossHurt = game.boss && game.boss.hp <= game.boss.maxHp * 0.8;
     const bossOk = (game.boss && game.enemies.length >= 6
-      && game.combo >= 14 && game.boss.y > 180 && bossCentred && spread && bottomFight)
+      && game.combo >= 14 && game.boss.y > 180 && bossCentred && spread && bottomFight && bossHurt)
       || (fallback && game.boss);
     if (holdReady(game, bossOk)) {
       game.shotReady = true;

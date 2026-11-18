@@ -311,15 +311,18 @@ export function drawScene(ctx, game, time) {
   // filling the play frame's empty top-left sky with a focal light.
   // (The rain already does this job for the Hujan twist; Purnama had
   // only the pill + the moon disc.)
+  // v2.16 (reviewer #15): the v2.15 beam (alpha 0.14, 52 px) was
+  // INVISIBLE in the play frame — raised to 0.30 / 120 px so the shaft
+  // actually reads at thumbnail size.
   if (game.twist === 'purnama') {
     ctx.save();
     ctx.translate(150, 90);
     ctx.rotate(0.6);
     const mb = ctx.createLinearGradient(0, 0, 0, 520);
-    mb.addColorStop(0, 'rgba(220,230,255,0.14)');
+    mb.addColorStop(0, 'rgba(220,230,255,0.30)');
     mb.addColorStop(1, 'rgba(220,230,255,0)');
     ctx.fillStyle = mb;
-    ctx.fillRect(-26, 0, 52, 520);
+    ctx.fillRect(-60, 0, 120, 520);
     ctx.restore();
   }
   // Golden dusk clouds drifting over the village (like the mockup's sky).

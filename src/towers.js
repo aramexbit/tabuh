@@ -272,9 +272,11 @@ export function drawTower(ctx, tower, time) {
   // (the type colour) so each tower reads at a glance even at thumbnail
   // size — the bronze instruments alone all read as "gold disc". The
   // ring sits on the pad, under the instrument.
+  // v2.16 (reviewer #15): the v2.15 ring (2.5 px, alpha 0.75) was still
+  // too thin to read at thumbnail size — 4.5 px, alpha 1.
   ctx.strokeStyle = def.color;
-  ctx.globalAlpha = 0.75;
-  ctx.lineWidth = 2.5;
+  ctx.globalAlpha = 1;
+  ctx.lineWidth = 4.5;
   ctx.beginPath();
   ctx.ellipse(x, y + 2, 34, 13, 0, 0, Math.PI * 2);
   ctx.stroke();

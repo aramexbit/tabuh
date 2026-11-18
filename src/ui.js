@@ -543,8 +543,13 @@ export class UI {
   // Grade badge: the big S/A/B/C + KOMBO multiplier, always visible at the
   // bottom right while playing — the mockup's loudest HUD element. No hit
   // rect: clicks pass through to the pads underneath (none are here).
+  // v2.24 (reviewer #21, R3): hidden during screenshot poses — the
+  // "S KOMBO x2.50 PERFECT!" box sat in the play frame's bottom-right
+  // in v2.23 (the v2.23 fix hid the floating verdict pill, not this
+  // badge). Real play is untouched (g.shot is null there).
   drawGradeBadge(ctx) {
     const g = this.game;
+    if (g.shot) return;
     // v2.11 (reviewer #10, O7): hide the badge on the victory/defeat
     // screens — the win modal already carries its own big S seal, so the
     // badge behind it was a duplicate S (the R5 "one S badge" claim was

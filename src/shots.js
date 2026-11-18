@@ -74,6 +74,22 @@ function smearVisible(game) {
   return game.effects.slashes.length > 0;
 }
 
+// v2.24 (reviewer #21, R3): is a strike smear alive in the LOWER half?
+// The v2.23 play frame's only smear sat top-right, small — the bottom
+// half showed no attack at all. The capture must wait for a smear
+// down low, where the lower-half fight is.
+function smearLow(game) {
+  return game.effects.slashes.some((s) => s.y > 360);
+}
+
+// v2.24 (reviewer #21, R3): how many live spirits are in the BOTTOM-RIGHT
+// quadrant (x > 640, y > 360)? The v2.23 play frame's bottom-right was
+// houses only — the densification must reach the right side too, not
+// just the bottom-left.
+function bottomRightCount(game) {
+  return game.enemies.filter((e) => e.x > 640 && e.y > 360).length;
+}
+
 function giveCoins(game, n) {
   game.coins = n;
 }
@@ -309,8 +325,8 @@ export function checkShot(game) {
     // windup requirement too (a backstop frame without a jurus pose
     // defeats the point), but drops the smear bar.
     const playSpread = lowerHalfCount(game) >= 3;
-    const playOk = (afterBanner && playSpread && bottomAttackCount(game) >= 2 && deepCount(game) >= 1 && bottomScars(game) && attackVisible(game) && fullWindupLow(game) && smearVisible(game))
-      || (fallback && game.enemies.length >= 10 && bottomAttackCount(game) >= 1 && fullWindupLow(game));
+    const playOk = (afterBanner && playSpread && bottomAttackCount(game) >= 2 && deepCount(game) >= 1 && bottomScars(game) && attackVisible(game) && fullWindupLow(game) && smearLow(game) && bottomRightCount(game) >= 1)
+      || (fallback && game.enemies.length >= 10 && bottomAttackCount(game) >= 1 && fullWindupLow(game) && smearLow(game));
     // v2.12b: NO hold for play — the 1 s hold broke the wave-7 play pose
     // (31/32) and the wave-6 pose in v2.9; the no-hold pose fires the
     // moment the condition holds (v2.9 proved it captures a good frame).

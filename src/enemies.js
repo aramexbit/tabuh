@@ -1083,9 +1083,32 @@ function drawRaja(ctx, e, time) {
   const { x } = e;
   const breathe = 1 + Math.sin(time * 2 + e.wobble) * 0.03;
   const y = e.y + 2;
+  const ph = e.atkPhase || 'none';
+  const p = jurusP(e);
+  // v2.22 (JURUS): the Raja smashes like a Buto (fists up -> slam
+  // down, bigger), AND the enrage is a ROAR — when roaring (the 1 s
+  // before the summon lands) he rears up, arms thrown high, head
+  // back, mouth open: a silhouette no other ghost has. The roar
+  // overrides the attack pose.
+  const roaring = time < (e.roarUntil || 0);
+  let fistX = 25, fistY = 10, sqX = 1, sqY = 1, roarTilt = 0;
+  if (roaring) {
+    fistX = 18; fistY = -32;
+    sqY = 1.06; sqX = 0.96; roarTilt = -0.12;
+  } else if (ph === 'windup') {
+    fistX = 25 - 5 * p; fistY = 10 - 40 * p;
+    sqY = 1 + 0.05 * p; sqX = 1 - 0.03 * p;
+  } else if (ph === 'strike') {
+    fistX = 20 + 8 * p; fistY = -30 + 50 * p;
+    sqY = 1.05 - 0.20 * p; sqX = 0.97 + 0.13 * p;
+  } else if (ph === 'recovery') {
+    fistX = 28 - 3 * p; fistY = 20 - 10 * p;
+    sqY = 0.85 + 0.15 * p; sqX = 1.10 - 0.10 * p;
+  }
   ctx.save();
   ctx.translate(x, y);
-  ctx.scale(breathe, breathe);
+  ctx.rotate(roarTilt);
+  ctx.scale(breathe * sqX, breathe * sqY);
   // Horns — bigger and darker than the Buto's (v2.20: tips reach -46
   // local, near-black — the old -38 dark-red horns read small).
   ctx.fillStyle = '#160608';
@@ -1109,16 +1132,32 @@ function drawRaja(ctx, e, time) {
   ctx.beginPath();
   ctx.ellipse(0, 10, 13, 12, 0, 0, Math.PI * 2);
   ctx.fill();
-  // Thick arms.
+  // Thick arms. v2.22: the fists are the jurus (raised / slammed /
+  // hanging), and in the roar they are thrown high above the head.
+  if (ph === 'strike') {
+    ctx.save();
+    ctx.globalAlpha = 0.30;
+    ctx.fillStyle = '#38090f';
+    ctx.beginPath();
+    ctx.arc(-20, -30, 8, 0, Math.PI * 2);
+    ctx.arc(20, -30, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
   ctx.strokeStyle = '#38090f';
   ctx.lineWidth = 8;
   ctx.lineCap = 'round';
   ctx.beginPath();
   ctx.moveTo(-19, -6);
-  ctx.lineTo(-25, 10);
+  ctx.lineTo(-fistX, fistY);
   ctx.moveTo(19, -6);
-  ctx.lineTo(25, 10);
+  ctx.lineTo(fistX, fistY);
   ctx.stroke();
+  ctx.fillStyle = '#38090f';
+  ctx.beginPath();
+  ctx.arc(-fistX, fistY + 2, 7, 0, Math.PI * 2);
+  ctx.arc(fistX, fistY + 2, 7, 0, Math.PI * 2);
+  ctx.fill();
   // Gold shoulder pads — royal trim no Buto has.
   ctx.fillStyle = '#ffd76a';
   ctx.beginPath();
@@ -1140,7 +1179,14 @@ function drawRaja(ctx, e, time) {
   eyes(ctx, 0, -8, 6, 0, 2.6, '#ff2a1a');
   ctx.restore();
   eyes(ctx, 0, -8, 6, 0, 1.1, '#0a0202');
-  // Fangs pointing up from the mouth.
+  // Fangs pointing up from the mouth. v2.22 (roar): the mouth hangs
+  // OPEN (a dark maw behind the fangs) — the roar's silhouette.
+  if (roaring) {
+    ctx.fillStyle = '#160208';
+    ctx.beginPath();
+    ctx.ellipse(0, 7, 8, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.fillStyle = '#f5f2e8';
   ctx.beginPath();
   ctx.moveTo(-6, 2);
@@ -1178,9 +1224,29 @@ function drawButo(ctx, e, time) {
   const { x } = e;
   const breathe = 1 + Math.sin(time * 2 + e.wobble) * 0.03;
   const y = e.y + 2;
+  const ph = e.atkPhase || 'none';
+  const p = jurusP(e);
+  // v2.22 (JURUS "Hantaman Raksasa"): windup PANJANG — both fists
+  // rise high above the head (the telegraph, slow); strike — the fists
+  // SLAM down to the ground (near-instant, with a smear) and the body
+  // SQUASHES on impact (the hit-stop + shake + debris land in the
+  // strike itself); recovery — the fists lower slowly back to the
+  // sides. The fist positions are the silhouette: raised / down /
+  // hanging are three different shapes.
+  let fistX = 25, fistY = 12, sqX = 1, sqY = 1;
+  if (ph === 'windup') {
+    fistX = 25 - 5 * p; fistY = 12 - 42 * p;
+    sqY = 1 + 0.05 * p; sqX = 1 - 0.03 * p;
+  } else if (ph === 'strike') {
+    fistX = 20 + 8 * p; fistY = -30 + 50 * p;
+    sqY = 1.05 - 0.20 * p; sqX = 0.97 + 0.13 * p;
+  } else if (ph === 'recovery') {
+    fistX = 28 - 3 * p; fistY = 20 - 8 * p;
+    sqY = 0.85 + 0.15 * p; sqX = 1.10 - 0.10 * p;
+  }
   ctx.save();
   ctx.translate(x, y);
-  ctx.scale(breathe, breathe);
+  ctx.scale(breathe * sqX, breathe * sqY);
   // Horns (v2.19: bigger — tips reach -38, like the Raja's).
   ctx.fillStyle = '#3a2a1a';
   ctx.beginPath();
@@ -1203,20 +1269,33 @@ function drawButo(ctx, e, time) {
   ctx.beginPath();
   ctx.ellipse(0, 10, 13, 12, 0, 0, Math.PI * 2);
   ctx.fill();
-  // Thick arms, ending in heavy fists (v2.19).
+  // Thick arms, ending in heavy fists (v2.19). v2.22: the fists ARE
+  // the jurus — raised high in the windup, slammed to the ground in
+  // the strike (with a smear: the fists ghosted at the raised
+  // position), easing back down in the recovery.
+  if (ph === 'strike') {
+    ctx.save();
+    ctx.globalAlpha = 0.30;
+    ctx.fillStyle = '#5da244';
+    ctx.beginPath();
+    ctx.arc(-20, -30, 7, 0, Math.PI * 2);
+    ctx.arc(20, -30, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
   ctx.strokeStyle = '#5da244';
   ctx.lineWidth = 8;
   ctx.lineCap = 'round';
   ctx.beginPath();
   ctx.moveTo(-19, -6);
-  ctx.lineTo(-25, 10);
+  ctx.lineTo(-fistX, fistY);
   ctx.moveTo(19, -6);
-  ctx.lineTo(25, 10);
+  ctx.lineTo(fistX, fistY);
   ctx.stroke();
   ctx.fillStyle = '#5da244';
   ctx.beginPath();
-  ctx.arc(-25, 12, 7, 0, Math.PI * 2);
-  ctx.arc(25, 12, 7, 0, Math.PI * 2);
+  ctx.arc(-fistX, fistY + 2, 7, 0, Math.PI * 2);
+  ctx.arc(fistX, fistY + 2, 7, 0, Math.PI * 2);
   ctx.fill();
   // Angry eyes under a heavy brow (v2.19: glowing amber, not plain white).
   ctx.strokeStyle = '#2e4d1e';

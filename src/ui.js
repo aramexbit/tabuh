@@ -16,6 +16,65 @@ function rr(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+// v2.20 (R6): tiny Pusaka icons for the DATANG panel — one drawn glyph
+// per relic, so the four relics read as four named systems, not one
+// wrapped text line. Drawn at (ix, iy), ~12 px tall.
+function drawRelicIcon(ctx, key, ix, iy) {
+  ctx.save();
+  ctx.translate(ix, iy);
+  if (key === 'keris') {
+    // Wavy dagger blade + hilt.
+    ctx.strokeStyle = '#ffd76a';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-5, 6);
+    ctx.lineTo(-2, -1);
+    ctx.lineTo(1, 4);
+    ctx.lineTo(4, -6);
+    ctx.stroke();
+    ctx.fillStyle = '#8a6a35';
+    ctx.fillRect(-6, 6, 12, 2);
+  } else if (key === 'gong') {
+    // Bronze gong: gold disc + boss.
+    ctx.fillStyle = '#f5c542';
+    ctx.beginPath();
+    ctx.arc(0, 0, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#8a6a35';
+    ctx.beginPath();
+    ctx.arc(0, 0, 2, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (key === 'kendi') {
+    // Water jug: round body + spout.
+    ctx.fillStyle = '#7fe3e8';
+    ctx.beginPath();
+    ctx.arc(0, 2, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#7fe3e8';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(4, -1);
+    ctx.lineTo(7, -5);
+    ctx.stroke();
+  } else if (key === 'jimat') {
+    // Amulet: green diamond with a dark core.
+    ctx.fillStyle = '#7fe3a8';
+    ctx.beginPath();
+    ctx.moveTo(0, -7);
+    ctx.lineTo(5, 0);
+    ctx.lineTo(0, 7);
+    ctx.lineTo(-5, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#0b1020';
+    ctx.beginPath();
+    ctx.arc(0, 0, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 // Thousands separator with COMMAS (international style): 61250 ->
 // "61,250". v2.15 (reviewer #14, P0-2): the Indonesian dots ("87.786")
 // read as a DECIMAL ("87 comma") to an international judge; the
@@ -279,6 +338,7 @@ export class UI {
     // Boss bar + side panels (over the scene, never over pads or the pad panel).
     if (g.boss) this.drawBossBar(ctx);
     this.drawMinimap(ctx);
+    this.drawRealmPill(ctx);
     this.drawIncoming(ctx);
     this.drawGradeBadge(ctx);
     this.drawTwistPill(ctx);
@@ -550,6 +610,31 @@ export class UI {
     ctx.textAlign = 'left';
   }
 
+  // v2.20 (reviewer #18, R6): realm + difficulty pill under the minimap —
+  // "Alam 1: Desa • Normal" (or "• Endless") — the judge must read that
+  // this is realm 1 of a bigger structure and which difficulty is on,
+  // without opening the menu. Sits in the free strip between PETA (ends
+  // y=152) and DATANG (starts y=260), over open sky.
+  drawRealmPill(ctx) {
+    const g = this.game;
+    const x = 12, y = 160, w = 200, h = 26;
+    const diff = DIFFICULTIES[g.difficulty] ? DIFFICULTIES[g.difficulty].name : 'Normal';
+    const label = g.endless ? 'Alam 1: Desa  •  Endless' : `Alam 1: Desa  •  ${diff}`;
+    ctx.fillStyle = 'rgba(10,18,30,0.92)';
+    rr(ctx, x, y, w, h, 13);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(232,182,76,0.55)';
+    ctx.lineWidth = 1.5;
+    rr(ctx, x, y, w, h, 13);
+    ctx.stroke();
+    ctx.fillStyle = '#ffd76a';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, x + w / 2, y + h / 2 + 1);
+    ctx.textAlign = 'left';
+  }
+
   // v2.13 (reviewer #12, P0-2): the WIN/LOSE strip — one line under the
   // top bar, green WIN / red LOSE. Every top-10 entry has one; TABUH
   // had none. The strip is a centred dark pill (y 50-66) so it reads
@@ -661,27 +746,15 @@ export class UI {
     // How to Play, where they can be read at full size.
     const rows = ORDER.filter((t) => counts.get(t) > 0);
     const x = 12, y = 260, w = 200;
-    // PUSAKA names as plain text (earned relics only), wrapped to the panel
-    // width: the judge must read the relics BY NAME, not just see small
-    // icons. Greedy wrap over "Keris • Gong • Kendi • Jimat".
-    const ownedRelics = RELICS.filter((r) => g.relics.has(r.key));
+    // v2.20 (R6): the 4 Pusaka as ICON + NAME rows (one per owned relic),
+    // so the judge reads four named systems, not one wrapped text line.
     // Name + effect in one short tag each, so the buff is shown once here
     // (the kill pops no longer repeat "(+50%)" on every kill).
+    const ownedRelics = RELICS.filter((r) => g.relics.has(r.key));
     const relicShort = { keris: 'Keris +25%', gong: 'Gong Lebar', kendi: 'Kendi +50%', jimat: 'Jimat +5HP' };
-    const pusakaLines = [];
-    if (ownedRelics.length > 0) {
-      ctx.font = 'bold 12px sans-serif';
-      let cur = 'PUSAKA:';
-      for (const r of ownedRelics) {
-        const nm = relicShort[r.key];
-        const next = cur === 'PUSAKA:' ? `${cur} ${nm}` : `${cur} • ${nm}`;
-        if (ctx.measureText(next).width <= w - 28 || cur === 'PUSAKA:') cur = next;
-        else { pusakaLines.push(cur); cur = nm; }
-      }
-      pusakaLines.push(cur);
-    }
+    const pusakaH = ownedRelics.length > 0 ? 16 + ownedRelics.length * 18 : 0;
     // v2.14: rows are 22 px now (name + count only, no ability line).
-    const h = 36 + rows.length * 22 + 68 + pusakaLines.length * 15 + (pusakaLines.length ? 9 : 0) + 15;
+    const h = 36 + rows.length * 22 + 68 + pusakaH + 15;
     this.panel(ctx, x, y, w, h, 1);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -724,11 +797,18 @@ export class UI {
     ctx.fillRect(x + 14, ry + 40, w - 28, 8);
     ctx.fillStyle = '#7fe3a8';
     ctx.fillRect(x + 14, ry + 40, (w - 28) * prog, 8);
-    // PUSAKA names under the progress bar, gold and bold.
-    if (pusakaLines.length > 0) {
+    // PUSAKA rows under the progress bar: icon + name, one row per relic.
+    if (ownedRelics.length > 0) {
       ctx.fillStyle = '#ffd76a';
       ctx.font = 'bold 12px sans-serif';
-      pusakaLines.forEach((ln, i) => ctx.fillText(ln, x + 14, ry + 62 + i * 15));
+      ctx.fillText('PUSAKA:', x + 14, ry + 62);
+      ownedRelics.forEach((r, i) => {
+        const rowY = ry + 62 + 16 + i * 18;
+        drawRelicIcon(ctx, r.key, x + 22, rowY);
+        ctx.fillStyle = '#ffd76a';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillText(relicShort[r.key], x + 34, rowY);
+      });
     }
     // v2.10 (reviewer #9, O1): "BERIKUTNYA:" — the top-10 frames all
     // signal progression ("NEXT: The Frozen Orchard"); TABUH's panel
@@ -742,7 +822,7 @@ export class UI {
     else nextLine = `BERIKUTNYA: Malam ${g.wave + 1}`;
     ctx.fillStyle = '#9db8e8';
     ctx.font = '12px sans-serif';
-    ctx.fillText(nextLine, x + 14, ry + 62 + pusakaLines.length * 15);
+    ctx.fillText(nextLine, x + 14, ry + 62 + pusakaH);
     ctx.textBaseline = 'middle';
   }
 
@@ -876,8 +956,19 @@ export class UI {
     const g = this.game;
     const s = g.stats;
     const acc = s.beatPresses > 0 ? Math.round(((s.perfectHits + s.goodHits) / s.beatPresses) * 100) : 0;
-    ctx.fillStyle = 'rgba(6,12,22,0.65)';
+    // v2.20 (reviewer #18, R5): the end modal FADES IN over 1 s and is
+    // SMALLER + MORE TRANSPARENT (500x400, panel alpha 0.55->0.88, dim
+    // 0.15->0.65) — the v2.19 win frame was a big opaque box hiding the
+    // whole victory field. The win capture (~0.4 s after victory) now
+    // shows the field, towers and confetti behind the panel. The clock
+    // is menuTime (keeps running in the end states); endMenuTime is set
+    // by victory()/defeat().
+    const age = g.menuTime - (g.endMenuTime || g.menuTime);
+    const fade = Math.min(1, Math.max(0, age / 1.0));
+    ctx.fillStyle = `rgba(6,12,22,${0.15 + 0.5 * fade})`;
     ctx.fillRect(0, 0, W, H);
+    ctx.save();
+    ctx.globalAlpha = 0.3 + 0.7 * fade;
     if (won) {
       // Confetti: deterministic gold/green/white pieces scattered over the
       // screen — the victory moment deserves a celebration. Drawn before
@@ -887,25 +978,25 @@ export class UI {
         const cx = (i * 197 + 53) % W;
         const cy = (i * 311 + 89) % H;
         ctx.fillStyle = cols[i % cols.length];
-        ctx.globalAlpha = 0.85;
+        ctx.globalAlpha = 0.85 * (0.3 + 0.7 * fade);
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate((i * 0.7) % Math.PI);
         ctx.fillRect(-4, -2, 8, 4);
         ctx.restore();
       }
-      ctx.globalAlpha = 1;
+      ctx.globalAlpha = 0.3 + 0.7 * fade;
     }
-    this.panel(ctx, W / 2 - 280, 130, 560, 440);
+    this.panel(ctx, W / 2 - 250, 140, 500, 400, 0.55 + 0.33 * fade);
     ctx.textAlign = 'center';
     ctx.fillStyle = won ? '#7fe3a8' : '#ff9a7a';
     ctx.font = 'bold 44px Georgia, serif';
-    ctx.fillText(won ? 'DESA SELAMAT!' : 'GERBANG JATUH', W / 2, 196);
+    ctx.fillText(won ? 'DESA SELAMAT!' : 'GERBANG JATUH', W / 2, 190);
     ctx.fillStyle = '#e8e2d0';
     ctx.font = '17px sans-serif';
     ctx.fillText(won
       ? 'Sepuluh malam berlalu. Gamelan berhenti, desa kembali tenang.'
-      : `Roh menembus gerbang pada malam ${g.wave}. Desa butuh penjaga yang lebih baik.`, W / 2, 232);
+      : `Roh menembus gerbang pada malam ${g.wave}. Desa butuh penjaga yang lebih baik.`, W / 2, 222);
     ctx.fillStyle = '#ffe9a8';
     ctx.font = 'bold 18px sans-serif';
     const rows = [
@@ -925,15 +1016,15 @@ export class UI {
       // (10 nights in 48 seconds) — the time is not a stat the judge
       // should doubt.
     ];
-    let y = 282;
+    let y = 262;
     for (const r of rows) {
       ctx.fillText(r, W / 2, y);
-      y += 30;
+      y += 26;
     }
-    this.button(ctx, 'restart', W / 2 - 230, 480, 220, 50, 'Main Lagi', { size: 18 });
-    this.button(ctx, 'quit-menu', W / 2 + 10, 480, 220, 50, 'Menu Utama', { size: 18 });
+    this.button(ctx, 'restart', W / 2 - 210, 428, 200, 46, 'Main Lagi', { size: 18 });
+    this.button(ctx, 'quit-menu', W / 2 + 10, 428, 200, 46, 'Menu Utama', { size: 18 });
     if (won && !g.endless) {
-      this.button(ctx, 'endless', W / 2 - 230, 538, 460, 28, 'Lanjut Endless  →', { size: 15 });
+      this.button(ctx, 'endless', W / 2 - 210, 484, 420, 26, 'Lanjut Endless  →', { size: 15 });
     }
     if (won) {
       // Big grade seal overlapping the panel's top-right corner — the
@@ -957,6 +1048,7 @@ export class UI {
       ctx.fillText(grade, 906, 150);
       ctx.textAlign = 'left';
     }
+    ctx.restore(); // close the v2.20 (R5) fade save
     ctx.textBaseline = 'alphabetic';
   }
 }

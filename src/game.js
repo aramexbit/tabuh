@@ -110,6 +110,13 @@ export class Game {
     this.gongUsedWave = 0; // the wave the Gong Raksasa was last fired on
     this.emasSpawned = {}; // "wave:combo" keys for Tuyul Emas spawns
     this.flash = 0; // full-screen flash (Gong Raksasa), decays in update()
+    this.lastTowerDestroyTime = -99; // v2.21 (R2): the big pose waits for
+    // a moment with no tower freshly destroyed (no red "Hancur!" in frame).
+    this.bossSpotlightUntil = 0; // v2.21 (R5): the boss-event spotlight —
+    // surroundings dark, red pool of light on the boss alone.
+    this.shotSpectacleAt = null; // v2.21 (R3): when the big frame's
+    // Gong Raksasa blast fired (capture 0.3 s into the shockwave).
+    this.shotSpectacleDone = false;
     this.shotReady = false;
     this.endless = false;
     this.boss = null;
@@ -340,8 +347,15 @@ export class Game {
       // v2.13 (reviewer #12, P1-3): damage numbers were small and sank
       // into the glow — sizes up (30/22/17 -> 34/26/20) and the outline
       // thickened in effects.js (3 -> 4, alpha 0.7 -> 0.85).
+      // v2.21 (reviewer #19, R6): numbers spawn BESIDE the ghost, not
+      // above its face — the old spawn (e.y - vr - 8) put "-55" right
+      // across a Pocong's eyes in the v2.20 big frame. Side alternates
+      // by id so neighbours don't stack on one side; the number rises
+      // from there and never drifts back onto the face.
+      const side = (e.id % 2 === 0) ? 1 : -1;
+      const vr = visualRadius(e);
       this.effects.text(
-        e.x + (Math.random() * 16 - 8), e.y - visualRadius(e) - 8, `-${dmg}`,
+        e.x + side * (vr + 30), e.y, `-${dmg}`,
         big ? '#ff9a3d' : '#ffd76a', big ? 34 : mid ? 26 : 20,
       );
     }
@@ -374,7 +388,10 @@ export class Game {
       // repeat on EVERY kill ("+8 ◆ (+50%)" 6-7x in the v2.4 boss frame);
       // the buff is shown once instead — Kendi +50% in the DATANG panel's
       // PUSAKA line, Purnama x2 in the twist pill + banner.
-      this.effects.text(e.x, e.y - visualRadius(e) - 32, `${bonusLabel}+${reward} ◆`, '#ffd76a', e.type === 'emas' || e.type === 'raja' ? 22 : 17);
+      // v2.21 (R6): the pop spawns beside the ghost, like the damage
+      // numbers — the old above-face spawn put "+14 ◆" across faces.
+      const side = (e.id % 2 === 0) ? 1 : -1;
+      this.effects.text(e.x + side * (visualRadius(e) + 30), e.y - 10, `${bonusLabel}+${reward} ◆`, '#ffd76a', e.type === 'emas' || e.type === 'raja' ? 22 : 17);
     }
   }
 
@@ -428,7 +445,12 @@ export class Game {
       this.coins += refund;
       this.towers = this.towers.filter((x) => x !== t);
       if (this.selectedTower === t) this.selectedTower = null;
-      this.effects.text(t.x, t.y - 44, `Hancur! +${refund} ◆`, '#ff9a7a', 16);
+      // v2.21 (reviewer #19, R2): the refund pop is NEUTRAL gold now —
+      // the red "Hancur! +50" in the v2.20 big frame read as a defeat
+      // ("the game is falling apart"). The tower vanishing + the gold
+      // refund already tells the player what happened.
+      this.lastTowerDestroyTime = this.time;
+      this.effects.text(t.x, t.y - 44, `+${refund} ◆`, '#ffd76a', 16);
       this.effects.burst(t.x, t.y, '#ff7a6a', 14);
       this.shake = Math.max(this.shake, 0.3);
     }
@@ -543,12 +565,16 @@ export class Game {
         this.summonWisik(e, 3);
         this.effects.text(640, 160, 'Raja mengamuk!', '#ff9a3d', 26);
         this.shake = Math.max(this.shake, 0.5);
+        // v2.21 (R5): the enrage IS an event — the spotlight falls on
+        // the boss for 3 s (drawn in draw()).
+        this.bossSpotlightUntil = this.time + 3;
       } else if (e.phase === 1 && pct <= 0.25) {
         e.phase = 2;
         e.speed = e.baseSpeed * 2.2;
         this.summonWisik(e, 3);
         this.effects.text(640, 160, 'Raja murka!', '#ff4a3d', 26);
         this.shake = Math.max(this.shake, 0.6);
+        this.bossSpotlightUntil = this.time + 3;
       }
     }
     if (this.boss && (this.boss.hp <= 0 || this.boss.reachedGate)) this.boss = null;
@@ -793,6 +819,21 @@ export class Game {
       const sortedEnemies = [...this.enemies].sort((a, b) => a.y - b.y);
       for (const e of sortedEnemies) drawEnemy(ctx, e, this.time);
       this.effects.draw(ctx, this);
+      // v2.21 (reviewer #19, R5): BOSS SPOTLIGHT — during the boss event
+      // (enrage, or the boss-pose capture) the surroundings darken and a
+      // red pool of light falls on the boss alone, so he reads as the
+      // centre of an event, not one more face in the crowd. Minions near
+      // him stay inside the light; far ones dim. The UI (boss HP bar)
+      // draws after this, so the bar stays clean and bright.
+      if (this.bossSpotlightUntil > this.time && this.boss && this.boss.hp > 0) {
+        const b = this.boss;
+        const sg = ctx.createRadialGradient(b.x, b.y - 20, 60, b.x, b.y - 20, 430);
+        sg.addColorStop(0, 'rgba(255,60,30,0.12)');
+        sg.addColorStop(0.35, 'rgba(10,2,8,0.30)');
+        sg.addColorStop(1, 'rgba(4,2,8,0.72)');
+        ctx.fillStyle = sg;
+        ctx.fillRect(0, 0, W, H);
+      }
     }
     ctx.restore();
     this.ui.draw(ctx);

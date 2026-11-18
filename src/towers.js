@@ -300,18 +300,14 @@ export function drawTower(ctx, tower, time) {
   ctx.beginPath();
   ctx.arc(x, y - 6, glowR, 0, Math.PI * 2);
   ctx.fill();
-  if (tower.type === 'gong') {
-    // Pulsing halo ring around the gong, breathing with the beat.
-    // v2.20 (R2): brighter (0.30+0.18 -> 0.45+0.25).
-    ctx.strokeStyle = `rgba(245,197,66,${0.45 + 0.25 * Math.sin(time * (Math.PI * 2 / 0.6))})`;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(x, y - 12, 30 + 3 * Math.sin(time * 3 + tower.padIndex), 0, Math.PI * 2);
-    ctx.stroke();
-  }
+  // v2.21 (reviewer #19, R6): ONE light ring per tower — the pulsing
+  // halo ring around the gong was a second ring (and the gold level
+  // ring a third on L2+ towers); stacked rings are what covered ghost
+  // faces in the v2.20 frames. The gong keeps its wide glow pool and
+  // its coloured ground ring, like every other tower. Level is shown
+  // by the pips below the pad, not by another ring.
   ctx.save();
   ctx.translate(x, y + bob * 0.3);
-  const gold = tower.level >= 2;
   const glow = tower.level >= 3;
   if (glow) {
     ctx.shadowColor = '#ffd76a';
@@ -413,13 +409,6 @@ export function drawTower(ctx, tower, time) {
       }
       ctx.restore();
     }
-  }
-  if (gold) {
-    ctx.strokeStyle = '#ffd76a';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.ellipse(x, y + 2, 36, 14, 0, 0, Math.PI * 2);
-    ctx.stroke();
   }
   // Level pips.
   for (let i = 0; i < tower.level; i++) {

@@ -308,12 +308,40 @@ export class Effects {
     // are not drawn while he is alive; the beam + glow pool still show
     // the blast, and rings elsewhere (gates, far towers) are untouched.
     const boss = game ? game.boss : null;
+    // v2.21 (reviewer #19, R1): the boss's FACE disc — a ring whose
+    // CIRCUMFERENCE crosses it reads as a ring ON his face (the golden
+    // ring across the crown in the v2.20 boss frame), even when the
+    // ring is centred far away. Face centre ~30 px above his position
+    // (same anchor as the faceClear gate in shots.js), radius ~60% of
+    // his visual radius. Rings, beams and glows are tested against it.
+    const faceDisc = boss && boss.hp > 0
+      ? { x: boss.x, y: boss.y - 30, r: visualRadius(boss) * 0.6 }
+      : null;
+    const ringCrossesFace = (x, y, r) => {
+      if (!faceDisc) return false;
+      return Math.abs(Math.hypot(x - faceDisc.x, y - faceDisc.y) - r) < faceDisc.r;
+    };
     // Light pools first (under the rings), then the beams.
     // v2.15 (reviewer #14, P0-1): the centre glow was too strong — the
     // gold pool + rings washed out the boss's face in frame 1. Pool
     // 0.65 -> 0.45.
     for (const gl of this.glows) {
-      const a = Math.max(0, gl.life / (gl.maxLife || 0.9));
+      let a = Math.max(0, gl.life / (gl.maxLife || 0.9));
+      // v2.21 (reviewer #19, R2): a glow pool centred ON a ghost's face
+      // washes it out (the white pool over the Buto's face in the v2.20
+      // big frame — the gong's glow lands on its target). Dim the pool
+      // to a faint halo when its centre sits on a living face; the beam
+      // + rings still show the strike, and the face stays readable.
+      if (game && game.enemies) {
+        for (const e of game.enemies) {
+          if (e.hp <= 0) continue;
+          const vr = visualRadius(e);
+          if (Math.hypot(gl.x - e.x, gl.y - (e.y - vr * 0.25)) < vr * 0.55) {
+            a *= 0.25;
+            break;
+          }
+        }
+      }
       const gg = ctx.createRadialGradient(gl.x, gl.y, 4, gl.x, gl.y, gl.r);
       gg.addColorStop(0, `rgba(255,220,130,${0.45 * a})`);
       gg.addColorStop(1, 'rgba(255,220,130,0)');
@@ -323,6 +351,9 @@ export class Effects {
       ctx.fill();
     }
     for (const b of this.beams) {
+      // v2.21 (R1): a beam whose bright core crosses the boss's face is
+      // skipped — the shaft still shows everywhere else.
+      if (faceDisc && Math.abs(b.x - faceDisc.x) < faceDisc.r + 14) continue;
       // Wide gold shaft (96 px) + a narrow white core, so the beam reads
       // as light even over a bright field — not just a faint wash.
       // v2.14 (reviewer #13, P0-1): the beam was TOO bright — it covered
@@ -345,6 +376,10 @@ export class Effects {
     for (const r of this.rings) {
       // v2.16: skip rings centred on the boss (they ring his face).
       if (boss && Math.hypot(r.x - boss.x, r.y - boss.y) < 220) continue;
+      // v2.21 (R1): skip rings whose circumference crosses the boss's
+      // face, even when centred far away (gong strike rings, kendang
+      // pulse rings) — that is the golden ring across his crown.
+      if (ringCrossesFace(r.x, r.y, r.r)) continue;
       // v2.20 (R1): slow rings fade by life fraction (steady, then out);
       // fast rings keep the old life*1.6 fade.
       const a = r.slow ? Math.max(0, Math.min(1, r.life / (r.maxLife || 1))) : Math.max(0, r.life * 1.6);

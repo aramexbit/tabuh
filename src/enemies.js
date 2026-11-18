@@ -16,6 +16,22 @@ let nextId = 1;
 // Powers are unchanged — only movement + targeting moved.
 const GATE_POS = { x: 150, y: 648 };
 const ATTACK_RANGE = { wisik: 80, kunang: 80, bayang: 90, slira: 100, raksasa: 110, raja: 120, emas: 0 };
+
+// v2.22 (JURUS): the attack is a 3-phase jurus, not an instant hit.
+// Windup (slow anticipation, the telegraph) -> strike (damage lands on
+// the strike frame, 1-2 frames of smear) -> recovery (the pose is HELD
+// until the ghost can move again — never idle before it can act). The
+// strike-to-strike cadence is UNCHANGED per type (ATK_CD): the windup
+// starts ATK_CD - 1.12 s after the previous recovery ends, so the
+// damage lands exactly ATK_CD after the previous damage. No damage,
+// HP, speed or economy value changes — this is animation only.
+const ATK_CD = { wisik: 3.0, kunang: 2.0, bayang: 3.0, slira: 2.0, raksasa: 2.5, raja: 2.0 };
+const WINDUP_DUR = 0.45; // slow anticipation (the telegraph)
+const STRIKE_DUR = 0.12; // near-instant hit (1-2 frames of smear)
+const RECOVERY_DUR = 0.55; // medium settle, pose held throughout
+const FIRST_WINDUP_DUR = 2.0; // first strike: the long sizing-up windup
+const HITSTOP_SMALL = 0.03; // freeze on a normal strike landing
+const HITSTOP_BIG = 0.08; // freeze on a Buto/Raja smash landing
 const HUNTER_PENALTY = 600; // px-equivalent per ghost already hunting a tower
 // Big enough that the pack spreads nearly round-robin across ALL towers
 // (one hunter each before any tower gets its second): the first ghosts
@@ -116,7 +132,24 @@ export function createEnemy(type, wave, rng) {
     targetGate: false, // true when no towers are left: head for the gate
     retargetCd: 0, // periodic re-pick timer (keeps the spread adaptive)
     inRange: false, // standing at the target, attacking
-    attackAnim: 0, // v2.19: seconds left of the attack lunge/pose (visual)
+    // v2.22 (JURUS): the 3-phase attack state machine. atkPhase 'none'
+    // = waiting for the next windup (attackCd counts down); 'windup' /
+    // 'strike' / 'recovery' = the jurus in progress (atkT seconds in,
+    // atkDur the phase length). atkTower = the tower this jurus will
+    // hit (locked at windup start; if it dies mid-windup the strike
+    // whiffs). px/py = last frame's position — hair/cloth trails 1
+    // frame behind the body. prevAngle/pivotUntil = the 1-frame pivot
+    // on a direction reversal. roarUntil = boss enrage roar (game time).
+    atkPhase: 'none',
+    atkT: 0,
+    atkDur: 0,
+    atkFirst: true,
+    atkTower: null,
+    px: 0,
+    py: 0,
+    prevAngle: null,
+    pivotUntil: 0,
+    roarUntil: 0,
     lane: rng.range(-18, 18), // per-ghost offset so the pack doesn't stack
   };
 }
@@ -168,10 +201,17 @@ function drawTuyulEmas(ctx, e, time) {
 }
 
 export function updateEnemy(game, e, dt) {
-  // v2.19 — the attack pose decays (visual only).
-  e.attackAnim = Math.max(0, (e.attackAnim || 0) - dt);
+  // v2.22: previous-frame position — hair/cloth trails 1 frame behind
+  // the body (drawn from px/py), then settles 1-2 frames after a stop.
+  // Saved first, before every early return, so px/py is always last
+  // frame's position (the ghost only moves in the march branch below).
+  e.px = e.x;
+  e.py = e.y;
   e.flash = Math.max(0, e.flash - dt * 4);
   if (game.time < e.stunUntil) return; // stunned: no movement
+  if (game.time < (e.roarUntil || 0)) return; // v2.22: boss enrage roar
+  // — the Raja rears up and ROARS for 1 s (the telegraph) before the
+  // summon lands; he neither moves nor attacks mid-roar.
   let speed = e.speed;
   if (game.time < e.slowUntil) speed *= e.slowFactor;
   // Malam Berkabut: ghosts move 15% faster.
@@ -213,11 +253,23 @@ export function updateEnemy(game, e, dt) {
     : d;
   if (dc <= range) {
     if (e.targetGate) { e.reachedGate = true; return; }
-    // In range: stand and fight. First arrival gets a wind-up so the tower
-    // lands a few free hits ("ghosts size up the towers before striking").
-    if (!e.inRange) { e.inRange = true; e.attackCd = 2.0; }
-    e.attackCd -= dt;
-    if (e.attackCd <= 0) e.attackCd = ghostAttack(game, e);
+    // In range: stand and fight. v2.22 (JURUS): the attack is a 3-phase
+    // jurus, not an instant hit. First arrival starts the LONG windup
+    // (2.0 s — the "sizing up" the old attackCd did, now a visible slow
+    // coil instead of a frozen wait), so the first strike still lands
+    // exactly 2.0 s after arrival. Later strikes: attackCd counts down
+    // while atkPhase is 'none', then windup -> strike (damage) ->
+    // recovery -> attackCd = ATK_CD - 1.12 s, so the strike-to-strike
+    // cadence is exactly the old ATK_CD.
+    if (!e.inRange) {
+      e.inRange = true;
+      startWindup(game, e, true);
+    } else if (e.atkPhase === 'none') {
+      e.attackCd -= dt;
+      if (e.attackCd <= 0) startWindup(game, e, false);
+    } else {
+      updateAttackPhase(game, e, dt);
+    }
     return;
   }
   e.inRange = false;
@@ -233,9 +285,22 @@ export function updateEnemy(game, e, dt) {
   // while fighting). This makes the game harder, so re-verify autoplay.
   const march = e.farHunter ? 3.0 : (d > 350 ? 2.0 : 1);
   const step = speed * march * dt;
+  // v2.22: 1-frame pivot on a direction reversal — the turn reads as a
+  // turn, not an instant flip (wayang stiffness). A reversal is a turn
+  // of more than ~86 degrees; small course corrections don't pivot.
+  const newAngle = Math.atan2(dy, dx);
+  if (e.prevAngle == null) {
+    e.prevAngle = newAngle;
+  } else {
+    let dAng = newAngle - e.prevAngle;
+    while (dAng > Math.PI) dAng -= Math.PI * 2;
+    while (dAng < -Math.PI) dAng += Math.PI * 2;
+    if (Math.abs(dAng) > 1.5) e.pivotUntil = game.time + 1 / 60;
+    e.prevAngle = newAngle;
+  }
+  e.angle = newAngle;
   e.x += (dx / d) * step;
   e.y += (dy / d) * step;
-  e.angle = Math.atan2(dy, dx);
 }
 
 function nearestTower(game, e, radius) {
@@ -255,12 +320,53 @@ function towersNear(game, e, radius) {
   return game.towers.filter((t) => Math.hypot(e.x - t.x, e.y - t.y) <= radius);
 }
 
-// One attack. Returns the cooldown (seconds) until the next attempt.
-function ghostAttack(game, e) {
+// v2.22 (JURUS): start a jurus. Lock the tower this jurus will hit
+// (the per-type reach — the same radius the strike uses). No tower in
+// reach: don't wind up at air — stay ready and retry soon.
+function startWindup(game, e, first) {
+  const t = nearestTower(game, e, ATTACK_RANGE[e.type] || 80);
+  if (!t) { e.attackCd = 0.5; return; }
+  e.atkTower = t;
+  e.atkPhase = 'windup';
+  e.atkT = 0;
+  e.atkDur = first ? FIRST_WINDUP_DUR : WINDUP_DUR;
+}
+
+// Advance the jurus phase machine. Windup ends -> the strike lands
+// (damage, on the strike frame). Strike ends -> recovery (the pose is
+// HELD — never idle before the ghost can act). Recovery ends -> ready
+// again, with attackCd set so the NEXT strike lands exactly ATK_CD
+// after this one (windup 0.45 + strike 0.12 + recovery 0.55 = 1.12).
+function updateAttackPhase(game, e, dt) {
+  e.atkT += dt;
+  if (e.atkPhase === 'windup') {
+    if (e.atkT >= e.atkDur) ghostAttackStrike(game, e);
+  } else if (e.atkPhase === 'strike') {
+    if (e.atkT >= STRIKE_DUR) {
+      e.atkPhase = 'recovery';
+      e.atkT = 0;
+      e.atkDur = RECOVERY_DUR;
+    }
+  } else if (e.atkPhase === 'recovery') {
+    if (e.atkT >= RECOVERY_DUR) {
+      e.atkPhase = 'none';
+      e.atkT = 0;
+      e.atkTower = null;
+      e.attackCd = (ATK_CD[e.type] || 2.0) - (WINDUP_DUR + STRIKE_DUR + RECOVERY_DUR);
+    }
+  }
+}
+
+// One strike: the damage lands on the strike frame. The target is the
+// tower locked at windup start — if it died mid-windup the strike
+// whiffs (the pose still plays, no damage). Sets atkPhase='strike'.
+function ghostAttackStrike(game, e) {
+  e.atkPhase = 'strike';
+  e.atkT = 0;
   if (e.type === 'wisik') {
     // Tawa Melengking: nearby towers stop firing for 1 beat + small damage.
     const near = towersNear(game, e, 80);
-    if (near.length === 0) return 0.5;
+    if (near.length === 0) return; // whiff: no tower left in reach
     for (const t of near) {
       t.stunUntil = game.time + 1 * game.beatDur;
       game.damageTower(t, 4, e);
@@ -269,77 +375,78 @@ function ghostAttack(game, e) {
     const t0 = near[0];
     const angW = Math.atan2(t0.y - e.y, t0.x - e.x);
     game.effects.claw(t0.x, t0.y, angW, '#d8ecff');
-    e.attackAnim = 2.0; // v2.20 (R1): frozen strike pose, readable in stills
     game.effects.ring(e.x, e.y, 70, 'rgba(180,220,255,0.8)', 2.0, 3, true);
-    return 3.0;
+    game.hitStop = Math.max(game.hitStop || 0, HITSTOP_SMALL);
+    return;
   }
   if (e.type === 'kunang') {
     // Mencuri Koin: each Tuyul steals a few coins from a tower it passes.
-    const t = nearestTower(game, e, 80);
-    if (!t || e.stolenFrom.includes(t.padIndex)) return 0.5;
+    const t = e.atkTower;
+    if (!t || !game.towers.includes(t) || e.stolenFrom.includes(t.padIndex)) return; // whiff
     e.stolenFrom.push(t.padIndex);
     const steal = Math.min(3, game.coins);
     game.coins -= steal;
     game.effects.text(t.x, t.y - 34, `-${steal} ◆`, '#ff9a3d', 15);
     // v2.19 — Tuyul snatching: gold coins burst out of the robbed tower.
     game.effects.coinBurst(t.x, t.y);
-    e.attackAnim = 2.0; // v2.20 (R1): frozen strike pose, readable in stills
+    game.hitStop = Math.max(game.hitStop || 0, HITSTOP_SMALL);
     // Robbed this tower: move on to the next one (or the gate, if every
     // tower has been robbed) instead of parking here forever.
     e.targetTower = null;
-    return 2.0;
+    return;
   }
   if (e.type === 'bayang') {
     // Kafan Membungkus: the tower's firing slows to 25% for 4 beats.
-    const t = nearestTower(game, e, 90);
-    if (!t) return 0.5;
+    const t = e.atkTower;
+    if (!t || !game.towers.includes(t)) return; // whiff
     t.slowUntil = game.time + 4 * game.beatDur;
     t.slowFactor = 0.25;
     game.damageTower(t, 4, e);
     // v2.19 — Pocong leaping slam: impact burst on the tower.
     game.effects.burst(t.x, t.y - 10, '#ffe9a8', 10);
-    e.attackAnim = 2.0; // v2.20 (R1): frozen strike pose, readable in stills
     game.effects.ring(t.x, t.y, 46, 'rgba(245,242,232,0.7)', 2.0, 3, true);
-    return 3.0;
+    game.hitStop = Math.max(game.hitStop || 0, HITSTOP_SMALL);
+    return;
   }
   if (e.type === 'slira') {
     // Pukulan Bulu: heavy durability damage.
-    const t = nearestTower(game, e, 100);
-    if (!t) return 0.5;
+    const t = e.atkTower;
+    if (!t || !game.towers.includes(t)) return; // whiff
     game.damageTower(t, 18, e);
     // v2.19 — Genderuwo big claws: blood-red slash streaks.
     const angS = Math.atan2(t.y - e.y, t.x - e.x);
     game.effects.claw(t.x, t.y, angS, '#ff4a3d');
-    e.attackAnim = 2.0; // v2.20 (R1): frozen strike pose, readable in stills
+    game.hitStop = Math.max(game.hitStop || 0, HITSTOP_SMALL);
     game.shake = Math.max(game.shake, 0.2);
-    return 2.0;
+    return;
   }
   if (e.type === 'raksasa') {
     // Hantaman Raksasa: very heavy durability damage.
-    const t = nearestTower(game, e, 110);
-    if (!t) return 0.5;
+    const t = e.atkTower;
+    if (!t || !game.towers.includes(t)) return; // whiff
     game.damageTower(t, 30, e);
     game.effects.burst(t.x, t.y - 10, '#8a94a8', 8);
     // v2.19 — Buto Ijo two-fist slam: shockwave ring + orange debris.
     game.effects.ring(t.x, t.y, 95, '#ff9a3d', 2.5, 5, true);
     game.effects.burst(t.x, t.y - 10, '#ff7a3d', 12);
-    e.attackAnim = 2.0; // v2.20 (R1): frozen strike pose, readable in stills
+    // v2.22: the smash lands with a hit-stop (the world flinches) +
+    // a bigger shake — the weight of the blow.
+    game.hitStop = Math.max(game.hitStop || 0, HITSTOP_BIG);
     game.shake = Math.max(game.shake, 0.3);
-    return 2.5;
+    return;
   }
   if (e.type === 'raja') {
     // Hantaman Raja: the hardest single hit in the game.
-    const t = nearestTower(game, e, 120);
-    if (!t) return 0.5;
+    const t = e.atkTower;
+    if (!t || !game.towers.includes(t)) return; // whiff
     game.damageTower(t, 45, e);
     game.effects.ring(t.x, t.y, 90, '#ff9a3d', 2.5, 5, true);
     // v2.19 — Raja slam: gold burst with the shockwave.
     game.effects.burst(t.x, t.y - 10, '#ffd76a', 12);
-    e.attackAnim = 2.0; // v2.20 (R1): frozen strike pose, readable in stills
+    game.hitStop = Math.max(game.hitStop || 0, HITSTOP_BIG);
     game.shake = Math.max(game.shake, 0.4);
-    return 2.0;
+    return;
   }
-  return 2.0;
 }
 
 // Visual scale per type (DRAWING ONLY — hitbox, HP, speed and damage are
@@ -421,26 +528,41 @@ export function drawEnemy(ctx, e, time) {
   // drawn 2.2x with a gold crown sized to match. A soft type-colour glow
   // (shadowBlur) lifts the figure off the dark field so it never reads
   // as a flat blob.
-  // v2.19 — attack pose: while striking (attackAnim > 0) the figure
-  // lunges toward its target and swells, so the attack reads as a motion,
-  // not just a particle on the tower.
-  // v2.20 (R1): the strike is a 2.0 s FROZEN pose — quick lunge out
-  // (0.3 s), HOLD at full extension (0.9 s), ease back (0.8 s) — so a
-  // still frame taken mid-attack shows the ghost mid-strike, not
-  // standing idle between 0.45 s lunges.
-  let lx = 0, ly = 0, lungeScale = 1;
-  if (e.attackAnim > 0) {
-    const tgt = e.targetTower || GATE_POS;
+  // v2.22 (JURUS): the attack pose comes from the phase machine, not a
+  // frozen timer. Windup: the figure coils BACK (away from the target,
+  // -6 px) and swells slightly — slow anticipation, the telegraph.
+  // Strike: it lunges FORWARD fast (+14 px) and swells — the hit.
+  // Recovery: it eases back to rest over 0.55 s (the pose is HELD, so
+  // the ghost never looks idle before it can act). The pose is a
+  // PROGRESSION (atkT/atkDur), so a 2.0 s first windup reads as a slow
+  // coil, not a frozen frame.
+  // Walk lean: while walking (not fighting), the figure leans a touch
+  // toward its movement direction — no more constant-speed stiffness.
+  // Pivot: on a direction reversal, one frame of pivot pose (horizontal
+  // squash + twist) so the turn reads as a turn, not a flip.
+  let lx = 0, ly = 0, lungeScale = 1, lean = 0, squashX = 1;
+  if (e.atkPhase === 'windup' || e.atkPhase === 'strike' || e.atkPhase === 'recovery') {
+    const tgt = e.atkTower || e.targetTower || GATE_POS;
     const ddx = tgt.x - e.x, ddy = tgt.y - e.y;
     const dd = Math.hypot(ddx, ddy) || 1;
-    const t = 2.0 - e.attackAnim; // seconds since the strike began
-    const m = t < 0.3 ? (t / 0.3) * 14 : t < 1.2 ? 14 : Math.max(0, 14 - ((t - 1.2) / 0.8) * 14);
-    lx = (ddx / dd) * m; ly = (ddy / dd) * m;
-    lungeScale = 1 + 0.10 * (m / 14);
+    const ux = ddx / dd, uy = ddy / dd;
+    const p = Math.min(1, e.atkT / Math.max(0.01, e.atkDur));
+    let m = 0;
+    if (e.atkPhase === 'windup') { m = -6 * p; lungeScale = 1 + 0.02 * p; }
+    else if (e.atkPhase === 'strike') { m = 14; lungeScale = 1.10; }
+    else { m = 14 * (1 - p); lungeScale = 1 + 0.10 * (1 - p); }
+    lx = ux * m; ly = uy * m;
+  } else if (!e.inRange) {
+    lean = 0.06 * Math.sign(Math.cos(e.angle) || 1);
+  }
+  if (time < (e.pivotUntil || 0)) {
+    squashX = 0.7;
+    lean = 0.25 * Math.sign(Math.cos(e.angle) || 1);
   }
   ctx.save();
   ctx.translate(e.x + lx, e.y + ly);
-  ctx.scale(vs * lungeScale, vs * lungeScale);
+  ctx.rotate(lean);
+  ctx.scale(vs * lungeScale * squashX, vs * lungeScale);
   ctx.translate(-e.x, -e.y);
   ctx.shadowColor = c;
   ctx.shadowBlur = 10;

@@ -104,6 +104,10 @@ export class Game {
     this.combo = 0;
     this.score = 0; // run score: kills x100 x combo + tabuh + wave/boss bonus
     this.shake = 0;
+    this.hitStop = 0; // v2.22 (JURUS): freeze on a strike landing — the
+    // enemies (movement + jurus) pause for a few frames while the beat,
+    // the towers and the effects keep running, so the hit has weight
+    // without stalling the rhythm. Decays in update().
     this.emberTimer = 0; // ambient ember spawner (visual only)
     this.banner = null; // {title, sub, until, dur, color} — big center-screen banner
     this.twist = null; // wave twist key ('kabut' | 'purnama' | 'hujan') or null
@@ -559,10 +563,19 @@ export class Game {
         this.shake = Math.max(this.shake, 0.5);
       }
       const pct = e.hp / e.maxHp;
+      // v2.22 (JURUS): the enrage roar — the boss rears up and ROARS
+      // for 1 s (the telegraph, drawn in drawRaja), THEN the 3
+      // Kuntilanak arrive. The speed boost applies at the roar's start
+      // (he is standing still roaring anyway); the summon waits for
+      // the roar to finish.
+      if (e.roarUntil > 0 && this.time >= e.roarUntil) {
+        e.roarUntil = 0;
+        this.summonWisik(e, 3);
+      }
       if (e.phase === 0 && pct <= 0.5) {
         e.phase = 1;
         e.speed = e.baseSpeed * 1.5;
-        this.summonWisik(e, 3);
+        e.roarUntil = this.time + 1.0;
         this.effects.text(640, 160, 'Raja mengamuk!', '#ff9a3d', 26);
         this.shake = Math.max(this.shake, 0.5);
         // v2.21 (R5): the enrage IS an event — the spotlight falls on
@@ -571,7 +584,7 @@ export class Game {
       } else if (e.phase === 1 && pct <= 0.25) {
         e.phase = 2;
         e.speed = e.baseSpeed * 2.2;
-        this.summonWisik(e, 3);
+        e.roarUntil = this.time + 1.0;
         this.effects.text(640, 160, 'Raja murka!', '#ff4a3d', 26);
         this.shake = Math.max(this.shake, 0.6);
         this.bossSpotlightUntil = this.time + 3;
@@ -741,8 +754,17 @@ export class Game {
     this.spawner.update(dt);
     updateTowers(this, dtBeats);
     updateProjectiles(this, dt);
-    // Enemies: move, gate damage, death cleanup.
-    for (const e of this.enemies) updateEnemy(this, e, dt);
+    // Enemies: move, gate damage, death cleanup. v2.22 (JURUS): while
+    // hitStop runs, the enemies freeze (movement + jurus) — the beat,
+    // the towers and the effects keep running, so the rhythm never
+    // stalls. The freeze is a few frames per strike; the strike-to-
+    // strike cadence stretches by that much (a few percent of ghost
+    // DPS — the cost of the hit's weight, noted in the v2.22 report).
+    if (this.hitStop > 0) {
+      this.hitStop -= dt;
+    } else {
+      for (const e of this.enemies) updateEnemy(this, e, dt);
+    }
     for (const e of this.enemies) {
       if (e.reachedGate) {
         this.gateHp -= e.gateDmg;

@@ -46,12 +46,14 @@ function deepCount(game) {
 }
 
 // v2.20 (reviewer #18, R1): is an attack VISIBLE right now — a ghost
-// frozen mid-strike (attackAnim > 0.3, the 2.0 s pose) or a tower already
-// scarred by claw marks? The capture must wait for a real attack moment,
-// not a timer: the judge only sees still frames, and a frame taken
-// between attacks shows no attack at all.
+// mid-jurus (windup/strike/recovery, the v2.22 3-phase attack) or a
+// tower already scarred by claw marks? The capture must wait for a real
+// attack moment, not a timer: the judge only sees still frames, and a
+// frame taken between attacks shows no attack at all. v2.22: the pose
+// now waits for a JURUS moment specifically — the windup telegraph or
+// the strike smear is what must read in the still frame.
 function attackVisible(game) {
-  if (game.enemies.some((e) => (e.attackAnim || 0) > 0.3)) return true;
+  if (game.enemies.some((e) => e.atkPhase === 'windup' || e.atkPhase === 'strike' || e.atkPhase === 'recovery')) return true;
   return game.towers.some((t) => t.scars && t.scars.length >= 2);
 }
 

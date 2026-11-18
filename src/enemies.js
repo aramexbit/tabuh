@@ -479,12 +479,23 @@ export function drawEnemy(ctx, e, time, game) {
   // no rim-light on his crown. game is threaded from Game.draw().
   const vs = VISUAL_SCALE[e.type] || 1;
   const vr = visualRadius(e); // visual radius — the figure's real on-screen size
+  // v2.24 (reviewer #21, R2): in the BOSS POSE no ground shadow / foot
+  // ring may circle the boss — his own orange+gold foot rings read as
+  // two gold ellipses around his waist, and any near minion's ring
+  // crosses his body. The boss loses his shadow + rings entirely;
+  // other ghosts lose theirs within 240 px of his centre.
+  const bossPose = game && game.shot === 'boss';
+  const boss = bossPose ? game.boss : null;
+  const nearBoss = boss && boss.hp > 0 && Math.hypot(e.x - boss.x, e.y - boss.y) < 240;
+  const hideGround = bossPose && (e.type === 'raja' || nearBoss);
   // Ground shadow + type-color base ring at the feet: every spirit now has
   // a dark anchor and its own colour on the ground, so types read apart.
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.beginPath();
-  ctx.ellipse(e.x, e.y + vr * 0.8, vr * 0.9, vr * 0.3, 0, 0, Math.PI * 2);
-  ctx.fill();
+  if (!hideGround) {
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(e.x, e.y + vr * 0.8, vr * 0.9, vr * 0.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
   // Faint aura so the figure reads against the dark field. Stronger now
   // (0.55, was 0.4): the v2.6 frames read the spirits as pale blobs —
   // the aura + foot ring must carry the type colour.
@@ -611,28 +622,32 @@ export function drawEnemy(ctx, e, time, game) {
   }
   // Type-color ring at the feet (drawn over the figure's base).
   // v2.10 (R3): the Raja's ring is orange + an outer gold ring, not green.
-  if (e.type === 'raja') {
-    ctx.strokeStyle = '#ff9a3d';
-    ctx.globalAlpha = 0.9;
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.ellipse(e.x, e.y + vr * 0.8, vr * 0.95, vr * 0.32, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.strokeStyle = '#ffd76a';
-    ctx.globalAlpha = 0.6;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.ellipse(e.x, e.y + vr * 0.8, vr * 1.15, vr * 0.4, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-  } else {
-    ctx.strokeStyle = c;
-    ctx.globalAlpha = 0.75;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.ellipse(e.x, e.y + vr * 0.8, vr * 0.95, vr * 0.32, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
+  // v2.24 (R2): hidden in the boss pose (see hideGround above) — the
+  // boss's own two rings circled his waist in the v2.23 frame.
+  if (!hideGround) {
+    if (e.type === 'raja') {
+      ctx.strokeStyle = '#ff9a3d';
+      ctx.globalAlpha = 0.9;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.ellipse(e.x, e.y + vr * 0.8, vr * 0.95, vr * 0.32, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = '#ffd76a';
+      ctx.globalAlpha = 0.6;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(e.x, e.y + vr * 0.8, vr * 1.15, vr * 0.4, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.strokeStyle = c;
+      ctx.globalAlpha = 0.75;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.ellipse(e.x, e.y + vr * 0.8, vr * 0.95, vr * 0.32, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
   }
   if (e.flash > 0) {
     ctx.fillStyle = `rgba(255,255,255,${0.7 * e.flash})`;

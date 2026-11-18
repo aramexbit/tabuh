@@ -900,13 +900,15 @@ export class Game {
       // v2.23 (reviewer #20, R1 + thumbnail test): in the BOSS POSE the
       // spotlight is stronger and tighter (0.80 edge, 380 px) — one big
       // clean boss, the crowd pushed into the dark.
+      // v2.24 (reviewer #21, R2): stronger still (0.86 edge, 360 px) —
+      // the v2.23 frame's surroundings still read too bright around him.
       if (this.bossSpotlightUntil > this.time && this.boss && this.boss.hp > 0) {
         const b = this.boss;
         const bossPose = this.shot === 'boss';
-        const sg = ctx.createRadialGradient(b.x, b.y - 20, 60, b.x, b.y - 20, bossPose ? 380 : 430);
+        const sg = ctx.createRadialGradient(b.x, b.y - 20, 60, b.x, b.y - 20, bossPose ? 360 : 430);
         sg.addColorStop(0, 'rgba(255,60,30,0.12)');
-        sg.addColorStop(0.35, `rgba(10,2,8,${bossPose ? 0.38 : 0.30})`);
-        sg.addColorStop(1, `rgba(4,2,8,${bossPose ? 0.80 : 0.72})`);
+        sg.addColorStop(0.35, `rgba(10,2,8,${bossPose ? 0.42 : 0.30})`);
+        sg.addColorStop(1, `rgba(4,2,8,${bossPose ? 0.86 : 0.72})`);
         ctx.fillStyle = sg;
         ctx.fillRect(0, 0, W, H);
       }

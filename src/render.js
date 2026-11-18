@@ -64,6 +64,92 @@ const PATCHES = [];
   }
 }
 
+// v2.19 — ground fog: thick low mist drifting over the field (drawn
+// over the ground, under the ghosts — they emerge from it).
+const FOG = [];
+{
+  const rng = makeRng(999);
+  for (let i = 0; i < 10; i++) {
+    FOG.push({
+      x: rng.range(80, W - 80), y: rng.range(380, 620),
+      rx: rng.range(80, 160), ry: rng.range(14, 28),
+      ph: rng.range(0, 6.28), sp: rng.range(0.1, 0.3),
+      a: rng.range(0.05, 0.10),
+    });
+  }
+}
+
+// v2.19 — crows: black birds crossing the night sky.
+const CROWS = [
+  { y: 90, sp: 22, ph: 0 }, { y: 140, sp: 16, ph: 2 }, { y: 70, sp: 28, ph: 4 },
+];
+
+// v2.19 — a gnarled dead tree: bent black trunk, bare branches, no leaves.
+function drawDeadTree(ctx, x, y, s, lean) {
+  ctx.strokeStyle = '#0a0a0c';
+  ctx.lineCap = 'round';
+  // Bent trunk.
+  ctx.lineWidth = 7 * s;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.quadraticCurveTo(x + lean * 8, y - 28 * s, x + lean * 16, y - 52 * s);
+  ctx.stroke();
+  // Bare branches fanning from the trunk top.
+  ctx.lineWidth = 3.5 * s;
+  const tx = x + lean * 16, ty = y - 52 * s;
+  for (const [dx, dy] of [[-22, -18], [-8, -26], [10, -24], [24, -14]]) {
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(tx + dx * s, ty + dy * s);
+    ctx.stroke();
+    // One small twig off each branch.
+    ctx.lineWidth = 2 * s;
+    ctx.beginPath();
+    ctx.moveTo(tx + dx * s * 0.6, ty + dy * s * 0.6);
+    ctx.lineTo(tx + dx * s * 0.9, ty + dy * s * 0.6 - 8 * s);
+    ctx.stroke();
+    ctx.lineWidth = 3.5 * s;
+  }
+  // A crow perched on the tallest branch (sometimes).
+  if (lean > 0) {
+    ctx.fillStyle = '#0a0a0c';
+    ctx.beginPath();
+    ctx.arc(tx - 8 * s, ty - 26 * s, 3.5 * s, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// v2.19 — a mossy gravestone: grey rounded-top stone, dark cross.
+function drawGravestone(ctx, x, y, s, tilt) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(tilt);
+  ctx.fillStyle = '#5a5a62';
+  ctx.beginPath();
+  ctx.moveTo(-7 * s, 0);
+  ctx.lineTo(-7 * s, -12 * s);
+  ctx.quadraticCurveTo(-7 * s, -19 * s, 0, -19 * s);
+  ctx.quadraticCurveTo(7 * s, -19 * s, 7 * s, -12 * s);
+  ctx.lineTo(7 * s, 0);
+  ctx.closePath();
+  ctx.fill();
+  // Moss at the base.
+  ctx.fillStyle = 'rgba(90,140,80,0.5)';
+  ctx.beginPath();
+  ctx.ellipse(0, -1, 7 * s, 2.5 * s, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Cross.
+  ctx.strokeStyle = '#2e2e34';
+  ctx.lineWidth = 1.5 * s;
+  ctx.beginPath();
+  ctx.moveTo(0, -16 * s);
+  ctx.lineTo(0, -7 * s);
+  ctx.moveTo(-3.5 * s, -13 * s);
+  ctx.lineTo(3.5 * s, -13 * s);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawGrass(ctx, x, y) {
   ctx.strokeStyle = '#4a9a58';
   ctx.lineWidth = 2;
@@ -342,18 +428,39 @@ export function drawScene(ctx, game, time) {
   // old moon sat behind the PETA minimap panel (top-left), so the
   // moonbeam appeared to come from nowhere. At (300,80) the moon is
   // in open sky, right of the panel.
+  // v2.19 — BLOOD MOON during the Purnama twist (wave 6) and the boss
+  // night (wave 10+): bigger and blood-red, as in the approved mockup.
+  const bloodMoon = game.twist === 'purnama' || (game.wave || 1) >= 10;
+  const moonR = bloodMoon ? 34 : 26;
+  const moonCol = bloodMoon ? '#c8322a' : '#efe6c0';
+  const moonGlow = bloodMoon ? 'rgba(200,50,42,0.9)' : 'rgba(240,230,190,0.9)';
+  const moonGlowMid = bloodMoon ? 'rgba(200,50,42,0.25)' : 'rgba(240,230,190,0.25)';
+  const moonGlowOut = bloodMoon ? 'rgba(200,50,42,0)' : 'rgba(240,230,190,0)';
   const mg = ctx.createRadialGradient(300, 80, 8, 300, 80, 60);
-  mg.addColorStop(0, 'rgba(240,230,190,0.9)');
-  mg.addColorStop(0.35, 'rgba(240,230,190,0.25)');
-  mg.addColorStop(1, 'rgba(240,230,190,0)');
+  mg.addColorStop(0, moonGlow);
+  mg.addColorStop(0.35, moonGlowMid);
+  mg.addColorStop(1, moonGlowOut);
   ctx.fillStyle = mg;
   ctx.beginPath();
   ctx.arc(300, 80, 60, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#efe6c0';
+  ctx.fillStyle = moonCol;
   ctx.beginPath();
-  ctx.arc(300, 80, 26, 0, Math.PI * 2);
+  ctx.arc(300, 80, moonR, 0, Math.PI * 2);
   ctx.fill();
+  // v2.19 — crows crossing the sky (wrap around the edges).
+  for (const c of CROWS) {
+    const cx = ((time * c.sp + c.ph * 200) % (W + 120)) - 60;
+    const flap = Math.sin(time * 6 + c.ph) * 0.5;
+    ctx.strokeStyle = '#0a0a0c';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx - 9, c.y - flap * 4);
+    ctx.lineTo(cx, c.y);
+    ctx.lineTo(cx + 9, c.y - flap * 4);
+    ctx.stroke();
+  }
   // Golden dusk clouds drifting over the village (like the mockup's sky).
   drawCloud(ctx, 620, 105, 1.15);
   drawCloud(ctx, 980, 78, 0.9);
@@ -451,6 +558,17 @@ export function drawScene(ctx, game, time) {
   }
   // Grass tufts across the verified empty zones.
   for (const [gx, gy] of GRASS) drawGrass(ctx, gx, gy);
+  // v2.19 — dead trees (gnarled, black) + gravestones (mossy) in the
+  // empty zones, so the field reads as a haunted graveyard, not a lawn.
+  drawDeadTree(ctx, 90, 500, 1.0, -1);
+  drawDeadTree(ctx, 1180, 380, 1.1, 1);
+  drawDeadTree(ctx, 520, 580, 0.9, -1);
+  drawDeadTree(ctx, 880, 100, 1.0, 1);
+  drawGravestone(ctx, 220, 460, 1.0, -0.08);
+  drawGravestone(ctx, 320, 560, 0.9, 0.1);
+  drawGravestone(ctx, 1000, 560, 1.0, -0.05);
+  drawGravestone(ctx, 1100, 350, 0.9, 0.12);
+  drawGravestone(ctx, 700, 600, 1.0, -0.1);
   // The stone path.
   drawPath(ctx);
   // Empty build pads (occupied ones are drawn by the tower).
@@ -475,6 +593,17 @@ export function drawScene(ctx, game, time) {
       ctx.fillText('Pilih instrumen', p.x, p.y - 22);
     }
   }
+  // v2.19 — thick ground fog: low mist drifting over the field, under
+  // the ghosts (they emerge from it) but over the ground and path.
+  for (const f of FOG) {
+    const fx = f.x + Math.sin(time * f.sp + f.ph) * 18;
+    ctx.globalAlpha = f.a;
+    ctx.fillStyle = '#c8d8d8';
+    ctx.beginPath();
+    ctx.ellipse(fx, f.y, f.rx, f.ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
   // v2.19 — three spawn gapura (one per gate).
   for (const g of GATES) drawGapura(ctx, g.x, g.y, time, g.smoke);
   drawVillageGate(ctx, time, game.gateHp, game.gateMaxHp);

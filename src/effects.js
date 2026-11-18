@@ -7,6 +7,7 @@ export class Effects {
     this.particles = [];
     this.texts = [];
     this.rings = [];
+    this.slashes = []; // v2.19: claw-swipe streaks (Kuntilanak / Genderuwo)
     this.lightning = []; // jagged sky bolts for the Gong Raksasa
     this.beams = []; // vertical light shafts (gong strikes, Gong Raksasa)
     this.glows = []; // expanding pools of light on the ground
@@ -88,6 +89,27 @@ export class Effects {
 
   ring(x, y, maxR, color, life = 0.5, width = 3) {
     this.rings.push({ x, y, r: 8, maxR, color, life, width });
+  }
+
+  // v2.19 — a claw swipe: three parallel slash streaks across (x, y),
+  // angled along `angle` (the swipe direction, ghost -> tower). Life
+  // 0.35 s: long enough to read in a screenshot, short enough to feel
+  // like a strike. Kuntilanak = pale silver, Genderuwo = blood red.
+  claw(x, y, angle, color) {
+    for (const off of [-11, 0, 11]) {
+      this.slashes.push({
+        x: x + Math.cos(angle + Math.PI / 2) * off,
+        y: y + Math.sin(angle + Math.PI / 2) * off,
+        angle, color, len: 46, life: 0.35, maxLife: 0.35,
+      });
+    }
+  }
+
+  // v2.19 — a Tuyul snatching coins: gold sparks bursting out of the
+  // tower it just robbed, plus a small gold ring.
+  coinBurst(x, y) {
+    this.burst(x, y, '#ffd76a', 14);
+    this.ring(x, y, 42, '#ffd76a', 0.4, 2);
   }
 
   text(x, y, str, color = '#ffd76a', size = 16) {
@@ -235,6 +257,9 @@ export class Effects {
       r.life -= dt;
     }
     this.rings = this.rings.filter((r) => r.life > 0 && r.r < r.maxR * 1.05);
+    // v2.19 — claw slashes fade fast.
+    for (const s of this.slashes) s.life -= dt;
+    this.slashes = this.slashes.filter((s) => s.life > 0);
     for (const b of this.lightning) b.life -= dt;
     this.lightning = this.lightning.filter((b) => b.life > 0);
     for (const b of this.beams) b.life -= dt;
@@ -306,6 +331,21 @@ export class Effects {
       ctx.lineWidth = r.width || 3;
       ctx.beginPath();
       ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    // v2.19 — claw slashes: three bright streaks, fading as they land.
+    for (const s of this.slashes) {
+      const a = Math.max(0, s.life / s.maxLife);
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      const dx = Math.cos(s.angle) * s.len / 2;
+      const dy = Math.sin(s.angle) * s.len / 2;
+      ctx.beginPath();
+      ctx.moveTo(s.x - dx, s.y - dy);
+      ctx.lineTo(s.x + dx, s.y + dy);
       ctx.stroke();
     }
     ctx.globalAlpha = 1;

@@ -116,6 +116,7 @@ export function createEnemy(type, wave, rng) {
     targetGate: false, // true when no towers are left: head for the gate
     retargetCd: 0, // periodic re-pick timer (keeps the spread adaptive)
     inRange: false, // standing at the target, attacking
+    attackAnim: 0, // v2.19: seconds left of the attack lunge/pose (visual)
     lane: rng.range(-18, 18), // per-ghost offset so the pack doesn't stack
   };
 }
@@ -167,6 +168,8 @@ function drawTuyulEmas(ctx, e, time) {
 }
 
 export function updateEnemy(game, e, dt) {
+  // v2.19 — the attack pose decays (visual only).
+  e.attackAnim = Math.max(0, (e.attackAnim || 0) - dt);
   e.flash = Math.max(0, e.flash - dt * 4);
   if (game.time < e.stunUntil) return; // stunned: no movement
   let speed = e.speed;
@@ -262,6 +265,11 @@ function ghostAttack(game, e) {
       t.stunUntil = game.time + 1 * game.beatDur;
       game.damageTower(t, 4, e);
     }
+    // v2.19 — Kuntilanak scratching: pale claw streaks across the tower.
+    const t0 = near[0];
+    const angW = Math.atan2(t0.y - e.y, t0.x - e.x);
+    game.effects.claw(t0.x, t0.y, angW, '#d8ecff');
+    e.attackAnim = 0.45;
     game.effects.ring(e.x, e.y, 70, 'rgba(180,220,255,0.8)');
     return 3.0;
   }
@@ -273,6 +281,9 @@ function ghostAttack(game, e) {
     const steal = Math.min(3, game.coins);
     game.coins -= steal;
     game.effects.text(t.x, t.y - 34, `-${steal} ◆`, '#ff9a3d', 15);
+    // v2.19 — Tuyul snatching: gold coins burst out of the robbed tower.
+    game.effects.coinBurst(t.x, t.y);
+    e.attackAnim = 0.45;
     // Robbed this tower: move on to the next one (or the gate, if every
     // tower has been robbed) instead of parking here forever.
     e.targetTower = null;
@@ -285,6 +296,9 @@ function ghostAttack(game, e) {
     t.slowUntil = game.time + 4 * game.beatDur;
     t.slowFactor = 0.25;
     game.damageTower(t, 4, e);
+    // v2.19 — Pocong leaping slam: impact burst on the tower.
+    game.effects.burst(t.x, t.y - 10, '#ffe9a8', 10);
+    e.attackAnim = 0.45;
     game.effects.ring(t.x, t.y, 46, 'rgba(245,242,232,0.7)');
     return 3.0;
   }
@@ -293,6 +307,10 @@ function ghostAttack(game, e) {
     const t = nearestTower(game, e, 100);
     if (!t) return 0.5;
     game.damageTower(t, 18, e);
+    // v2.19 — Genderuwo big claws: blood-red slash streaks.
+    const angS = Math.atan2(t.y - e.y, t.x - e.x);
+    game.effects.claw(t.x, t.y, angS, '#ff4a3d');
+    e.attackAnim = 0.45;
     game.shake = Math.max(game.shake, 0.2);
     return 2.0;
   }
@@ -302,6 +320,10 @@ function ghostAttack(game, e) {
     if (!t) return 0.5;
     game.damageTower(t, 30, e);
     game.effects.burst(t.x, t.y - 10, '#8a94a8', 8);
+    // v2.19 — Buto Ijo two-fist slam: shockwave ring + orange debris.
+    game.effects.ring(t.x, t.y, 95, '#ff9a3d', 0.7, 5);
+    game.effects.burst(t.x, t.y - 10, '#ff7a3d', 12);
+    e.attackAnim = 0.45;
     game.shake = Math.max(game.shake, 0.3);
     return 2.5;
   }
@@ -311,6 +333,9 @@ function ghostAttack(game, e) {
     if (!t) return 0.5;
     game.damageTower(t, 45, e);
     game.effects.ring(t.x, t.y, 90, '#ff9a3d', 0.8);
+    // v2.19 — Raja slam: gold burst with the shockwave.
+    game.effects.burst(t.x, t.y - 10, '#ffd76a', 12);
+    e.attackAnim = 0.45;
     game.shake = Math.max(game.shake, 0.4);
     return 2.0;
   }
@@ -392,9 +417,21 @@ export function drawEnemy(ctx, e, time) {
   // drawn 2.2x with a gold crown sized to match. A soft type-colour glow
   // (shadowBlur) lifts the figure off the dark field so it never reads
   // as a flat blob.
+  // v2.19 — attack pose: while striking (attackAnim > 0) the figure
+  // lunges toward its target and swells, so the attack reads as a motion,
+  // not just a particle on the tower.
+  let lx = 0, ly = 0, lungeScale = 1;
+  if (e.attackAnim > 0) {
+    const tgt = e.targetTower || GATE_POS;
+    const ddx = tgt.x - e.x, ddy = tgt.y - e.y;
+    const dd = Math.hypot(ddx, ddy) || 1;
+    const m = e.attackAnim * 18;
+    lx = (ddx / dd) * m; ly = (ddy / dd) * m;
+    lungeScale = 1 + e.attackAnim * 0.15;
+  }
   ctx.save();
-  ctx.translate(e.x, e.y);
-  ctx.scale(vs, vs);
+  ctx.translate(e.x + lx, e.y + ly);
+  ctx.scale(vs * lungeScale, vs * lungeScale);
   ctx.translate(-e.x, -e.y);
   ctx.shadowColor = c;
   ctx.shadowBlur = 10;

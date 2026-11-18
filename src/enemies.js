@@ -659,10 +659,50 @@ function eyes(ctx, x, y, dx, dy, r, color = '#0b1020') {
   ctx.fill();
 }
 
+// v2.22 (JURUS): phase progress (0..1) + hair/cloth lag for a ghost.
+// p = atkT/atkDur for the current phase (0 when not attacking). lag =
+// the previous frame's offset, clamped — hair/cloth trails 1 frame
+// behind the body and settles 1-2 frames after a stop. The lag is only
+// a few px at walk speed, but a full 12 px on a strike lunge or a dash
+// — exactly when the trail must read.
+function jurusP(e) {
+  if (!e.atkPhase || e.atkPhase === 'none') return 0;
+  return Math.min(1, e.atkT / Math.max(0.01, e.atkDur));
+}
+function jurusLag(e) {
+  return {
+    x: Math.max(-12, Math.min(12, (e.px ?? e.x) - e.x)),
+    y: Math.max(-12, Math.min(12, (e.py ?? e.y) - e.y)),
+  };
+}
+// Claw smear: the same claw fan drawn at a ghosted (fading) position —
+// the strike's motion blur. Called with a low globalAlpha before the
+// real arms, so the swipe reads as one fast motion, not a static pose.
+function clawSmear(ctx, hx, hy, s, color) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  for (const a of [-0.5, 0, 0.5]) {
+    ctx.beginPath();
+    ctx.moveTo(hx, hy);
+    ctx.lineTo(hx + s * 5 + Math.sin(a) * 3, hy + Math.cos(a) * 4 - 2);
+    ctx.stroke();
+  }
+}
+
 // Kuntilanak: white dress, long black hair framing a pale face, floats.
 function drawKuntilanak(ctx, e, time) {
   const { x } = e;
   const y = e.y + Math.sin(time * 2 + e.wobble) * 2;
+  const ph = e.atkPhase || 'none';
+  const p = jurusP(e);
+  const lag = jurusLag(e);
+  // v2.22 (JURUS "Cakaran Seribu"): windup — hair lifts + arms open
+  // wide (the telegraph); strike — the claws sweep across the front
+  // with a smear; recovery — the hair settles (it trails 1 frame
+  // behind the body, so it lags the lunge and settles after it).
+  const windupP = ph === 'windup' ? p : 0;
+  const spread = ph === 'windup' ? 13 + 5 * p : ph === 'strike' ? 18 - 12 * p : ph === 'recovery' ? 6 + 7 * p : 13;
+  const armY = ph === 'windup' ? 2 - 4 * p : ph === 'strike' ? -2 + 8 * p : ph === 'recovery' ? 6 - 4 * p : 2;
   // Dress: flared white trapezoid with a wavy hem.
   ctx.fillStyle = '#f2f5f0';
   ctx.beginPath();
@@ -678,43 +718,69 @@ function drawKuntilanak(ctx, e, time) {
   ctx.lineWidth = 1.5;
   ctx.stroke();
   // Arms: thin pale lines reaching out, ending in claws (v2.19).
+  // v2.22: the arms are the jurus — wide + raised in the windup, a
+  // fast sweep across the front in the strike (with a smear: the arms
+  // ghosted at the windup and mid-sweep positions), easing back in
+  // the recovery.
+  if (ph === 'strike') {
+    ctx.save();
+    ctx.globalAlpha = 0.30;
+    ctx.strokeStyle = '#e8ede6';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x - 6, y - 4);
+    ctx.lineTo(x - 18, y - 2);
+    ctx.moveTo(x + 6, y - 4);
+    ctx.lineTo(x + 18, y - 2);
+    ctx.stroke();
+    for (const s of [-1, 1]) clawSmear(ctx, x + s * 18, y - 2, s, '#f5f2e8');
+    ctx.globalAlpha = 0.15;
+    ctx.beginPath();
+    ctx.moveTo(x - 6, y - 4);
+    ctx.lineTo(x - 12, y + 2);
+    ctx.moveTo(x + 6, y - 4);
+    ctx.lineTo(x + 12, y + 2);
+    ctx.stroke();
+    for (const s of [-1, 1]) clawSmear(ctx, x + s * 12, y + 2, s, '#f5f2e8');
+    ctx.restore();
+  }
   ctx.strokeStyle = '#e8ede6';
   ctx.lineWidth = 2.5;
   ctx.lineCap = 'round';
   ctx.beginPath();
   ctx.moveTo(x - 6, y - 4);
-  ctx.lineTo(x - 13, y + 2);
+  ctx.lineTo(x - spread, y + armY);
   ctx.moveTo(x + 6, y - 4);
-  ctx.lineTo(x + 13, y + 2);
+  ctx.lineTo(x + spread, y + armY);
   ctx.stroke();
   // Claw tips fanning out from each hand.
   ctx.strokeStyle = '#f5f2e8';
   ctx.lineWidth = 1.5;
   for (const s of [-1, 1]) {
-    const hx = x + s * 13, hy = y + 2;
-    for (const a of [-0.5, 0, 0.5]) {
-      ctx.beginPath();
-      ctx.moveTo(hx, hy);
-      ctx.lineTo(hx + s * 5 + Math.sin(a) * 3, hy + Math.cos(a) * 4 - 2);
-      ctx.stroke();
-    }
+    clawSmear(ctx, x + s * spread, y + armY, s, '#f5f2e8');
   }
   // Hair: dark mass over the head, strands falling past the shoulders.
+  // v2.22: the hair trails 1 frame behind the body (lag) and LIFTS in
+  // the windup (the anticipation reads in the hair first), then
+  // settles through the recovery.
+  const hairX = x + lag.x * 0.7;
+  const hairY = y - 7 - 3 * windupP + lag.y * 0.7;
   ctx.fillStyle = '#14100c';
   ctx.beginPath();
-  ctx.ellipse(x, y - 7, 8.5, 10, 0, 0, Math.PI * 2);
+  ctx.ellipse(hairX, hairY, 8.5, 10, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.ellipse(x - 7, y + 1, 3, 9, 0.15, 0, Math.PI * 2);
-  ctx.ellipse(x + 7, y + 1, 3, 9, -0.15, 0, Math.PI * 2);
+  ctx.ellipse(hairX - 7, y + 1 + lag.y * 0.7, 3, 9, 0.15, 0, Math.PI * 2);
+  ctx.ellipse(hairX + 7, y + 1 + lag.y * 0.7, 3, 9, -0.15, 0, Math.PI * 2);
   ctx.fill();
   // v2.19 — whipping hair: two long strands lashing outward, swinging
   // with time so the hair reads as alive (the folklore power, not a wig).
   const whip = Math.sin(time * 3 + e.wobble) * 0.25;
   for (const s of [-1, 1]) {
     ctx.save();
-    ctx.translate(x + s * 8, y - 4);
-    ctx.rotate(s * (0.55 + whip));
+    ctx.translate(hairX + s * 8, hairY + 3);
+    ctx.rotate(s * (0.55 + whip + 0.35 * windupP));
     ctx.fillStyle = '#14100c';
     ctx.beginPath();
     ctx.ellipse(0, 8, 2.2, 13, 0, 0, Math.PI * 2);
@@ -738,54 +804,110 @@ function drawKuntilanak(ctx, e, time) {
 // Tuyul: small bald child, greenish skin, big eyes, quick bob.
 function drawTuyul(ctx, e, time) {
   const { x } = e;
-  const y = e.y + Math.sin(time * 6 + e.wobble) * 1.5;
+  const ph = e.atkPhase || 'none';
+  const p = jurusP(e);
+  // v2.22 (JURUS): dash in with a smear -> snatch the coins -> dash
+  // out. Windup — it CROUCHES (the anticipation); strike — it DASHES
+  // at the tower (an extra lunge on top of the shared one) with two
+  // fading afterimages trailing behind it; recovery — it slips back.
+  const tgt = e.atkTower || e.targetTower || GATE_POS;
+  const ddx = tgt.x - e.x, ddy = tgt.y - e.y;
+  const dd = Math.hypot(ddx, ddy) || 1;
+  const ux = ddx / dd, uy = ddy / dd;
+  const dash = ph === 'strike' ? 8 * p : ph === 'recovery' ? 8 * (1 - p) : 0;
+  if (ph === 'strike') {
+    // Afterimages: the dash trail — two fading copies of the body
+    // behind the dash, so the snatch reads as one fast motion.
+    for (const [a, f] of [[0.30, 1.0], [0.15, 0.5]]) {
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.fillStyle = '#a5d96a';
+      ctx.beginPath();
+      ctx.arc(x - ux * 8 * f, e.y + Math.sin(time * 6 + e.wobble) * 1.5 - 3, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#5d6b3a';
+      ctx.beginPath();
+      ctx.ellipse(x - ux * 8 * f, e.y + Math.sin(time * 6 + e.wobble) * 1.5 + 6, 5.5, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+  let sqX = 1, sqY = 1;
+  if (ph === 'windup') { sqY = 1 - 0.15 * p; sqX = 1 + 0.10 * p; }
+  else if (ph === 'recovery') { sqY = 0.85 + 0.15 * p; sqX = 1.10 - 0.10 * p; }
+  const y = e.y + Math.sin(time * 6 + e.wobble) * 1.5 + uy * dash;
+  const dx = x + ux * dash;
+  ctx.save();
+  ctx.translate(dx, y + 6);
+  ctx.scale(sqX, sqY);
+  ctx.translate(-dx, -(y + 6));
   // Body: tiny dark sarong.
   ctx.fillStyle = '#5d6b3a';
   ctx.beginPath();
-  ctx.ellipse(x, y + 6, 5.5, 5, 0, 0, Math.PI * 2);
+  ctx.ellipse(dx, y + 6, 5.5, 5, 0, 0, Math.PI * 2);
   ctx.fill();
   // Head: bald, greenish — saturated now, so a Tuyul never reads as a
   // pale Pocong at a glance.
   ctx.fillStyle = '#a5d96a';
   ctx.beginPath();
-  ctx.arc(x, y - 3, 7, 0, Math.PI * 2);
+  ctx.arc(dx, y - 3, 7, 0, Math.PI * 2);
   ctx.fill();
   // Ears.
   ctx.beginPath();
-  ctx.arc(x - 7, y - 3, 2, 0, Math.PI * 2);
-  ctx.arc(x + 7, y - 3, 2, 0, Math.PI * 2);
+  ctx.arc(dx - 7, y - 3, 2, 0, Math.PI * 2);
+  ctx.arc(dx + 7, y - 3, 2, 0, Math.PI * 2);
   ctx.fill();
   // Big eyes + small mouth (v2.19: glowing yellow-green, mischievous).
   ctx.save();
   ctx.shadowColor = '#c8ff5a';
   ctx.shadowBlur = 6;
-  eyes(ctx, x, y - 4, 2.8, 0, 1.8, '#fff3a8');
+  eyes(ctx, dx, y - 4, 2.8, 0, 1.8, '#fff3a8');
   ctx.restore();
-  eyes(ctx, x, y - 4, 2.8, 0, 0.9, '#0b1020');
+  eyes(ctx, dx, y - 4, 2.8, 0, 0.9, '#0b1020');
   ctx.fillStyle = '#0b1020';
   ctx.beginPath();
-  ctx.arc(x, y + 1, 1.6, 0, Math.PI);
+  ctx.arc(dx, y + 1, 1.6, 0, Math.PI);
   ctx.fill();
+  ctx.restore(); // v2.22: end the jurus squash transform
 }
 
 // Pocong: white shroud with ties, dark face slit, hops.
 function drawPocong(ctx, e, time) {
   const { x } = e;
+  const ph = e.atkPhase || 'none';
+  const p = jurusP(e);
+  const lag = jurusLag(e);
+  // v2.22 (JURUS): windup — the shroud CROUCHES (squash, the body
+  // coils down); strike — a HOP-SLAM (the body jumps, then slams down
+  // with a squash on landing); recovery — it rises back upright. The
+  // torn hem trails 1 frame behind the body.
+  let sqX = 1, sqY = 1, slamY = 0;
+  if (ph === 'windup') { sqY = 1 - 0.20 * p; sqX = 1 + 0.12 * p; }
+  else if (ph === 'strike') {
+    slamY = -14 * Math.sin(p * Math.PI);
+    sqY = 1 - 0.28 * p;
+    sqX = 1 + 0.25 * p;
+  } else if (ph === 'recovery') { sqY = 0.72 + 0.28 * p; sqX = 1.25 - 0.25 * p; }
   const hop = -Math.abs(Math.sin(time * 5 + e.wobble)) * 7;
-  const y = e.y + hop;
+  const y = e.y + hop + slamY;
+  const hemLag = lag.y * 0.5;
+  ctx.save();
+  ctx.translate(x, y + 14);
+  ctx.scale(sqX, sqY);
+  ctx.translate(-x, -(y + 14));
   // Shroud: rounded top, slightly tapered, TORN jagged bottom (v2.19 —
   // the shroud is ripped, not a clean sheet).
   ctx.fillStyle = '#f5f2e8';
   ctx.beginPath();
-  ctx.moveTo(x - 10, y + 14);
+  ctx.moveTo(x - 10, y + 14 + hemLag);
   ctx.lineTo(x - 11, y - 8);
   ctx.quadraticCurveTo(x - 11, y - 16, x, y - 16);
   ctx.quadraticCurveTo(x + 11, y - 16, x + 11, y - 8);
-  ctx.lineTo(x + 10, y + 14);
-  ctx.lineTo(x + 6, y + 18);
-  ctx.lineTo(x + 2, y + 13);
-  ctx.lineTo(x - 2, y + 18);
-  ctx.lineTo(x - 6, y + 13);
+  ctx.lineTo(x + 10, y + 14 + hemLag);
+  ctx.lineTo(x + 6, y + 18 + hemLag);
+  ctx.lineTo(x + 2, y + 13 + hemLag);
+  ctx.lineTo(x - 2, y + 18 + hemLag);
+  ctx.lineTo(x - 6, y + 13 + hemLag);
   ctx.closePath();
   ctx.fill();
   // Dark outline: the shroud's edge against the white field and the white
@@ -821,11 +943,28 @@ function drawPocong(ctx, e, time) {
   ctx.arc(x + 1.8, y - 10, 1.3, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
+  ctx.restore(); // v2.22: end the jurus squash transform
 }
 
 // Genderuwo: bulky dark hairy body, shaggy outline, red eyes.
 function drawGenderuwo(ctx, e, time) {
   const { x, y } = e;
+  const ph = e.atkPhase || 'none';
+  const p = jurusP(e);
+  const lag = jurusLag(e);
+  // v2.22 (JURUS): windup — the body LEANS BACK (away from the tower)
+  // and the eyes BURN brighter (the telegraph); strike — a DOUBLE
+  // CLAW swipe with a smear; recovery — it settles back upright. The
+  // shaggy fur trails 1 frame behind the body.
+  const tgt = e.atkTower || e.targetTower;
+  const dirSign = (tgt ? Math.sign(tgt.x - e.x) : 1) || 1;
+  const leanBack = ph === 'windup' ? -0.12 * p * dirSign : ph === 'strike' ? -0.12 * dirSign + 0.12 * p * dirSign : 0;
+  const eyeGlow = ph === 'windup' ? 8 + 12 * p : ph === 'strike' ? 20 : ph === 'recovery' ? 20 - 12 * p : 8;
+  const eyeR = ph === 'windup' ? 4 + 1 * p : ph === 'strike' ? 5 : 4;
+  ctx.save();
+  ctx.translate(x, y + 16);
+  ctx.rotate(leanBack);
+  ctx.translate(-x, -(y + 16));
   // Shaggy fur: spiky dark outline behind the body.
   ctx.fillStyle = '#2e2620';
   ctx.beginPath();
@@ -833,8 +972,8 @@ function drawGenderuwo(ctx, e, time) {
   for (let i = 0; i <= spikes; i++) {
     const a = (i / spikes) * Math.PI * 2 - Math.PI / 2;
     const rOut = 19 + (i % 2 === 0 ? 4 : 0);
-    const px = x + Math.cos(a) * rOut;
-    const py = y + 1 + Math.sin(a) * rOut * 0.95;
+    const px = x + Math.cos(a) * rOut + lag.x * 0.3;
+    const py = y + 1 + Math.sin(a) * rOut * 0.95 + lag.y * 0.3;
     if (i === 0) ctx.moveTo(px, py);
     else ctx.lineTo(px, py);
   }
@@ -848,21 +987,47 @@ function drawGenderuwo(ctx, e, time) {
   ctx.beginPath();
   ctx.ellipse(x, y + 1, 14, 16, 0, 0, Math.PI * 2);
   ctx.fill();
-  // Long arms hanging down, ending in claws (v2.19).
+  // Long arms hanging down, ending in claws (v2.19). v2.22: in the
+  // strike they sweep UP and forward in a double claw (with a smear:
+  // the arms ghosted at the hanging and mid-sweep positions); in the
+  // windup they rise slightly as the body leans back.
+  const handY = ph === 'windup' ? 14 - 6 * p : ph === 'strike' ? 14 - 20 * p : ph === 'recovery' ? -6 + 20 * p : 14;
+  const handX = ph === 'strike' ? 16 - 6 * p : ph === 'recovery' ? 10 + 6 * p : 16;
+  if (ph === 'strike') {
+    ctx.save();
+    ctx.globalAlpha = 0.30;
+    ctx.strokeStyle = '#3a3129';
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x - 13, y - 4);
+    ctx.lineTo(x - 16, y + 14);
+    ctx.moveTo(x + 13, y - 4);
+    ctx.lineTo(x + 16, y + 14);
+    ctx.stroke();
+    ctx.globalAlpha = 0.15;
+    ctx.beginPath();
+    ctx.moveTo(x - 13, y - 4);
+    ctx.lineTo(x - 13, y + 4);
+    ctx.moveTo(x + 13, y - 4);
+    ctx.lineTo(x + 13, y + 4);
+    ctx.stroke();
+    ctx.restore();
+  }
   ctx.strokeStyle = '#3a3129';
   ctx.lineWidth = 5;
   ctx.lineCap = 'round';
   ctx.beginPath();
   ctx.moveTo(x - 13, y - 4);
-  ctx.lineTo(x - 16, y + 14);
+  ctx.lineTo(x - handX, y + handY);
   ctx.moveTo(x + 13, y - 4);
-  ctx.lineTo(x + 16, y + 14);
+  ctx.lineTo(x + handX, y + handY);
   ctx.stroke();
   // Claw tips at each hand.
   ctx.strokeStyle = '#f5f2e8';
   ctx.lineWidth = 1.5;
   for (const s of [-1, 1]) {
-    const hx = x + s * 16, hy = y + 14;
+    const hx = x + s * handX, hy = y + handY;
     for (const a of [-0.5, 0, 0.5]) {
       ctx.beginPath();
       ctx.moveTo(hx, hy);
@@ -883,13 +1048,16 @@ function drawGenderuwo(ctx, e, time) {
   ctx.closePath();
   ctx.fill();
   // Red glowing eyes + fanged mouth (v2.19: bigger, hotter glow).
+  // v2.22: the eyes BURN in the windup (the telegraph — the glow and
+  // the size grow with the windup progress) and stay hot through the
+  // strike, then settle in the recovery.
   ctx.save();
   ctx.shadowColor = '#ff2a1a';
-  ctx.shadowBlur = 8;
+  ctx.shadowBlur = eyeGlow;
   ctx.fillStyle = '#ff4a3d';
   ctx.beginPath();
-  ctx.arc(x - 5, y - 6, 4, 0, Math.PI * 2);
-  ctx.arc(x + 5, y - 6, 4, 0, Math.PI * 2);
+  ctx.arc(x - 5, y - 6, eyeR, 0, Math.PI * 2);
+  ctx.arc(x + 5, y - 6, eyeR, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
   eyes(ctx, x, y - 6, 5, 0, 1.3, '#1a0505');
@@ -902,6 +1070,7 @@ function drawGenderuwo(ctx, e, time) {
   ctx.lineTo(x + 3, y + 10);
   ctx.lineTo(x + 5, y + 6);
   ctx.fill();
+  ctx.restore(); // v2.22: end the lean-back transform
 }
 
 // Raja Buto Ijo: the SAME ogre silhouette as a Buto, but recoloured so it

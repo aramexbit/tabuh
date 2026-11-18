@@ -353,7 +353,7 @@ export function checkShot(game) {
     // shows the blast's aftermath, not an empty field. The normal bigOk
     // path below stays as the fallback if the blast never becomes ready.
     if (!game.shotSpectacleDone && game.wave >= 9 && game.gongRaksasaReady()
-      && game.enemies.length >= 8 && spread && centerFightCount(game) >= 3) {
+      && game.enemies.length >= 6 && spread && centerFightCount(game) >= 3) {
       game.triggerGongRaksasa();
       game.shotSpectacleAt = game.time;
       game.shotSpectacleDone = true;
@@ -396,6 +396,12 @@ export function checkShot(game) {
       // the bottom two died in wave 7 and nothing replaced them). L1
       // only, like the rest of this pose; buildTower returns null when
       // the pad is occupied or the coins run out.
+      // v2.21 (R2): patch the village gate between waves when it is
+      // chipped (<= 15) and the pose can afford it — the v2.21 big
+      // frame caught the gate at 7/20, which reads as "about to lose"
+      // no matter how busy the field is. Pose-only: the real game
+      // never auto-repairs.
+      if (game.gateHp <= 15 && game.coins >= 100) game.repairGate();
       for (const [type, pad] of [['gong', 5], ['saron', 7]]) {
         if (!game.towers.some((t) => t.padIndex === pad)) game.buildTower(type, pad);
       }

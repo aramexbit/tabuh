@@ -863,13 +863,20 @@ function drawRaja(ctx, e, time) {
   // v2.14 (reviewer #13, P0-1): rim-light — a bright gold arc along the
   // top edge of the body (local coords, radius 38) so the silhouette
   // reads against the dark backdrop disc, even at thumbnail size.
+  // v2.21 (reviewer #19, R1): the OLD arc (radius 38, 1.15π-1.85π) was
+  // itself the "golden ring across the crown" — at 133 px absolute it
+  // arced right through the crown (y 109-136) and the face's upper
+  // edge. Now a SHORT tight cap (radius 28, 1.38π-1.62π): it hugs the
+  // top of the head, 28 px below the crown and clear of the horns'
+  // inner edges, so the crown reads clean and the gold reads as rim
+  // light, not a ring.
   ctx.save();
   ctx.strokeStyle = 'rgba(255,215,106,0.85)';
   ctx.lineWidth = 1.5;
   ctx.shadowColor = '#ffd76a';
   ctx.shadowBlur = 6;
   ctx.beginPath();
-  ctx.arc(0, 0, 38, Math.PI * 1.15, Math.PI * 1.85);
+  ctx.arc(0, 0, 28, Math.PI * 1.38, Math.PI * 1.62);
   ctx.stroke();
   ctx.restore();
   ctx.restore();

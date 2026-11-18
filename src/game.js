@@ -211,6 +211,9 @@ export class Game {
     this.gongUsedWave = this.wave;
     this.flash = 1;
     this.shake = Math.max(this.shake, 0.8);
+    // v2.22 (JURUS): the blast lands with a hit-stop — the world
+    // flinches for a few frames as the shockwave goes out.
+    this.hitStop = Math.max(this.hitStop || 0, 0.1);
     this.audio.strike('gong');
     // Shockwaves from the village heart, lightning onto the field.
     this.effects.ring(640, 360, 700, '#f5c542', 1.4, 8);

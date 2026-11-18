@@ -425,6 +425,21 @@ export class UI {
     ctx.fillText(g.combo > 0 ? `Kombo ${g.combo}  •  x${g.comboMult().toFixed(2)}` : 'Kombo 0', bx + bw / 2, by + 84);
     // TABUH drum button (bigger now: the rhythm action is the centrepiece).
     const tx = 880, ty = H - 52;
+    // v2.22 (JURUS — Gong Raksasa, the player's jurus): the drum CHARGES
+    // as the combo builds — a gold ring grows and brightens from x1.0
+    // to x2.0, so the player sees the special move charging up. At x2.0
+    // the ready pulse takes over (below). Not shown once the blast is
+    // spent this wave (gongUsedWave) or outside a wave.
+    if (g.state === 'playing' && g.phase === 'wave' && g.gongUsedWave !== g.wave && !g.gongRaksasaReady()) {
+      const charge = Math.min(1, Math.max(0, g.comboMult() - 1));
+      if (charge > 0.05) {
+        ctx.strokeStyle = `rgba(255,215,106,${0.12 + 0.35 * charge})`;
+        ctx.lineWidth = 2 + 2 * charge;
+        ctx.beginPath();
+        ctx.arc(tx, ty, 58 + 8 * charge, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
     // Gong Raksasa ready: the drum glows gold and calls for G.
     if (g.gongRaksasaReady()) {
       const pulse = 0.6 + 0.4 * Math.sin(g.time * 6);

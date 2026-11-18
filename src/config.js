@@ -44,17 +44,17 @@ export const TOWERS = {
   },
   kendang: {
     name: 'Kendang', key: '2', cost: 70, dmg: 4, range: 120, beatsPerShot: 1,
-    color: '#c97b3d', desc: 'Denyut drum: melambatkan roh 40% selama 2 ketuk.',
+    color: '#c9402e', desc: 'Denyut drum: melambatkan roh 40% selama 2 ketuk.',
     slow: 0.4, slowBeats: 2, durability: 95,
   },
   bonang: {
     name: 'Bonang', key: '3', cost: 100, dmg: 14, range: 125, beatsPerShot: 1,
-    color: '#f0d060', desc: 'Kettle gong: damage area kecil di sekitar sasaran.',
+    color: '#e07830', desc: 'Kettle gong: damage area kecil di sekitar sasaran.',
     aoe: 55, durability: 110,
   },
   kenong: {
     name: 'Kenong', key: '4', cost: 150, dmg: 30, range: 205, beatsPerShot: 2,
-    color: '#d9a441', desc: 'Jangkauan jauh, damage besar, lambat.',
+    color: '#8a6fd9', desc: 'Jangkauan jauh, damage besar, lambat.',
     durability: 140,
   },
   gong: {

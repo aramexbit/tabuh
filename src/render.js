@@ -306,6 +306,22 @@ export function drawScene(ctx, game, time) {
   ctx.beginPath();
   ctx.arc(150, 90, 26, 0, Math.PI * 2);
   ctx.fill();
+  // v2.15 (reviewer #14, P0-4): moonbeam during the Purnama twist — a
+  // soft diagonal shaft of moonlight from the moon toward the village,
+  // filling the play frame's empty top-left sky with a focal light.
+  // (The rain already does this job for the Hujan twist; Purnama had
+  // only the pill + the moon disc.)
+  if (game.twist === 'purnama') {
+    ctx.save();
+    ctx.translate(150, 90);
+    ctx.rotate(0.6);
+    const mb = ctx.createLinearGradient(0, 0, 0, 520);
+    mb.addColorStop(0, 'rgba(220,230,255,0.14)');
+    mb.addColorStop(1, 'rgba(220,230,255,0)');
+    ctx.fillStyle = mb;
+    ctx.fillRect(-26, 0, 52, 520);
+    ctx.restore();
+  }
   // Golden dusk clouds drifting over the village (like the mockup's sky).
   drawCloud(ctx, 620, 105, 1.15);
   drawCloud(ctx, 980, 78, 0.9);
@@ -479,9 +495,12 @@ export function drawScene(ctx, game, time) {
   ctx.fillRect(0, 0, W, H);
   // Vignette: darkened edges pull the eye to the village centre and give
   // the flat canvas a photographic depth the top-10 frames all have.
+  // v2.15 (reviewer #14, P0-4): strengthened 0.45 -> 0.55 — the play
+  // frame's empty corners (top-left sky, bottom-left houses) read as
+  // dead space; a stronger vignette focuses the eye on the battle.
   const vg = ctx.createRadialGradient(W / 2, H / 2, 300, W / 2, H / 2, 780);
   vg.addColorStop(0, 'rgba(4,8,16,0)');
-  vg.addColorStop(1, 'rgba(4,8,16,0.45)');
+  vg.addColorStop(1, 'rgba(4,8,16,0.55)');
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, W, H);
 }

@@ -16,9 +16,13 @@ function rr(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-// Thousands separator with dots (Indonesian style): 61250 -> "61.250".
+// Thousands separator with COMMAS (international style): 61250 ->
+// "61,250". v2.15 (reviewer #14, P0-2): the Indonesian dots ("87.786")
+// read as a DECIMAL ("87 comma") to an international judge; the
+// top-10 all show 22,523 / 63,083. The score is the only large number
+// fmtNum formats (coins stay under 10k in practice), so this is safe.
 function fmtNum(n) {
-  return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
 export class UI {
@@ -219,10 +223,17 @@ export class UI {
     ctx.fillStyle = '#ffd76a';
     ctx.font = 'bold 19px sans-serif';
     ctx.fillText(`◆ ${g.coins}`, 335, 24);
-    // Score: big gold number beside the coins, always visible.
+    // Score: big gold number TOP-RIGHT, always visible. v2.15 (reviewer
+    // #14, P0-2): the score sat mid-bar at 20 px and read small; the
+    // top-10 all put a big score top-right (22,523 / 63,083). Now 24 px
+    // bold, right-aligned to x=1100 (mute starts at 1120). BEST is NOT
+    // shown — there is no persistent best-score store, and in a fresh
+    // screenshot session it would read 0.
     ctx.fillStyle = '#ffd76a';
-    ctx.font = 'bold 20px sans-serif';
-    ctx.fillText(`SKOR ${fmtNum(g.score)}`, 440, 24);
+    ctx.font = 'bold 24px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(`SKOR ${fmtNum(g.score)}`, 1100, 24);
+    ctx.textAlign = 'left';
     // Gate HP.
     ctx.fillStyle = '#cfe8dd';
     ctx.font = '16px sans-serif';

@@ -91,6 +91,30 @@ export class Effects {
   }
 
   text(x, y, str, color = '#ffd76a', size = 16) {
+    // v2.15 (reviewer #14, P0-5): AGGREGATE coin pops — "+14 ◆" "+8 ◆"
+    // "+5 ◆" "+3 ◆" in one blast read as clutter. A new coin pop that
+    // lands near a live one merges into it (numbers summed, life reset),
+    // so a multi-kill shows ONE "+27 ◆" instead of four. Runs before the
+    // caps so a merge never consumes a slot.
+    const coinM = /^\+(\d+) ◆$/.exec(str);
+    if (coinM) {
+      const near = this.texts.find((t) => {
+        const m = /^\+(\d+) ◆$/.exec(t.str);
+        return m && Math.hypot(t.x - x, t.y - y) < 70;
+      });
+      if (near) {
+        const total = parseInt(coinM[1], 10) + parseInt(/^\+(\d+) ◆$/.exec(near.str)[1], 10);
+        near.str = `+${total} ◆`;
+        near.life = 1.0;
+        if (this.ctx) {
+          this.ctx.font = `bold ${near.size}px sans-serif`;
+          near.estW = this.ctx.measureText(near.str).width;
+        } else {
+          near.estW = near.str.length * near.size * 0.6;
+        }
+        return;
+      }
+    }
     // Cap the pile-up: at most 4 SMALL texts live at once. A Gong Raksasa
     // blast used to spawn a dozen numbers that stacked into the unreadable
     // blob in the v2.3 boss frame — the top-10 frames keep their numbers
@@ -226,10 +250,13 @@ export class Effects {
     // v2.9 (R3): keep the ctx so text() can measure real glyph widths.
     this.ctx = ctx;
     // Light pools first (under the rings), then the beams.
+    // v2.15 (reviewer #14, P0-1): the centre glow was too strong — the
+    // gold pool + rings washed out the boss's face in frame 1. Pool
+    // 0.65 -> 0.45.
     for (const gl of this.glows) {
       const a = Math.max(0, gl.life / (gl.maxLife || 0.9));
       const gg = ctx.createRadialGradient(gl.x, gl.y, 4, gl.x, gl.y, gl.r);
-      gg.addColorStop(0, `rgba(255,220,130,${0.65 * a})`);
+      gg.addColorStop(0, `rgba(255,220,130,${0.45 * a})`);
       gg.addColorStop(1, 'rgba(255,220,130,0)');
       ctx.fillStyle = gg;
       ctx.beginPath();
@@ -259,7 +286,9 @@ export class Effects {
     for (const r of this.rings) {
       const a = Math.max(0, r.life * 1.6);
       // Soft glow fill under the ring so it reads as light, not just a line.
-      ctx.globalAlpha = a * 0.10;
+      // v2.15 (P0-1): fill 0.10 -> 0.06 — the concentric rings were part
+      // of the wash covering the boss's face.
+      ctx.globalAlpha = a * 0.06;
       ctx.fillStyle = r.color;
       ctx.beginPath();
       ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2);

@@ -268,6 +268,17 @@ export function drawTower(ctx, tower, time) {
   ctx.scale(S, S);
   ctx.translate(-x, -y);
   drawPad(ctx, x, y);
+  // v2.15 (reviewer #14, P0-3): a COLOURED ground ring per instrument
+  // (the type colour) so each tower reads at a glance even at thumbnail
+  // size — the bronze instruments alone all read as "gold disc". The
+  // ring sits on the pad, under the instrument.
+  ctx.strokeStyle = def.color;
+  ctx.globalAlpha = 0.75;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.ellipse(x, y + 2, 34, 13, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
   // Warm glow under every tower so the instruments read as lit bronze
   // against the dark field; the gong gets the widest, brightest halo.
   const glowR = tower.type === 'gong' ? 74 : 46;

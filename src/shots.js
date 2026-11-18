@@ -29,6 +29,14 @@ function centerFightCount(game) {
   return game.enemies.filter((e) => e.inRange && e.x >= 448 && e.x <= 832).length;
 }
 
+// v2.21 (reviewer #19, R4): is a LOWER-half tower already scarred by
+// claw marks (>= 2 scars)? The play frame must show a fight that has
+// BEEN going on down low, not ghosts that just arrived there — scars
+// are the permanent proof of it (v2.20 R1).
+function bottomScars(game) {
+  return game.towers.some((t) => t.y > 360 && t.scars && t.scars.length >= 2);
+}
+
 // v2.10 (reviewer #9, R2): how many live spirits are in the DEEP bottom
 // third (y > 480 — attacking the saron@7 pad or walking to the gate)?
 // lowerHalf (y>360) alone still left the bottom strip empty: the gong@5
@@ -268,9 +276,17 @@ export function checkShot(game) {
     // condition never held 1 s) and the wave-6 pose in v2.9; v2.9 proved
     // the no-hold play pose fires and captures a good frame (the capture
     // is ~300 ms after the trigger, before the qualifying ghosts die).
-    const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 10 && game.stats.kills >= 12;
+    // v2.21 (reviewer #19, R4): DENSER + SPREAD BELOW — the v2.20 play
+    // frame still read thin in the lower half. Now: >= 12 ghosts alive
+    // (was 10), >= 2 fighting a bottom tower (was 1), >= 1 in the deep
+    // bottom third, AND a bottom tower already scarred (>= 2 claw
+    // marks) — proof the lower-half fight has been going on, not just
+    // arrived. The fallback keeps a bottom-fight requirement too, so
+    // even the backstop frame shows a fight down low.
+    const afterBanner = game.spawner.t >= 6.8 && game.enemies.length >= 12 && game.stats.kills >= 12;
     const playSpread = lowerHalfCount(game) >= 2;
-    const playOk = (afterBanner && playSpread && bottomFight && attackVisible(game)) || (fallback && game.enemies.length >= 10);
+    const playOk = (afterBanner && playSpread && bottomAttackCount(game) >= 2 && deepCount(game) >= 1 && bottomScars(game) && attackVisible(game))
+      || (fallback && game.enemies.length >= 10 && bottomAttackCount(game) >= 1);
     // v2.12b: NO hold for play — the 1 s hold broke the wave-7 play pose
     // (31/32) and the wave-6 pose in v2.9; the no-hold pose fires the
     // moment the condition holds (v2.9 proved it captures a good frame).
@@ -327,6 +343,31 @@ export function checkShot(game) {
     const deep = deepCount(game) >= 2;
     const wide = game.enemies.filter((e) => e.x < 640).length >= 2;
     const deepOk = deep;
+    // v2.21 (reviewer #19, R3): the SPECTACLE — capture the big frame at
+    // the Gong Raksasa blast. The pose auto-tabuhs perfectly, so the
+    // combo reaches 14 and the blast is ready by mid-wave-9; when the
+    // field is busy, fire it and capture 0.3 s into the shockwave (the
+    // 700 px ring still expanding, beams bright, survivors stunned).
+    // Wave-9 blast damage is 190: wisik/bayang die, but the 5 Buto +
+    // the tankier Genderuwo survive and freeze mid-field — the frame
+    // shows the blast's aftermath, not an empty field. The normal bigOk
+    // path below stays as the fallback if the blast never becomes ready.
+    if (!game.shotSpectacleDone && game.wave >= 9 && game.gongRaksasaReady()
+      && game.enemies.length >= 8 && spread && centerFightCount(game) >= 3) {
+      game.triggerGongRaksasa();
+      game.shotSpectacleAt = game.time;
+      game.shotSpectacleDone = true;
+    }
+    if (game.shotSpectacleAt != null && game.phase === 'wave'
+      && game.time - game.shotSpectacleAt >= 0.3) {
+      game.shotReady = true;
+      return;
+    }
+    // v2.21 (reviewer #19, R2): no tower freshly destroyed — the strict
+    // branch waits for a moment at least 4 s after the last destroy, so
+    // no red refund pop or fresh rubble sits in the frame (the text
+    // itself is neutral gold now; this keeps the moment clean too).
+    const noRecentDestroy = game.time - (game.lastTowerDestroyTime ?? -99) > 4;
     // v2.15: grace 4 s -> 2 s. The 4 s grace made the pose FLAKY: the
     // field decays fast (en 22 -> 13 in 0.5 s after READY), so bigOk
     // rarely holds 4 s continuously — the v2.15 shots run never fired
@@ -339,7 +380,7 @@ export function checkShot(game) {
     // v2.18b). The big frame is the "peak battle" shot: it waits for
     // wave 9 (the auto-advance below carries it there if wave 8 clears
     // without firing).
-    const bigOk = (game.wave >= 9 && game.enemies.length >= 5 && spread && bottomFight && centre && gongReady && bottomAttackCount(game) >= 2 && deep && wide && attackVisible(game))
+    const bigOk = (game.wave >= 9 && game.enemies.length >= 5 && spread && bottomFight && centre && gongReady && bottomAttackCount(game) >= 2 && deep && wide && attackVisible(game) && noRecentDestroy)
       || (game.wave >= 9 && fallback && centreLoose);
     if (holdReady(game, bigOk) && (deepOk || graceExpired)) {
       game.shotReady = true;
@@ -412,6 +453,11 @@ export function checkShot(game) {
     const bossOk = (game.boss && game.enemies.length >= 6
       && game.combo >= 14 && game.boss.y > 180 && bossCentred && spread && bossHurt && faceClear && attackVisible(game))
       || (fallback && game.boss);
+    // v2.21 (reviewer #19, R5): the boss EVENT — while the capture
+    // condition holds, the spotlight falls on the boss (refreshed every
+    // update, so it stays on through the 1 s hold and at capture). The
+    // enrage moments trigger it in real play too (game.js).
+    if (bossOk) game.bossSpotlightUntil = game.time + 1.5;
     if (holdReady(game, bossOk)) {
       game.shotReady = true;
     }

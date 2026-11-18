@@ -642,8 +642,11 @@ export function drawEnemy(ctx, e, time, game) {
   // 7 px bar with dark border, staggered so neighbours don't align.
   // v2.23 (R1): none at all in the boss frame — not even the boss's own
   // sprite bar (it sat right under his crown, over the horns).
+  // v2.23 (R3): none during the big frame's blast either — the
+  // explosion is the only thing in the frame.
   const bossClean = game && game.shot === 'boss';
-  if (!bossClean && (e.hp < e.maxHp || e.type === 'raja')) {
+  const quiet = game && game.shotSpectacleQuiet;
+  if (!bossClean && !quiet && (e.hp < e.maxHp || e.type === 'raja')) {
     const w = vr * 2 + 8;
     const pct = Math.max(0, e.hp / e.maxHp);
     const hpY = e.y - vr - 14 - (e.id % 3) * 6;

@@ -124,6 +124,9 @@ export class Game {
     this.shotRoarPhase = null; // v2.23 (R1): which enrage phase the
     // roar extension is spending its 3 s budget on (null = no roar yet).
     this.shotRoarExtendUntil = 0;
+    this.shotSpectacleQuiet = false; // v2.23 (R3): set when the big
+    // frame's blast fires — damage numbers + HP bars off until 1.5 s
+    // after the blast, so the explosion is the only thing in the frame.
     this.shotReady = false;
     this.endless = false;
     this.boss = null;
@@ -219,9 +222,12 @@ export class Game {
     this.hitStop = Math.max(this.hitStop || 0, 0.1);
     this.audio.strike('gong');
     // Shockwaves from the village heart, lightning onto the field.
-    this.effects.ring(640, 360, 700, '#f5c542', 1.4, 8);
-    this.effects.ring(640, 360, 480, '#fff2b0', 1.1, 6);
-    this.effects.ring(640, 360, 300, '#ffd76a', 0.9, 5);
+    // v2.23 (reviewer #20, R3 + thumbnail test): BIGGER blast — one
+    // explosion filling the frame (900 px outer ring reaches the frame
+    // corners). Visual only: damage and stun are unchanged.
+    this.effects.ring(640, 360, 900, '#f5c542', 1.4, 8);
+    this.effects.ring(640, 360, 620, '#fff2b0', 1.1, 6);
+    this.effects.ring(640, 360, 420, '#ffd76a', 0.9, 5);
     const alive = this.enemies.filter((e) => e.hp > 0);
     for (let i = 0; i < Math.min(5, alive.length); i++) {
       const e = alive[Math.floor(Math.random() * alive.length)];
@@ -230,7 +236,7 @@ export class Game {
     }
     this.effects.bolt(640, 360);
     this.effects.beam(640, 360);
-    this.effects.glow(640, 360, 420);
+    this.effects.glow(640, 360, 520);
     // The blast text sits high (y=150) now: at y=300 it landed on the
     // boss's crown, and at y=208 it still grazed it. The banner skips
     // de-collision (effects.js) so it stays put, clear of the boss.
@@ -782,6 +788,11 @@ export class Game {
     this.enemies = this.enemies.filter((e) => e.hp > 0 && !e.reachedGate);
     this.updateBoss();
     this.effects.update(dt);
+    // v2.23 (R3): the spectacle quiet window ends 1.5 s after the blast
+    // — the capture fires at 0.3 s, so the frame is quiet and the game
+    // returns to normal right after.
+    if (this.shotSpectacleQuiet && this.shotSpectacleAt != null
+      && this.time - this.shotSpectacleAt > 1.5) this.shotSpectacleQuiet = false;
     this.shake = Math.max(0, this.shake - dt * 1.8);
     this.flash = Math.max(0, this.flash - dt * 2.4);
     if (this.gateHp <= 0) {
@@ -846,6 +857,19 @@ export class Game {
       }
       const sortedEnemies = [...this.enemies].sort((a, b) => a.y - b.y);
       for (const e of sortedEnemies) drawEnemy(ctx, e, this.time, this);
+      // v2.23 (R3): darken the field OUTSIDE the blast during the big
+      // frame's spectacle — the explosion is the one hero moment, so
+      // everything beyond it sinks into the dark. Drawn AFTER the
+      // enemies (they dim too, outside the blast) but BEFORE the
+      // effects, so the rings, beams and glows stay bright on top.
+      if (this.shot === 'big' && this.shotSpectacleAt != null && this.time - this.shotSpectacleAt < 1.0) {
+        const dg = ctx.createRadialGradient(640, 360, 240, 640, 360, 560);
+        dg.addColorStop(0, 'rgba(4,2,8,0)');
+        dg.addColorStop(0.6, 'rgba(4,2,8,0.35)');
+        dg.addColorStop(1, 'rgba(4,2,8,0.68)');
+        ctx.fillStyle = dg;
+        ctx.fillRect(0, 0, W, H);
+      }
       this.effects.draw(ctx, this);
       // v2.21 (reviewer #19, R5): BOSS SPOTLIGHT — during the boss event
       // (enrage, or the boss-pose capture) the surroundings darken and a

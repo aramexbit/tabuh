@@ -381,6 +381,9 @@ export function checkShot(game) {
       game.triggerGongRaksasa();
       game.shotSpectacleAt = game.time;
       game.shotSpectacleDone = true;
+      // v2.23 (R3): the quiet window — no damage numbers / HP bars
+      // while the blast is on screen (cleared 1.5 s later in update()).
+      game.shotSpectacleQuiet = true;
     }
     if (game.shotSpectacleAt != null && game.phase === 'wave'
       && game.time - game.shotSpectacleAt >= 0.3) {

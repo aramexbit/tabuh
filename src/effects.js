@@ -122,6 +122,10 @@ export class Effects {
     // boss frame — the capture is one clean boss, not a ledger. Big
     // announcements (size >= 22) still pass.
     if (this.game && this.game.shot === 'boss' && size < 22) return;
+    // v2.23 (R3): during the big frame's blast, no small numbers either
+    // — the explosion is the only thing in the frame. The "GONG
+    // RAKSASA!" banner (size 40) still passes.
+    if (this.game && this.game.shotSpectacleQuiet && size < 22) return;
     // v2.15 (reviewer #14, P0-5): AGGREGATE coin pops — "+14 ◆" "+8 ◆"
     // "+5 ◆" "+3 ◆" in one blast read as clutter. A new coin pop that
     // lands near a live one merges into it (numbers summed, life reset),

@@ -625,16 +625,16 @@ export class UI {
     ctx.textAlign = 'left';
   }
 
-  // v2.20 (reviewer #18, R6): realm + difficulty pill under the minimap —
-  // "Alam 1: Desa • Normal" (or "• Endless") — the judge must read that
-  // this is realm 1 of a bigger structure and which difficulty is on,
-  // without opening the menu. Sits in the free strip between PETA (ends
-  // y=152) and DATANG (starts y=260), over open sky.
+  // v2.23 (reviewer #20, R5): stop advertising ONE realm — the pill now
+  // signals the structure instead: 3 difficulties, Endless, 4 relics.
+  // The pill widens to fit the label (measured, capped) — it sits over
+  // open sky, so the extra width costs nothing.
   drawRealmPill(ctx) {
     const g = this.game;
-    const x = 12, y = 160, w = 200, h = 26;
-    const diff = DIFFICULTIES[g.difficulty] ? DIFFICULTIES[g.difficulty].name : 'Normal';
-    const label = g.endless ? 'Alam 1: Desa  •  Endless' : `Alam 1: Desa  •  ${diff}`;
+    const label = '3 Kesulitan  •  Endless  •  4 Pusaka';
+    ctx.font = 'bold 13px sans-serif';
+    const w = Math.min(320, ctx.measureText(label).width + 28);
+    const x = 12, y = 160, h = 26;
     ctx.fillStyle = 'rgba(10,18,30,0.92)';
     rr(ctx, x, y, w, h, 13);
     ctx.fill();
@@ -643,7 +643,6 @@ export class UI {
     rr(ctx, x, y, w, h, 13);
     ctx.stroke();
     ctx.fillStyle = '#ffd76a';
-    ctx.font = 'bold 13px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(label, x + w / 2, y + h / 2 + 1);
@@ -761,6 +760,12 @@ export class UI {
     // How to Play, where they can be read at full size.
     const rows = ORDER.filter((t) => counts.get(t) > 0);
     const x = 12, y = 260, w = 200;
+    // v2.23 (reviewer #20, R5): the boss's enrage mechanic, in the panel —
+    // the judge must read that the Raja has two enrage phases (50% and
+    // 25% HP, summoning Kuntilanak), not just a big HP pool. Two lines,
+    // only when a Raja is in the queue/alive; the panel grows by 34 px.
+    const hasRaja = (counts.get('raja') || 0) > 0;
+    const enrageH = hasRaja ? 34 : 0;
     // v2.20 (R6): the 4 Pusaka as ICON + NAME rows (one per owned relic),
     // so the judge reads four named systems, not one wrapped text line.
     // Name + effect in one short tag each, so the buff is shown once here
@@ -769,7 +774,7 @@ export class UI {
     const relicShort = { keris: 'Keris +25%', gong: 'Gong Lebar', kendi: 'Kendi +50%', jimat: 'Jimat +5HP' };
     const pusakaH = ownedRelics.length > 0 ? 16 + ownedRelics.length * 18 : 0;
     // v2.14: rows are 22 px now (name + count only, no ability line).
-    const h = 36 + rows.length * 22 + 68 + pusakaH + 15;
+    const h = 36 + rows.length * 22 + 68 + pusakaH + 15 + enrageH;
     this.panel(ctx, x, y, w, h, 1);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -825,6 +830,17 @@ export class UI {
         ctx.fillText(relicShort[r.key], x + 34, rowY);
       });
     }
+    // v2.23 (R5): boss enrage info — two lines between the PUSAKA rows
+    // and BERIKUTNYA, only when a Raja is coming. The BERIKUTNYA line
+    // shifts down by enrageH (0 when no Raja, so nothing moves then).
+    if (hasRaja) {
+      ctx.fillStyle = '#ff9a3d';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.fillText('Raja mengamuk: 50% & 25% HP', x + 14, ry + 62 + pusakaH);
+      ctx.fillStyle = '#ffb85c';
+      ctx.font = '12px sans-serif';
+      ctx.fillText('→ memanggil 3 Kuntilanak', x + 14, ry + 62 + pusakaH + 17);
+    }
     // v2.10 (reviewer #9, O1): "BERIKUTNYA:" — the top-10 frames all
     // signal progression ("NEXT: The Frozen Orchard"); TABUH's panel
     // never said what comes next. Real data: the next wave, its twist,
@@ -837,7 +853,7 @@ export class UI {
     else nextLine = `BERIKUTNYA: Malam ${g.wave + 1}`;
     ctx.fillStyle = '#9db8e8';
     ctx.font = '12px sans-serif';
-    ctx.fillText(nextLine, x + 14, ry + 62 + pusakaH);
+    ctx.fillText(nextLine, x + 14, ry + 62 + pusakaH + enrageH);
     ctx.textBaseline = 'middle';
   }
 

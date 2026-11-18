@@ -456,22 +456,22 @@ export function drawEnemy(ctx, e, time) {
     ctx.arc(e.x, e.y, vr * 1.1, 0, Math.PI * 2);
     ctx.fill();
   }
-  // HP bar: ALWAYS visible now, thicker (7 px, was 5) with a dark border
-  // — the judge must read every spirit's health at a glance, not only
-  // the damaged ones. v2.13 (reviewer #12, P1-3): the bars were thin and
-  // stacked unreadably in a crowd (6+ overlapping in the big frame).
-  // Stagger by (id % 3) * 6 px so neighbouring bars no longer sit on the
-  // same line.
-  const w = vr * 2 + 8;
-  const pct = Math.max(0, e.hp / e.maxHp);
-  const hpY = e.y - vr - 14 - (e.id % 3) * 6;
-  ctx.fillStyle = 'rgba(0,0,0,0.75)';
-  ctx.fillRect(e.x - w / 2, hpY, w, 7);
-  ctx.fillStyle = pct > 0.5 ? '#7fe3a8' : pct > 0.25 ? '#ffd76a' : '#ff7a6a';
-  ctx.fillRect(e.x - w / 2, hpY, w * pct, 7);
-  ctx.strokeStyle = 'rgba(0,0,0,0.9)';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(e.x - w / 2, hpY, w, 7);
+  // HP bar: shown only when DAMAGED (or the boss) — v2.14 (reviewer #13,
+  // P1): always-on bars were clutter in a crowd (8+ overlapping in the
+  // big frame). A full-HP ghost needs no bar; a damaged one shows its
+  // 7 px bar with dark border, staggered so neighbours don't align.
+  if (e.hp < e.maxHp || e.type === 'raja') {
+    const w = vr * 2 + 8;
+    const pct = Math.max(0, e.hp / e.maxHp);
+    const hpY = e.y - vr - 14 - (e.id % 3) * 6;
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(e.x - w / 2, hpY, w, 7);
+    ctx.fillStyle = pct > 0.5 ? '#7fe3a8' : pct > 0.25 ? '#ffd76a' : '#ff7a6a';
+    ctx.fillRect(e.x - w / 2, hpY, w * pct, 7);
+    ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(e.x - w / 2, hpY, w, 7);
+  }
 }
 
 function eyes(ctx, x, y, dx, dy, r, color = '#0b1020') {
@@ -733,6 +733,18 @@ function drawRaja(ctx, e, time) {
   ctx.lineTo(6, 2);
   ctx.closePath();
   ctx.fill();
+  // v2.14 (reviewer #13, P0-1): rim-light — a bright gold arc along the
+  // top edge of the body (local coords, radius 38) so the silhouette
+  // reads against the dark backdrop disc, even at thumbnail size.
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,215,106,0.85)';
+  ctx.lineWidth = 1.5;
+  ctx.shadowColor = '#ffd76a';
+  ctx.shadowBlur = 6;
+  ctx.beginPath();
+  ctx.arc(0, 0, 38, Math.PI * 1.15, Math.PI * 1.85);
+  ctx.stroke();
+  ctx.restore();
   ctx.restore();
 }
 

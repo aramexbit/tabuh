@@ -239,16 +239,19 @@ export class Effects {
     for (const b of this.beams) {
       // Wide gold shaft (96 px) + a narrow white core, so the beam reads
       // as light even over a bright field — not just a faint wash.
+      // v2.14 (reviewer #13, P0-1): the beam was TOO bright — it covered
+      // the middle of the screen and washed out the boss in frame 1 and
+      // the battle in frame 2. Shaft 0.7 -> 0.45, core 0.55 -> 0.35.
       const a = Math.max(0, b.life / (b.maxLife || 1.4));
       const bg = ctx.createLinearGradient(b.x - 48, 0, b.x + 48, 0);
       bg.addColorStop(0, 'rgba(255,220,130,0)');
-      bg.addColorStop(0.5, `rgba(255,220,130,${0.7 * a})`);
+      bg.addColorStop(0.5, `rgba(255,220,130,${0.45 * a})`);
       bg.addColorStop(1, 'rgba(255,220,130,0)');
       ctx.fillStyle = bg;
       ctx.fillRect(b.x - 48, 0, 96, b.y);
       const core = ctx.createLinearGradient(b.x - 14, 0, b.x + 14, 0);
       core.addColorStop(0, 'rgba(255,255,255,0)');
-      core.addColorStop(0.5, `rgba(255,255,240,${0.55 * a})`);
+      core.addColorStop(0.5, `rgba(255,255,240,${0.35 * a})`);
       core.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.fillStyle = core;
       ctx.fillRect(b.x - 14, 0, 28, b.y);

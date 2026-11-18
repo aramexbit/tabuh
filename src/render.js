@@ -321,9 +321,12 @@ export function drawScene(ctx, game, time) {
   ctx.closePath();
   ctx.fill();
   // Ground: dark teal-green fields.
+  // v2.14 (reviewer #13, P1): darkened ~15% (#17352c -> #122b24,
+  // #0e241d -> #0a1c16) so the (brightened) path and the enemies stand
+  // out from the lawn instead of blending into it.
   const ground = ctx.createLinearGradient(0, 300, 0, H);
-  ground.addColorStop(0, '#17352c');
-  ground.addColorStop(1, '#0e241d');
+  ground.addColorStop(0, '#122b24');
+  ground.addColorStop(1, '#0a1c16');
   ctx.fillStyle = ground;
   ctx.fillRect(0, 300, W, H - 300);
   // Ground patches: soft dark/light blobs so the lawn has depth.

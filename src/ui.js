@@ -52,11 +52,15 @@ export class UI {
     this.hit = [];
     if (g.state === 'menu') this.drawMenu(ctx);
     else if (g.state === 'howto') this.drawHowto(ctx);
+    // v2.14 (reviewer #13, P2): on victory/defeat the HUD is NOT drawn —
+    // the end modal (drawEnd) already dims the whole screen and carries
+    // its own stats, so the top bar / DATANG / bottom bar / PERFECT!
+    // pill peeking out from behind it was clutter, not information.
+    else if (g.state === 'victory') this.drawEnd(ctx, true);
+    else if (g.state === 'defeat') this.drawEnd(ctx, false);
     else {
       this.drawHud(ctx);
       if (g.state === 'paused') this.drawPaused(ctx);
-      else if (g.state === 'victory') this.drawEnd(ctx, true);
-      else if (g.state === 'defeat') this.drawEnd(ctx, false);
       else if (g.selectedPad !== null || g.selectedTower) this.drawPadPanel(ctx);
     }
     this.drawBanner(ctx);
@@ -310,16 +314,22 @@ export class UI {
     // v2.9 frames the rhythm mechanic was invisible (a thin bar + tiny
     // hint text), so TABUH read as a plain tower defense. A judge must
     // get "this is a rhythm game" in 2 seconds.
-    const bx = 380, bw = 420, by = H - 94;
+    // v2.14 (reviewer #13, P0-3): the beat bar is WIDER (420 -> 450, the
+    // most the layout allows without moving the drum/wave buttons — 2x
+    // = 840 px does not fit) with a BRIGHTER hit zone (0.5/0.9 -> 0.7/
+    // 1.0) and a thicker marker (10 -> 12 px). The TABUH drum now PULSES
+    // with the beat (radius swells at the beat instant, ph=0) so the
+    // rhythm mechanic reads as the game's centrepiece, not an accessory.
+    const bx = 372, bw = 450, by = H - 94;
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
     rr(ctx, bx, by, bw, 48, 8);
     ctx.fill();
     // Hit zone — wider while the Gong Pusaka is owned (visible proof).
     const hz = g.relics.has('gong') ? 38 : 26;
     const hz2 = g.relics.has('gong') ? 15 : 10;
-    ctx.fillStyle = 'rgba(127,227,168,0.5)';
+    ctx.fillStyle = 'rgba(127,227,168,0.7)';
     ctx.fillRect(bx + bw / 2 - hz, by, hz * 2, 48);
-    ctx.fillStyle = 'rgba(127,227,168,0.9)';
+    ctx.fillStyle = 'rgba(127,227,168,1.0)';
     ctx.fillRect(bx + bw / 2 - hz2, by, hz2 * 2, 48);
     // Gold centre tick: the exact target, visible even in a still frame.
     ctx.fillStyle = '#ffd76a';
@@ -330,9 +340,9 @@ export class UI {
     const ph = g.beatPhase();
     const mx = bx + ((ph + 0.5) % 1) * bw;
     ctx.fillStyle = '#ffd76a';
-    ctx.fillRect(mx - 5, by - 4, 10, 56);
+    ctx.fillRect(mx - 6, by - 4, 12, 56);
     ctx.beginPath();
-    ctx.arc(mx, by - 4, 9, 0, Math.PI * 2);
+    ctx.arc(mx, by - 4, 10, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#cfe8dd';
     ctx.font = 'bold 14px sans-serif';
@@ -362,17 +372,21 @@ export class UI {
       ctx.fillText('GONG RAKSASA! (G)', tx, ty - 66);
     }
     const hov = Math.hypot(this.hover.x - tx, this.hover.y - ty) <= 54;
+    // v2.14 (P0-3): the drum PULSES with the beat — radius swells at the
+    // beat instant (ph=0, marker centred) so the rhythm action is felt,
+    // not just seen. ph is the beat phase from the beat bar above.
+    const beatR = 54 * (1 + 0.05 * Math.cos(ph * Math.PI * 2));
     const dg = ctx.createRadialGradient(tx - 12, ty - 14, 4, tx, ty, 58);
     dg.addColorStop(0, g.gongRaksasaReady() ? '#ffe9a8' : hov ? '#f0d060' : '#c97b3d');
     dg.addColorStop(1, '#7a4a1e');
     ctx.fillStyle = dg;
     ctx.beginPath();
-    ctx.arc(tx, ty, 54, 0, Math.PI * 2);
+    ctx.arc(tx, ty, beatR, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#ffd76a';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.arc(tx, ty, 54, 0, Math.PI * 2);
+    ctx.arc(tx, ty, beatR, 0, Math.PI * 2);
     ctx.stroke();
     ctx.fillStyle = '#ffe9a8';
     ctx.font = 'bold 17px sans-serif';
@@ -392,22 +406,33 @@ export class UI {
     if (g.lastVerdict && g.time - (g.lastVerdictTime || 0) < 1.0) {
       const va = Math.max(0, 1 - (g.time - g.lastVerdictTime));
       const vtext = g.lastVerdict === 'perfect' ? 'PERFECT!' : g.lastVerdict === 'good' ? 'Good' : 'Meleset';
-      const vcol = g.lastVerdict === 'perfect' ? '#7fe3a8' : g.lastVerdict === 'good' ? '#ffd76a' : '#ff7a6a';
-      // v2.11 (reviewer #10, R4-ulang): the verdict pill is BIGGER now
-      // (150x40, 24 px bold, gold border) — the rhythm signal must read
-      // from a thumbnail, not just when the frame is studied.
+      // v2.14 (reviewer #13, P0-2): PERFECT! was dark green on dark,
+      // transparent, faded — the palest element in every frame. Now
+      // WHITE (perfect) / bright gold (good) with a THICK black outline,
+      // bigger (180x48, 30 px), and a scale pop (1.18x -> 1.0x over
+      // 0.25 s) so the verdict punches on the beat.
+      const vcol = g.lastVerdict === 'perfect' ? '#ffffff' : g.lastVerdict === 'good' ? '#ffe9a8' : '#ff7a6a';
+      const pop = 1 + 0.18 * Math.max(0, 1 - (g.time - g.lastVerdictTime) / 0.25);
+      ctx.save();
       ctx.globalAlpha = va;
-      ctx.fillStyle = 'rgba(8,14,26,0.88)';
-      rr(ctx, 590 - 75, H - 130 - 20, 150, 40, 10);
+      ctx.translate(590, H - 130);
+      ctx.scale(pop, pop);
+      ctx.fillStyle = 'rgba(8,14,26,0.92)';
+      rr(ctx, -90, -24, 180, 48, 10);
       ctx.fill();
       ctx.strokeStyle = '#ffd76a';
-      ctx.lineWidth = 2;
-      rr(ctx, 590 - 75, H - 130 - 20, 150, 40, 10);
+      ctx.lineWidth = 3;
+      rr(ctx, -90, -24, 180, 48, 10);
       ctx.stroke();
-      ctx.fillStyle = vcol;
-      ctx.font = 'bold 24px sans-serif';
+      ctx.font = 'bold 30px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(vtext, 590, H - 130 + 8);
+      ctx.textBaseline = 'middle';
+      ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+      ctx.lineWidth = 5;
+      ctx.strokeText(vtext, 0, 2);
+      ctx.fillStyle = vcol;
+      ctx.fillText(vtext, 0, 2);
+      ctx.restore();
       ctx.globalAlpha = 1;
     }
     // Wave button.
@@ -558,12 +583,16 @@ export class UI {
     // and it was too small to read at thumbnail size. The bar moved
     // down (title y 64 -> 80, bar by 76 -> 94) to clear the new
     // WIN/LOSE strip (P0-2) under the top bar.
+    // v2.14 (reviewer #13, P0-1): title 24 px, moved down again (y 80 ->
+    // 86, bar by 94 -> 100) — the reviewer read the boss bar as
+    // colliding with the WIN/LOSE strip above it (2 px gap at thumbnail
+    // size reads as one block). Now 8 px clear.
     ctx.font = 'bold 24px Georgia, serif';
     ctx.strokeStyle = 'rgba(0,0,0,0.85)';
     ctx.lineWidth = 5;
-    ctx.strokeText(`RAJA BUTO IJO  •  ${phaseLabel}`, W / 2, 80);
-    ctx.fillText(`RAJA BUTO IJO  •  ${phaseLabel}`, W / 2, 80);
-    const bx = 430, bw = 420, by = 94, bh = 18;
+    ctx.strokeText(`RAJA BUTO IJO  •  ${phaseLabel}`, W / 2, 86);
+    ctx.fillText(`RAJA BUTO IJO  •  ${phaseLabel}`, W / 2, 86);
+    const bx = 430, bw = 420, by = 100, bh = 18;
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
     rr(ctx, bx - 3, by - 3, bw + 6, bh + 6, 9);
     ctx.fill();
@@ -612,20 +641,12 @@ export class UI {
         counts.set(grp.type, (counts.get(grp.type) || 0) + grp.count);
       }
     }
+    // v2.14 (reviewer #13, P1): the per-ghost ability descriptions
+    // ("Kafan: serang -75% 4 ketuk" at 11 px) are unreadable at
+    // thumbnail size and bloat the panel — DATANG is now name + count
+    // only (like the top-10 threat queues). The abilities still live in
+    // How to Play, where they can be read at full size.
     const rows = ORDER.filter((t) => counts.get(t) > 0);
-    const GHOST_POWER = {
-      wisik: 'Tawa: setrum menara 1 ketuk',
-      kunang: 'Mencuri 3 koin',
-      bayang: 'Kafan: serang -75% 4 ketuk',
-      slira: 'Pukulan: -18 daya tahan',
-      raksasa: 'Hantaman: -30 daya tahan',
-      raja: 'Hantaman: -45 daya tahan',
-      // v2.9 (R2b): 'emas' was missing from ORDER, so a live Tuyul Emas
-      // counted in "Roh tersisa" (enemies.length) but never showed in
-      // DATANG — v2.8 frame 4 read 12+9+3=24 vs 25 remaining. The golden
-      // tuyul spawns at combo 10/20, so it is exactly the off-by-one.
-      emas: 'Bonus: +150 koin',
-    };
     const x = 12, y = 260, w = 200;
     // PUSAKA names as plain text (earned relics only), wrapped to the panel
     // width: the judge must read the relics BY NAME, not just see small
@@ -646,7 +667,8 @@ export class UI {
       }
       pusakaLines.push(cur);
     }
-    const h = 36 + rows.length * 30 + 68 + pusakaLines.length * 15 + (pusakaLines.length ? 9 : 0) + 15;
+    // v2.14: rows are 22 px now (name + count only, no ability line).
+    const h = 36 + rows.length * 22 + 68 + pusakaLines.length * 15 + (pusakaLines.length ? 9 : 0) + 15;
     this.panel(ctx, x, y, w, h, 1);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -674,10 +696,7 @@ export class UI {
       ctx.font = 'bold 15px sans-serif';
       ctx.fillText(String(counts.get(t)), x + w - 14, ry);
       ctx.textAlign = 'left';
-      ctx.fillStyle = '#9db8e8';
-      ctx.font = '11px sans-serif';
-      ctx.fillText(GHOST_POWER[t], x + 36, ry + 12);
-      ry += 30;
+      ry += 22;
     }
     // Wave progress bar.
     const prog = g.waveTotal > 0 && g.phase === 'wave'

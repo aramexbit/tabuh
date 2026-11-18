@@ -390,6 +390,13 @@ export function checkShot(game) {
       game.shotReady = true;
       return;
     }
+    // v2.23 (R3): once the blast fires, ONLY the spectacle capture can
+    // fire — the normal bigOk path used to win the race (its 1 s hold
+    // completing 0.06 s after the blast) and capture a frame where the
+    // rings had barely expanded and the flash was still at peak.
+    // Gated on phase==='wave' so the 120 s safety below can still
+    // fire if the wave somehow ends inside the 0.3 s window.
+    if (game.shotSpectacleAt != null && game.phase === 'wave') return;
     // v2.21 (reviewer #19, R2): no tower freshly destroyed — the strict
     // branch waits for a moment at least 4 s after the last destroy, so
     // no red refund pop or fresh rubble sits in the frame (the text

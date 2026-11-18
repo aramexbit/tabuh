@@ -593,7 +593,12 @@ export class Game {
         e.phase = 1;
         e.speed = e.baseSpeed * 1.5;
         e.roarUntil = this.time + 1.0;
-        this.effects.text(640, 160, 'Raja mengamuk!', '#ff9a3d', 26);
+        // v2.23 (R1): the announcement sits at y=230, not 160 — at 160
+        // it rises into the boss HP bar (y 100-118) by capture time
+        // (the 1 s hold + 0.3 s capture delay), colliding with the bar
+        // and the HP text. At 230 it is still below the bar at capture,
+        // and the boss-face exclusion keeps it off his face.
+        this.effects.text(640, 230, 'Raja mengamuk!', '#ff9a3d', 26);
         this.shake = Math.max(this.shake, 0.5);
         // v2.21 (R5): the enrage IS an event — the spotlight falls on
         // the boss for 3 s (drawn in draw()).
@@ -602,7 +607,7 @@ export class Game {
         e.phase = 2;
         e.speed = e.baseSpeed * 2.2;
         e.roarUntil = this.time + 1.0;
-        this.effects.text(640, 160, 'Raja murka!', '#ff4a3d', 26);
+        this.effects.text(640, 230, 'Raja murka!', '#ff4a3d', 26);
         this.shake = Math.max(this.shake, 0.6);
         this.bossSpotlightUntil = this.time + 3;
       }

@@ -147,8 +147,13 @@ function drawTuyulEmas(ctx, e, time) {
   ctx.arc(x - 7, y - 3, 2, 0, Math.PI * 2);
   ctx.arc(x + 7, y - 3, 2, 0, Math.PI * 2);
   ctx.fill();
-  // Big eyes + small mouth.
-  eyes(ctx, x, y - 4, 2.8, 0, 1.8);
+  // Big eyes + small mouth (v2.19: glowing yellow-green, mischievous).
+  ctx.save();
+  ctx.shadowColor = '#c8ff5a';
+  ctx.shadowBlur = 6;
+  eyes(ctx, x, y - 4, 2.8, 0, 1.8, '#fff3a8');
+  ctx.restore();
+  eyes(ctx, x, y - 4, 2.8, 0, 0.9, '#0b1020');
   ctx.fillStyle = '#0b1020';
   ctx.beginPath();
   ctx.arc(x, y + 1, 1.6, 0, Math.PI);
@@ -317,7 +322,11 @@ function ghostAttack(game, e) {
 // sprites were drawn at their hitbox radius; the Raja was only 1.5x a Buto
 // and sat in the top-right corner. Now every spirit is 25-30% bigger and
 // the Raja is a true centrepiece at 2.2x.
-const VISUAL_SCALE = { wisik: 1.25, kunang: 1.25, bayang: 1.25, slira: 1.25, raksasa: 1.45, raja: 3.2, emas: 1.3 };
+// v2.19 (multi-gate): every spirit grows ~1.6x more — the mockup's ghosts
+// are LARGE and menacing, not small blobs. The Raja only grows 3.2 -> 3.5:
+// he is already the centrepiece, and a bigger crown would collide with
+// the boss bar (crown top must stay below y=100 at his parking spot).
+const VISUAL_SCALE = { wisik: 2.0, kunang: 2.0, bayang: 2.0, slira: 2.0, raksasa: 2.3, raja: 3.5, emas: 2.1 };
 
 // Visual radius: the figure's real on-screen size (hitbox radius x the
 // per-type visual scale). Game code that places floating text above a
@@ -367,7 +376,7 @@ export function drawEnemy(ctx, e, time) {
   const auraColors = e.type === 'raja'
     ? ['#ffd76a', '#ff9a3d', '#ff4a3d']
     : [c, c + '88', 'rgba(0,0,0,0)'];
-  const auraR = e.type === 'raja' ? vr * 1.1 : vr * 2.2;
+  const auraR = e.type === 'raja' ? vr * 1.1 : vr * 1.8;
   const auraA = e.type === 'raja' ? 0.3 : 0.55;
   const g = ctx.createRadialGradient(e.x, e.y, 1, e.x, e.y, auraR);
   g.addColorStop(0, auraColors[0]);
@@ -398,30 +407,30 @@ export function drawEnemy(ctx, e, time) {
   else drawButo(ctx, e, time);
   ctx.restore();
   if (e.type === 'raja') {
-    // Gold crown, sized to the 3.2x body. v2.12 (R3): the horns reach
-    // -38 local -> -122 absolute, so the crown sits higher (base -115,
-    // top -140) — above the horn tips, not inside them. The crown top
-    // (y ~116 at the boss's parking spot) still clears the boss bar
-    // (ends y=94).
+    // Gold crown, sized to the 3.5x body. v2.12 (R3): the horns reach
+    // -38 local -> -133 absolute, so the crown sits higher (base -126,
+    // top -153) — above the horn tips, not inside them. The crown top
+    // (y ~103 at the boss's parking spot) still clears the boss bar
+    // (ends y=100) by 3 px. (v2.19: rescaled from 3.2x by 3.5/3.2.)
     ctx.save();
     ctx.shadowColor = '#ffd76a';
     ctx.shadowBlur = 14;
     ctx.fillStyle = '#ffd76a';
     ctx.beginPath();
-    ctx.moveTo(e.x - 30, e.y - 115);
-    ctx.lineTo(e.x - 30, e.y - 135);
-    ctx.lineTo(e.x - 15, e.y - 122);
-    ctx.lineTo(e.x, e.y - 140);
-    ctx.lineTo(e.x + 15, e.y - 122);
-    ctx.lineTo(e.x + 30, e.y - 135);
-    ctx.lineTo(e.x + 30, e.y - 115);
+    ctx.moveTo(e.x - 33, e.y - 126);
+    ctx.lineTo(e.x - 33, e.y - 148);
+    ctx.lineTo(e.x - 16, e.y - 133);
+    ctx.lineTo(e.x, e.y - 153);
+    ctx.lineTo(e.x + 16, e.y - 133);
+    ctx.lineTo(e.x + 33, e.y - 148);
+    ctx.lineTo(e.x + 33, e.y - 126);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
     ctx.fillStyle = '#ff4a3d';
-    for (const gx of [-15, 0, 15]) {
+    for (const gx of [-16, 0, 16]) {
       ctx.beginPath();
-      ctx.arc(e.x + gx, e.y - 128, 4, 0, Math.PI * 2);
+      ctx.arc(e.x + gx, e.y - 140, 4.5, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -500,7 +509,7 @@ function drawKuntilanak(ctx, e, time) {
   ctx.strokeStyle = 'rgba(90,110,90,0.8)';
   ctx.lineWidth = 1.5;
   ctx.stroke();
-  // Arms: thin pale lines reaching out.
+  // Arms: thin pale lines reaching out, ending in claws (v2.19).
   ctx.strokeStyle = '#e8ede6';
   ctx.lineWidth = 2.5;
   ctx.lineCap = 'round';
@@ -510,6 +519,18 @@ function drawKuntilanak(ctx, e, time) {
   ctx.moveTo(x + 6, y - 4);
   ctx.lineTo(x + 13, y + 2);
   ctx.stroke();
+  // Claw tips fanning out from each hand.
+  ctx.strokeStyle = '#f5f2e8';
+  ctx.lineWidth = 1.5;
+  for (const s of [-1, 1]) {
+    const hx = x + s * 13, hy = y + 2;
+    for (const a of [-0.5, 0, 0.5]) {
+      ctx.beginPath();
+      ctx.moveTo(hx, hy);
+      ctx.lineTo(hx + s * 5 + Math.sin(a) * 3, hy + Math.cos(a) * 4 - 2);
+      ctx.stroke();
+    }
+  }
   // Hair: dark mass over the head, strands falling past the shoulders.
   ctx.fillStyle = '#14100c';
   ctx.beginPath();
@@ -519,12 +540,31 @@ function drawKuntilanak(ctx, e, time) {
   ctx.ellipse(x - 7, y + 1, 3, 9, 0.15, 0, Math.PI * 2);
   ctx.ellipse(x + 7, y + 1, 3, 9, -0.15, 0, Math.PI * 2);
   ctx.fill();
+  // v2.19 — whipping hair: two long strands lashing outward, swinging
+  // with time so the hair reads as alive (the folklore power, not a wig).
+  const whip = Math.sin(time * 3 + e.wobble) * 0.25;
+  for (const s of [-1, 1]) {
+    ctx.save();
+    ctx.translate(x + s * 8, y - 4);
+    ctx.rotate(s * (0.55 + whip));
+    ctx.fillStyle = '#14100c';
+    ctx.beginPath();
+    ctx.ellipse(0, 8, 2.2, 13, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
   // Pale face peeking through the hair.
   ctx.fillStyle = '#f5e9d8';
   ctx.beginPath();
   ctx.ellipse(x, y - 6, 4.5, 6, 0, 0, Math.PI * 2);
   ctx.fill();
-  eyes(ctx, x, y - 7, 2, 0, 1.1);
+  // v2.19 — glowing red eyes (was plain dark).
+  ctx.save();
+  ctx.shadowColor = '#ff2a1a';
+  ctx.shadowBlur = 7;
+  eyes(ctx, x, y - 7, 2, 0, 1.4, '#ff4a3d');
+  ctx.restore();
+  eyes(ctx, x, y - 7, 2, 0, 0.7, '#1a0505');
 }
 
 // Tuyul: small bald child, greenish skin, big eyes, quick bob.
@@ -547,8 +587,13 @@ function drawTuyul(ctx, e, time) {
   ctx.arc(x - 7, y - 3, 2, 0, Math.PI * 2);
   ctx.arc(x + 7, y - 3, 2, 0, Math.PI * 2);
   ctx.fill();
-  // Big eyes + small mouth.
-  eyes(ctx, x, y - 4, 2.8, 0, 1.8);
+  // Big eyes + small mouth (v2.19: glowing yellow-green, mischievous).
+  ctx.save();
+  ctx.shadowColor = '#c8ff5a';
+  ctx.shadowBlur = 6;
+  eyes(ctx, x, y - 4, 2.8, 0, 1.8, '#fff3a8');
+  ctx.restore();
+  eyes(ctx, x, y - 4, 2.8, 0, 0.9, '#0b1020');
   ctx.fillStyle = '#0b1020';
   ctx.beginPath();
   ctx.arc(x, y + 1, 1.6, 0, Math.PI);
@@ -560,7 +605,8 @@ function drawPocong(ctx, e, time) {
   const { x } = e;
   const hop = -Math.abs(Math.sin(time * 5 + e.wobble)) * 7;
   const y = e.y + hop;
-  // Shroud: rounded top, slightly tapered, wavy bottom.
+  // Shroud: rounded top, slightly tapered, TORN jagged bottom (v2.19 —
+  // the shroud is ripped, not a clean sheet).
   ctx.fillStyle = '#f5f2e8';
   ctx.beginPath();
   ctx.moveTo(x - 10, y + 14);
@@ -568,8 +614,10 @@ function drawPocong(ctx, e, time) {
   ctx.quadraticCurveTo(x - 11, y - 16, x, y - 16);
   ctx.quadraticCurveTo(x + 11, y - 16, x + 11, y - 8);
   ctx.lineTo(x + 10, y + 14);
-  ctx.quadraticCurveTo(x + 5, y + 17, x, y + 14);
-  ctx.quadraticCurveTo(x - 5, y + 17, x - 10, y + 14);
+  ctx.lineTo(x + 6, y + 18);
+  ctx.lineTo(x + 2, y + 13);
+  ctx.lineTo(x - 2, y + 18);
+  ctx.lineTo(x - 6, y + 13);
   ctx.closePath();
   ctx.fill();
   // Dark outline: the shroud's edge against the white field and the white
@@ -591,16 +639,20 @@ function drawPocong(ctx, e, time) {
   ctx.moveTo(x - 10, y + 7);
   ctx.lineTo(x + 10, y + 7);
   ctx.stroke();
-  // Face: dark slit with two pale glowing eyes.
+  // Face: dark slit with two pale glowing eyes (v2.19: red-hot glow).
   ctx.fillStyle = '#1a1a1a';
   ctx.beginPath();
   ctx.ellipse(x, y - 9, 4.5, 6, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#ffe9a8';
+  ctx.save();
+  ctx.shadowColor = '#ff3b1a';
+  ctx.shadowBlur = 7;
+  ctx.fillStyle = '#ff5a3d';
   ctx.beginPath();
-  ctx.arc(x - 1.8, y - 10, 1, 0, Math.PI * 2);
-  ctx.arc(x + 1.8, y - 10, 1, 0, Math.PI * 2);
+  ctx.arc(x - 1.8, y - 10, 1.3, 0, Math.PI * 2);
+  ctx.arc(x + 1.8, y - 10, 1.3, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
 }
 
 // Genderuwo: bulky dark hairy body, shaggy outline, red eyes.
@@ -628,7 +680,7 @@ function drawGenderuwo(ctx, e, time) {
   ctx.beginPath();
   ctx.ellipse(x, y + 1, 14, 16, 0, 0, Math.PI * 2);
   ctx.fill();
-  // Long arms hanging down.
+  // Long arms hanging down, ending in claws (v2.19).
   ctx.strokeStyle = '#3a3129';
   ctx.lineWidth = 5;
   ctx.lineCap = 'round';
@@ -638,12 +690,40 @@ function drawGenderuwo(ctx, e, time) {
   ctx.moveTo(x + 13, y - 4);
   ctx.lineTo(x + 16, y + 14);
   ctx.stroke();
-  // Red glowing eyes + fanged mouth.
+  // Claw tips at each hand.
+  ctx.strokeStyle = '#f5f2e8';
+  ctx.lineWidth = 1.5;
+  for (const s of [-1, 1]) {
+    const hx = x + s * 16, hy = y + 14;
+    for (const a of [-0.5, 0, 0.5]) {
+      ctx.beginPath();
+      ctx.moveTo(hx, hy);
+      ctx.lineTo(hx + s * 4 + Math.sin(a) * 3, hy + Math.cos(a) * 4);
+      ctx.stroke();
+    }
+  }
+  // v2.19 — big curved horns (was hornless).
+  ctx.fillStyle = '#1a120c';
+  ctx.beginPath();
+  ctx.moveTo(x - 9, y - 14);
+  ctx.lineTo(x - 16, y - 28);
+  ctx.lineTo(x - 6, y - 18);
+  ctx.closePath();
+  ctx.moveTo(x + 9, y - 14);
+  ctx.lineTo(x + 16, y - 28);
+  ctx.lineTo(x + 6, y - 18);
+  ctx.closePath();
+  ctx.fill();
+  // Red glowing eyes + fanged mouth (v2.19: bigger, hotter glow).
+  ctx.save();
+  ctx.shadowColor = '#ff2a1a';
+  ctx.shadowBlur = 8;
   ctx.fillStyle = '#ff4a3d';
   ctx.beginPath();
-  ctx.arc(x - 5, y - 6, 3.2, 0, Math.PI * 2);
-  ctx.arc(x + 5, y - 6, 3.2, 0, Math.PI * 2);
+  ctx.arc(x - 5, y - 6, 4, 0, Math.PI * 2);
+  ctx.arc(x + 5, y - 6, 4, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
   eyes(ctx, x, y - 6, 5, 0, 1.3, '#1a0505');
   ctx.fillStyle = '#f5f2e8';
   ctx.beginPath();
@@ -756,16 +836,16 @@ function drawButo(ctx, e, time) {
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(breathe, breathe);
-  // Horns.
+  // Horns (v2.19: bigger — tips reach -38, like the Raja's).
   ctx.fillStyle = '#3a2a1a';
   ctx.beginPath();
   ctx.moveTo(-14, -18);
-  ctx.lineTo(-18, -30);
-  ctx.lineTo(-9, -21);
+  ctx.lineTo(-24, -38);
+  ctx.lineTo(-11, -24);
   ctx.closePath();
   ctx.moveTo(14, -18);
-  ctx.lineTo(18, -30);
-  ctx.lineTo(9, -21);
+  ctx.lineTo(24, -38);
+  ctx.lineTo(11, -24);
   ctx.closePath();
   ctx.fill();
   // Body: wide green bulk.
@@ -778,7 +858,7 @@ function drawButo(ctx, e, time) {
   ctx.beginPath();
   ctx.ellipse(0, 10, 13, 12, 0, 0, Math.PI * 2);
   ctx.fill();
-  // Thick arms.
+  // Thick arms, ending in heavy fists (v2.19).
   ctx.strokeStyle = '#5da244';
   ctx.lineWidth = 8;
   ctx.lineCap = 'round';
@@ -788,7 +868,12 @@ function drawButo(ctx, e, time) {
   ctx.moveTo(19, -6);
   ctx.lineTo(25, 10);
   ctx.stroke();
-  // Angry eyes under a heavy brow.
+  ctx.fillStyle = '#5da244';
+  ctx.beginPath();
+  ctx.arc(-25, 12, 7, 0, Math.PI * 2);
+  ctx.arc(25, 12, 7, 0, Math.PI * 2);
+  ctx.fill();
+  // Angry eyes under a heavy brow (v2.19: glowing amber, not plain white).
   ctx.strokeStyle = '#2e4d1e';
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -797,7 +882,11 @@ function drawButo(ctx, e, time) {
   ctx.moveTo(11, -14);
   ctx.lineTo(3, -11);
   ctx.stroke();
-  eyes(ctx, 0, -8, 6, 0, 2.2, '#f5f2e8');
+  ctx.save();
+  ctx.shadowColor = '#ff5a3d';
+  ctx.shadowBlur = 8;
+  eyes(ctx, 0, -8, 6, 0, 2.2, '#ffb03d');
+  ctx.restore();
   eyes(ctx, 0, -8, 6, 0, 1.1, '#0b1020');
   // Fangs pointing up from the mouth.
   ctx.fillStyle = '#f5f2e8';

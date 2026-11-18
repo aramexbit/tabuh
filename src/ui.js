@@ -2,7 +2,7 @@
 // so screenshots show exactly what the player sees). Buttons are hit-rects
 // rebuilt every draw; input.js asks this module whether a click landed on one.
 import { W, H, TOWERS, TOWER_ORDER, TOTAL_WAVES, RELICS, DIFFICULTIES, DIFF_KEYS, ENEMIES } from './config.js';
-import { PADS, PATH_POINTS, GATE } from './world.js';
+import { PADS, PATH_POINTS, GATE, GATES } from './world.js';
 import { waveDef } from './waves.js';
 import { towerStats, upgradeCost, sellValue } from './towers.js';
 
@@ -525,13 +525,15 @@ export class UI {
       else ctx.lineTo(mx(px), my(py));
     });
     ctx.stroke();
-    // Village gate (green square) + spirit gate (cyan dot).
+    // Village gate (green square) + three spawn gates (smoke-colour dots).
     ctx.fillStyle = '#7fe3a8';
     ctx.fillRect(mx(GATE.x) - 3, my(GATE.y) - 3, 6, 6);
-    ctx.fillStyle = '#7fe3e8';
-    ctx.beginPath();
-    ctx.arc(mx(PATH_POINTS[0][0]), my(PATH_POINTS[0][1]), 3.5, 0, Math.PI * 2);
-    ctx.fill();
+    for (const g of GATES) {
+      ctx.fillStyle = g.smoke;
+      ctx.beginPath();
+      ctx.arc(mx(g.x), my(g.y), 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
     // Towers (gold) + spirits (type colour; the Raja is a bigger red dot).
     for (const t of g.towers) {
       ctx.fillStyle = '#ffd76a';

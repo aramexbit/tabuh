@@ -2,7 +2,7 @@
 // rice terraces, the cobbled stone path, the spirit gate, the village gate,
 // empty build pads and drifting fireflies. All drawn in code — no image assets.
 import { W, H } from './config.js';
-import { PATH_POINTS, PADS, GATE, distanceToPath } from './world.js';
+import { PATH_POINTS, PADS, GATE, GATES, distanceToPath } from './world.js';
 import { makeRng } from './rng.js';
 
 const stars = [];
@@ -183,37 +183,82 @@ function drawPath(ctx) {
   }
 }
 
-function drawSpiritGate(ctx, time) {
-  const x = PATH_POINTS[0][0] - 18;
-  const y = PATH_POINTS[0][1] - 6;
+// v2.19 — a dark Javanese stone gapura (candi bentar, split gate): two
+// pillars with stepped pyramid roofs, skulls on the pillar faces, and
+// coloured smoke swirling in the gap between them. One per spawn gate
+// (GATES). Ghosts emerge from the gap, so the portal swirl stays inside
+// it. Adapted from the approved mockup's torii gates into Javanese form.
+function drawGapura(ctx, x, y, time, smoke) {
   const pulse = 0.6 + Math.sin(time * 2.2) * 0.25;
-  // Swirling portal.
-  const g = ctx.createRadialGradient(x, y, 4, x, y, 52);
-  g.addColorStop(0, `rgba(127,227,200,${0.75 * pulse})`);
-  g.addColorStop(0.5, `rgba(80,180,160,${0.4 * pulse})`);
-  g.addColorStop(1, 'rgba(40,90,90,0)');
-  ctx.fillStyle = g;
+  // Ground shadow.
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
   ctx.beginPath();
-  ctx.arc(x, y, 52, 0, Math.PI * 2);
+  ctx.ellipse(x, y + 42, 48, 10, 0, 0, Math.PI * 2);
   ctx.fill();
-  // Stone arch.
-  ctx.strokeStyle = '#2c3442';
-  ctx.lineWidth = 10;
+  // Smoke glow behind the gap.
+  ctx.globalAlpha = 0.35 * pulse;
+  ctx.fillStyle = smoke;
   ctx.beginPath();
-  ctx.arc(x, y + 26, 34, Math.PI, 0);
-  ctx.stroke();
-  ctx.fillStyle = '#2c3442';
-  ctx.fillRect(x - 40, y + 18, 10, 26);
-  ctx.fillRect(x + 30, y + 18, 10, 26);
-  // Inner swirl.
-  ctx.strokeStyle = `rgba(200,255,235,${0.8 * pulse})`;
+  ctx.arc(x, y, 55, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 0.5 * pulse;
+  ctx.beginPath();
+  ctx.arc(x, y, 32, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  // Dark opening (the doorway the ghosts walk out of).
+  ctx.fillStyle = '#0a0a12';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 8, 22, 30, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Portal swirl inside the opening.
+  ctx.strokeStyle = smoke;
+  ctx.globalAlpha = 0.9 * pulse;
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.arc(x, y, 16, time * 1.5, time * 1.5 + Math.PI * 1.4);
+  ctx.arc(x, y + 8, 14, time * 1.5, time * 1.5 + Math.PI * 1.4);
   ctx.stroke();
   ctx.beginPath();
-  ctx.arc(x, y, 8, -time * 2, -time * 2 + Math.PI);
+  ctx.arc(x, y + 8, 7, -time * 2, -time * 2 + Math.PI);
   ctx.stroke();
+  ctx.globalAlpha = 1;
+  // Two stone pillars (candi bentar — split gate).
+  for (const px of [x - 31, x + 31]) {
+    // Pillar body.
+    ctx.fillStyle = '#2e2e38';
+    ctx.fillRect(px - 7, y - 32, 14, 72);
+    // Pillar base (wider).
+    ctx.fillStyle = '#3d3d4a';
+    ctx.fillRect(px - 10, y + 32, 20, 8);
+    // Stepped pyramid roof on top (3 tiers).
+    ctx.fillStyle = '#2e2e38';
+    ctx.fillRect(px - 11, y - 38, 22, 6);
+    ctx.fillStyle = '#363642';
+    ctx.fillRect(px - 8, y - 44, 16, 6);
+    ctx.fillStyle = '#3d3d4a';
+    ctx.fillRect(px - 5, y - 50, 10, 6);
+    // Skull on the pillar face.
+    ctx.fillStyle = '#e8e4d8';
+    ctx.beginPath();
+    ctx.arc(px, y + 2, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#1a1a22';
+    ctx.beginPath();
+    ctx.arc(px - 2, y + 1, 1.4, 0, Math.PI * 2);
+    ctx.arc(px + 2, y + 1, 1.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Drifting smoke wisps above the gap.
+  ctx.globalAlpha = 0.35 * pulse;
+  ctx.fillStyle = smoke;
+  for (let i = 0; i < 3; i++) {
+    const wx = x - 10 + i * 10 + Math.sin(time * 1.3 + i * 2.1) * 5;
+    const wy = y - 42 - i * 6 - Math.sin(time * 0.9 + i) * 3;
+    ctx.beginPath();
+    ctx.arc(wx, wy, 5 + i, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
 }
 
 function drawVillageGate(ctx, time, hp, maxHp) {
@@ -430,7 +475,8 @@ export function drawScene(ctx, game, time) {
       ctx.fillText('Pilih instrumen', p.x, p.y - 22);
     }
   }
-  drawSpiritGate(ctx, time);
+  // v2.19 — three spawn gapura (one per gate).
+  for (const g of GATES) drawGapura(ctx, g.x, g.y, time, g.smoke);
   drawVillageGate(ctx, time, game.gateHp, game.gateMaxHp);
   // Fireflies (90 now — the night air is thick with them).
   for (const f of fireflies) {

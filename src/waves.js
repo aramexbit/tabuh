@@ -2,6 +2,7 @@
 // The spawner builds a sorted queue of spawn events when the wave starts and
 // ticks it down. A wave is cleared when every event fired and no enemy remains.
 import { WAVES } from './config.js';
+import { GATES } from './world.js';
 import { createEnemy } from './enemies.js';
 
 // Composition of a wave (campaign or endless), for the spawner and the
@@ -20,9 +21,15 @@ export class WaveSpawner {
   start(wave) {
     const def = waveDef(wave);
     this.queue = [];
+    // v2.19 — multi-gate spawn: ghosts split round-robin across the three
+    // gates, so all three are visibly active every wave. The boss (raja)
+    // always enters through gate 0 (top-right): the boss pose expects him
+    // in the centre band, and his parking geometry is tuned to that gate.
+    let gateSeq = 0;
     for (const g of def.groups) {
       for (let i = 0; i < g.count; i++) {
-        this.queue.push({ at: g.delay + i * g.interval, type: g.type });
+        const gate = g.type === 'raja' ? 0 : (gateSeq++ % GATES.length);
+        this.queue.push({ at: g.delay + i * g.interval, type: g.type, gate });
       }
     }
     this.queue.sort((a, b) => a.at - b.at);
@@ -38,9 +45,11 @@ export class WaveSpawner {
       const e = createEnemy(ev.type, this.game.wave, this.game.rng);
       // Bulan Purnama: ghosts have +30% HP.
       if (this.game.twist === 'purnama') e.hp = e.maxHp = Math.round(e.hp * 1.3);
-      const p = this.game.pathStart();
+      // v2.19 — spawn at the assigned gate (not always the top-right one).
+      const p = GATES[ev.gate] || GATES[0];
       e.x = p.x;
       e.y = p.y;
+      e.gate = ev.gate;
       this.game.enemies.push(e);
     }
     if (this.queue.length === 0) this.active = false;

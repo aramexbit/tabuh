@@ -7,6 +7,19 @@ export const PATH_POINTS = [
   [565, 415], [505, 555], [305, 595], [185, 640],
 ];
 
+// ---- Spawn gates (v2.19) ----
+// Three dark stone gapura on different field edges. Each wave's ghosts
+// split across all three, so no single kill-zone near one spawn holds the
+// whole pack back (the v2.18 problem the player named). Ghosts hunt the
+// nearest tower from their own entry gate, then head for the village gate
+// (GATE) once the towers are gone — the finish line stays SINGLE.
+// Gate 0 is the original spirit-gate position (top-right).
+export const GATES = [
+  { x: 1230, y: 100, smoke: '#7fe3e8' }, // top-right — teal smoke
+  { x: 280, y: 110, smoke: '#c78aff' },  // top-left — purple smoke
+  { x: 1160, y: 480, smoke: '#ff7a5c' }, // mid-right — red smoke
+];
+
 export const PADS = [
   { x: 1150, y: 195 },
   { x: 920, y: 138 },
